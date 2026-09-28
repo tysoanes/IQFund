@@ -1,0 +1,27 @@
+name: Update fund data
+
+on:
+  schedule:
+    - cron: "30 22 * * 1-5"   # 22:30 UTC on weekdays, after the US market close
+  workflow_dispatch:          # lets you run it by hand from the Actions tab
+
+permissions:
+  contents: write
+
+jobs:
+  update:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - run: pip install yfinance pandas
+      - run: python update_funds.py
+      - name: Commit funds.csv
+        run: |
+          git config user.name "fund-data-bot"
+          git config user.email "actions@users.noreply.github.com"
+          git add funds.csv
+          git diff --cached --quiet || git commit -m "Update fund data $(date -u +%F)"
+          git push

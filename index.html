@@ -1,0 +1,500 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Fundwise — ETF screener & bundle builder</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Archivo:wdth,wght@62..125,400..800&family=IBM+Plex+Sans:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+:root{
+  --paper:#EEF1F4; --panel:#FFFFFF; --ink:#14213D; --muted:#5B6781; --line:#D4DAE3;
+  --cobalt:#2F4FD8; --buy:#0F766E; --hold:#B7791F; --sell:#B42318;
+  --buy-bg:#DDF1EE; --hold-bg:#FBEFD9; --sell-bg:#FBE3E0;
+  --display:"Archivo",system-ui,sans-serif; --body:"IBM Plex Sans",system-ui,sans-serif;
+}
+*{box-sizing:border-box}
+body{margin:0;background:var(--paper);color:var(--ink);font:16px/1.55 var(--body);font-variant-numeric:tabular-nums}
+.wrap{max-width:1120px;margin:0 auto;padding:0 20px}
+header.top{display:flex;justify-content:space-between;align-items:baseline;padding:22px 0 8px}
+.brand{font:800 22px/1 var(--display);font-stretch:112%;letter-spacing:-.01em}
+.brand span{color:var(--cobalt)}
+.asof{font-size:13px;color:var(--muted);text-align:right}
+.asof select{font:600 14px var(--body);padding:4px 6px;border:1px solid var(--line);border-radius:6px;background:var(--panel);color:var(--ink)}
+.upload{display:inline-block;margin-top:6px;font:600 13px var(--body);color:var(--cobalt);text-decoration:underline;cursor:pointer}
+.upload:focus-within{outline:3px solid var(--cobalt)}
+#csvMsg{font-size:12px}
+.chips{display:flex;align-items:center;gap:6px;flex-wrap:wrap}
+.chips > span{font-size:13px;font-weight:600;color:var(--muted);margin-right:2px}
+.chip{font:600 14px var(--body);border:1px solid var(--line);background:var(--panel);color:var(--ink);padding:7px 12px;border-radius:99px;cursor:pointer}
+.chip[aria-pressed=true]{background:var(--ink);border-color:var(--ink);color:#fff}
+.chip[aria-pressed=true]::before{content:"✓ "}
+.clear{font:600 14px var(--body);background:none;border:0;color:var(--cobalt);cursor:pointer;text-decoration:underline;padding:7px 4px}
+.count{font-size:13px;color:var(--muted);margin:0 0 8px}
+:focus-visible{outline:3px solid var(--cobalt);outline-offset:2px}
+
+/* Builder hero: the sentence is the interface */
+.builder{padding:36px 0 28px}
+.sentence{font:700 clamp(28px,5.2vw,56px)/1.18 var(--display);font-stretch:88%;letter-spacing:-.015em;max-width:22ch;margin:0}
+.sentence .slot{display:inline-flex;align-items:baseline;border-bottom:4px solid var(--cobalt);color:var(--cobalt);padding:0 2px}
+.sentence input[type=text]{font:inherit;font-stretch:inherit;color:inherit;background:none;border:0;width:6.2ch;padding:0}
+.sentence input[type=text]:focus{outline:none}
+.sentence .slot:focus-within{background:#DFE5FB}
+.controls{display:grid;grid-template-columns:1fr 1fr;gap:28px;margin:30px 0 8px;max-width:760px}
+.ctl label{display:flex;justify-content:space-between;font-weight:600;font-size:15px}
+.ctl label b{font:700 15px var(--body);color:var(--cobalt)}
+.ctl .hint{font-size:13px;color:var(--muted);display:flex;justify-content:space-between}
+input[type=range]{width:100%;accent-color:var(--cobalt);height:32px;margin:4px 0 0}
+#riskSlider{accent-color:var(--ink)}
+.risk-track{height:6px;border-radius:3px;background:linear-gradient(90deg,#7FB7AE,#E2C27A,#D98A7E);margin-top:-2px}
+
+.result{display:grid;grid-template-columns:1.25fr 1fr;gap:24px;margin-top:28px}
+.alloc-bar{display:flex;height:56px;border-radius:6px;overflow:hidden;background:var(--line)}
+.alloc-bar div{transition:flex-grow .45s ease;display:flex;align-items:center;justify-content:center;color:#fff;font:700 13px var(--display);min-width:0;overflow:hidden;white-space:nowrap}
+.holdings{list-style:none;margin:14px 0 0;padding:0}
+.holdings li{display:grid;grid-template-columns:14px 64px 1fr auto;gap:10px;align-items:center;padding:9px 0;border-bottom:1px solid var(--line)}
+.holdings .sw{width:12px;height:12px;border-radius:3px}
+.holdings .tk{font:700 15px var(--display);font-stretch:105%}
+.holdings .nm{font-size:14px;color:var(--muted);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.holdings .amt{text-align:right;font-weight:600}
+.holdings .amt small{display:block;font-weight:400;color:var(--muted);font-size:12px}
+.outlook{background:var(--ink);color:#E6EAF2;border-radius:10px;padding:22px}
+.outlook h3{font:700 18px var(--display);margin:0 0 4px;color:#fff}
+.outlook p.sub{margin:0 0 16px;font-size:13px;color:#A9B3C7}
+.scen{display:grid;grid-template-columns:1fr auto;gap:4px 12px;padding:10px 0;border-top:1px solid #2C3A5A}
+.scen .v{font:700 20px var(--display);text-align:right}
+.scen .d{grid-column:1/-1;font-size:13px;color:#A9B3C7}
+.up{color:#7CD6C8}.down{color:#F2A197}
+.stats{display:flex;gap:18px;margin-top:14px;font-size:13px;color:#A9B3C7;flex-wrap:wrap}
+.stats b{display:block;color:#fff;font:700 17px var(--display)}
+
+/* Screener */
+.screener{padding:44px 0 20px;border-top:1px solid var(--line);margin-top:36px}
+.screener h2{font:750 30px/1.1 var(--display);font-stretch:92%;margin:0 0 6px}
+.screener > .wrap > p{margin:0 0 18px;color:var(--muted);max-width:62ch}
+.filters{display:flex;gap:10px;flex-wrap:wrap;margin-bottom:14px}
+.filters input,.filters select{font:15px var(--body);padding:9px 12px;border:1px solid var(--line);border-radius:6px;background:var(--panel);color:var(--ink)}
+.filters input{flex:1 1 200px}
+.seg{display:inline-flex;border:1px solid var(--line);border-radius:6px;overflow:hidden;background:var(--panel)}
+.seg button{font:600 14px var(--body);border:0;background:none;padding:9px 13px;cursor:pointer;color:var(--muted)}
+.seg button[aria-pressed=true]{background:var(--ink);color:#fff}
+.table{background:var(--panel);border-radius:10px;border:1px solid var(--line);overflow:hidden}
+.row{display:grid;grid-template-columns:78px 1fr 92px 110px 96px 96px 86px;gap:10px;align-items:center;padding:12px 16px;border-bottom:1px solid var(--line)}
+.row:last-child{border-bottom:0}
+.row.head{font-size:13px;color:var(--muted);font-weight:600;background:#F6F8FA}
+.row.head button{all:unset;cursor:pointer}
+.row.head button:hover,.row.head button:focus-visible{color:var(--ink);text-decoration:underline}
+button.row{all:unset;display:grid;grid-template-columns:78px 1fr 92px 110px 96px 96px 86px;gap:10px;align-items:center;padding:12px 16px;border-bottom:1px solid var(--line);cursor:pointer;width:100%;box-sizing:border-box}
+button.row:hover{background:#F6F8FA}
+button.row:focus-visible{outline:3px solid var(--cobalt);outline-offset:-3px}
+.r{text-align:right}
+.tkr{font:700 16px var(--display);font-stretch:105%}
+.nm2{font-size:14px;line-height:1.3}.nm2 small{display:block;color:var(--muted);font-size:12px}
+.pill{display:inline-block;font:700 12px var(--body);padding:4px 10px;border-radius:99px;text-align:center;min-width:52px}
+.pill.Buy{background:var(--buy-bg);color:var(--buy)}.pill.Hold{background:var(--hold-bg);color:var(--hold)}.pill.Sell{background:var(--sell-bg);color:var(--sell)}
+.mini{position:relative;height:6px;background:var(--line);border-radius:3px}
+.mini i{position:absolute;top:-4px;width:4px;height:14px;border-radius:2px;background:var(--ink)}
+.pos{color:var(--buy)}.neg{color:var(--sell)}
+.empty{padding:28px 16px;color:var(--muted)}
+
+/* Detail dialog */
+dialog{border:0;border-radius:12px;padding:0;max-width:620px;width:calc(100% - 24px);color:var(--ink);box-shadow:0 30px 80px rgba(20,33,61,.35)}
+dialog::backdrop{background:rgba(20,33,61,.45)}
+.dlg{padding:24px}
+.dlg-h{display:flex;justify-content:space-between;align-items:flex-start;gap:12px}
+.dlg-h h3{font:800 34px/1 var(--display);font-stretch:108%;margin:0}
+.dlg-h p{margin:6px 0 0;color:var(--muted);font-size:14px}
+.close{border:1px solid var(--line);background:var(--panel);border-radius:6px;padding:6px 12px;font:600 14px var(--body);cursor:pointer}
+.verdict{margin:18px 0;padding:14px 16px;border-radius:8px}
+.verdict.Buy{background:var(--buy-bg)}.verdict.Hold{background:var(--hold-bg)}.verdict.Sell{background:var(--sell-bg)}
+.verdict strong{font:800 20px var(--display)}
+.verdict ul{margin:8px 0 0;padding-left:18px;font-size:14px}
+.gauge{margin:16px 0}
+.gauge .lbl{display:flex;justify-content:space-between;font-size:13px;color:var(--muted);margin-bottom:6px}
+.gauge .lbl b{color:var(--ink)}
+.gbar{position:relative;height:10px;border-radius:5px;background:linear-gradient(90deg,var(--buy),#E2C27A,var(--sell))}
+.gbar i{position:absolute;top:-5px;width:6px;height:20px;border-radius:3px;background:var(--ink);border:2px solid #fff;transform:translateX(-3px)}
+.scen-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:8px;margin-top:10px}
+.scen-grid div{background:#F6F8FA;border-radius:8px;padding:10px}
+.scen-grid small{display:block;font-size:12px;color:var(--muted)}
+.scen-grid b{font:700 18px var(--display)}
+.facts{display:grid;grid-template-columns:repeat(3,1fr);gap:10px 16px;margin-top:16px;font-size:13px;color:var(--muted)}
+.facts b{display:block;color:var(--ink);font-size:15px}
+
+footer{padding:30px 0 50px;font-size:13px;color:var(--muted);max-width:70ch}
+
+@media (max-width:820px){
+  .controls,.result{grid-template-columns:1fr}
+  .row,button.row{grid-template-columns:62px 1fr 64px 60px}
+  .row .c-range,.row .c-ret,.row .c-exp{display:none}
+  .scen-grid{grid-template-columns:repeat(2,1fr)}
+  .facts{grid-template-columns:repeat(2,1fr)}
+}
+@media (prefers-reduced-motion:reduce){.alloc-bar div{transition:none}}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header class="top">
+    <div class="brand">Fund<span>wise</span></div>
+    <div class="asof"><label for="cur">Currency</label> <select id="cur"></select><br><span id="rateNote">Sample data — not live prices</span><br>
+      <label class="upload">Load CSV<input type="file" id="csvFile" accept=".csv,text/csv" hidden></label> <span id="csvMsg" role="status"></span></div>
+  </header>
+
+  <section class="builder" aria-labelledby="builderTitle">
+    <h1 class="sentence" id="builderTitle">
+      I want to invest
+      <span class="slot"><span id="curSym">$</span><input type="text" id="amount" inputmode="numeric" value="10,000" aria-label="Amount to invest"></span>
+      across <span class="slot" id="countWord">6 funds</span>
+      at <span class="slot" id="riskWord">moderate</span> risk.
+    </h1>
+
+    <div class="controls">
+      <div class="ctl">
+        <label for="riskSlider">Risk appetite <b id="riskVal">5 / 10</b></label>
+        <input type="range" id="riskSlider" min="1" max="10" value="5">
+        <div class="risk-track" aria-hidden="true"></div>
+        <div class="hint"><span>Protect what I have</span><span>Chase growth</span></div>
+      </div>
+      <div class="ctl">
+        <label for="countSlider">Number of funds <b id="countVal">6</b></label>
+        <input type="range" id="countSlider" min="4" max="8" value="6">
+        <div class="hint"><span>Simpler</span><span>More spread out</span></div>
+      </div>
+    </div>
+
+    <div class="result">
+      <div>
+        <div class="alloc-bar" id="allocBar" role="img" aria-label="Portfolio allocation"></div>
+        <ul class="holdings" id="holdings"></ul>
+      </div>
+      <aside class="outlook" aria-live="polite">
+        <h3>One-year outlook</h3>
+        <p class="sub">Based on past returns and volatility, adjusted for today's valuations.</p>
+        <div id="outlook"></div>
+        <div class="stats" id="pstats"></div>
+      </aside>
+    </div>
+  </section>
+</div>
+
+<section class="screener" aria-labelledby="scrTitle">
+  <div class="wrap">
+    <h2 id="scrTitle">ETF screener</h2>
+    <p>Each fund gets a buy, hold or sell signal from four checks: price versus its long-run valuation, trend versus the 200-day average, position in its 52-week range, and short-term momentum (RSI). Tap a fund for the reasoning.</p>
+    <div class="filters">
+      <input type="search" id="q" placeholder="Search ticker or name" aria-label="Search ETFs">
+      <select id="cat" aria-label="Filter by category"><option value="">All categories</option></select>
+    </div>
+    <div class="filters">
+      <div class="chips" role="group" aria-label="Filter by signal"><span>Signal</span>
+        <button class="chip" aria-pressed="false" data-g="sig" data-v="Buy">Buy</button>
+        <button class="chip" aria-pressed="false" data-g="sig" data-v="Hold">Hold</button>
+        <button class="chip" aria-pressed="false" data-g="sig" data-v="Sell">Sell</button>
+      </div>
+      <div class="chips" role="group" aria-label="Filter by valuation"><span>Value</span>
+        <button class="chip" aria-pressed="false" data-g="val" data-v="Cheap">Cheap</button>
+        <button class="chip" aria-pressed="false" data-g="val" data-v="Fair">Fair</button>
+        <button class="chip" aria-pressed="false" data-g="val" data-v="Rich">Rich</button>
+        <button class="chip" aria-pressed="false" data-g="val" data-v="No data">No data</button>
+      </div>
+      <button class="clear" id="clearF">Clear filters</button>
+    </div>
+    <p class="count" id="count" aria-live="polite"></p>
+    <div class="table" id="table"></div>
+  </div>
+</section>
+
+<div class="wrap">
+  <footer>
+    Educational tool, not financial advice. Unless a funds.csv or uploaded file is loaded, prices, valuations and statistics are hand-entered sample values, not market data, and will not match today's market. Signals are simple rules applied to historical data; past performance does not predict future results. Outlook ranges assume returns follow a normal distribution, which understates how bad crashes can be — the "worst past drop" figure is a better guide to real downside.
+  </footer>
+</div>
+
+<dialog id="dlg" aria-labelledby="dTitle"><div class="dlg" id="dlgBody"></div></dialog>
+
+<script>
+/* ---------- Data (illustrative snapshot; swap for a live API) ----------
+   val: current P/E (equity/REIT) or yield (bonds); avg: 10-yr average of the same.
+   For bonds a HIGHER yield than average means cheaper. Gold has no valuation metric. */
+const ETFS = [
+ {t:"SPY", n:"SPDR S&P 500", cat:"US large cap", cls:"eq", er:.0945, p:672, lo:495, hi:690, ma:630, r5:14.6, vol:17, dd:-34, val:24.8, avg:19.5, y:1.1, rsi:61},
+ {t:"VOO", n:"Vanguard S&P 500", cat:"US large cap", cls:"eq", er:.03, p:617, lo:455, hi:634, ma:579, r5:14.7, vol:17, dd:-34, val:24.8, avg:19.5, y:1.2, rsi:61},
+ {t:"VTI", n:"Vanguard Total Stock Market", cat:"US total market", cls:"eq", er:.03, p:330, lo:242, hi:339, ma:310, r5:14.0, vol:17.5, dd:-35, val:23.9, avg:19.8, y:1.2, rsi:59},
+ {t:"QQQ", n:"Invesco Nasdaq 100", cat:"US growth", cls:"eq", er:.20, p:598, lo:402, hi:615, ma:552, r5:17.8, vol:22, dd:-35, val:33.5, avg:26.0, y:0.5, rsi:66},
+ {t:"IWM", n:"iShares Russell 2000", cat:"US small cap", cls:"eq", er:.19, p:238, lo:171, hi:245, ma:221, r5:8.4, vol:23, dd:-41, val:17.2, avg:20.5, y:1.1, rsi:57},
+ {t:"USMV", n:"iShares MSCI USA Min Vol", cat:"US defensive", cls:"eq", er:.15, p:95, lo:86, hi:97, ma:93, r5:10.2, vol:12.5, dd:-33, val:22.0, avg:21.0, y:1.5, rsi:52},
+ {t:"SCHD", n:"Schwab US Dividend Equity", cat:"US dividend", cls:"eq", er:.06, p:28, lo:23.9, hi:29.1, ma:27.1, r5:11.0, vol:15, dd:-32, val:16.1, avg:16.8, y:3.8, rsi:48},
+ {t:"VIG", n:"Vanguard Dividend Appreciation", cat:"US dividend", cls:"eq", er:.05, p:212, lo:172, hi:216, ma:203, r5:12.4, vol:14.5, dd:-31, val:24.0, avg:21.5, y:1.7, rsi:58},
+ {t:"VXUS", n:"Vanguard Total International", cat:"International", cls:"eq", er:.05, p:72, lo:55, hi:74, ma:68, r5:8.6, vol:16, dd:-36, val:15.0, avg:14.6, y:2.9, rsi:55},
+ {t:"VEA", n:"Vanguard Developed Markets", cat:"International", cls:"eq", er:.05, p:60, lo:46, hi:62, ma:57, r5:9.1, vol:15.5, dd:-35, val:15.4, avg:15.2, y:3.0, rsi:54},
+ {t:"VWO", n:"Vanguard Emerging Markets", cat:"Emerging markets", cls:"eq", er:.07, p:52, lo:40, hi:54, ma:49, r5:6.9, vol:18, dd:-38, val:13.2, avg:13.8, y:2.8, rsi:56},
+ {t:"XLK", n:"Technology Select Sector", cat:"Sector: tech", cls:"eq", er:.08, p:285, lo:180, hi:292, ma:258, r5:20.5, vol:24, dd:-33, val:37.0, avg:26.5, y:0.6, rsi:72},
+ {t:"SMH", n:"VanEck Semiconductor", cat:"Sector: tech", cls:"eq", er:.35, p:330, lo:175, hi:342, ma:285, r5:29.0, vol:34, dd:-45, val:36.0, avg:25.0, y:0.4, rsi:74},
+ {t:"XLV", n:"Health Care Select Sector", cat:"Sector: health", cls:"eq", er:.08, p:148, lo:127, hi:152, ma:141, r5:7.4, vol:14, dd:-28, val:17.5, avg:18.5, y:1.7, rsi:55},
+ {t:"XLF", n:"Financial Select Sector", cat:"Sector: financials", cls:"eq", er:.08, p:53, lo:43, hi:55, ma:51.5, r5:15.2, vol:19, dd:-40, val:17.2, avg:15.5, y:1.4, rsi:50},
+ {t:"XLE", n:"Energy Select Sector", cat:"Sector: energy", cls:"eq", er:.08, p:92, lo:76, hi:98, ma:88, r5:19.0, vol:26, dd:-55, val:14.5, avg:17.5, y:3.3, rsi:44},
+ {t:"XLU", n:"Utilities Select Sector", cat:"Sector: utilities", cls:"eq", er:.08, p:84, lo:71, hi:88, ma:81, r5:9.8, vol:16, dd:-36, val:20.5, avg:18.5, y:2.9, rsi:53},
+ {t:"VNQ", n:"Vanguard Real Estate", cat:"Real estate", cls:"reit", er:.13, p:90, lo:79, hi:96, ma:89, r5:5.2, vol:21, dd:-43, val:34.0, avg:38.0, y:3.9, rsi:46},
+ {t:"ARKK", n:"ARK Innovation", cat:"Thematic growth", cls:"eq", er:.75, p:78, lo:41, hi:84, ma:66, r5:-2.5, vol:45, dd:-81, val:null, avg:null, y:0, rsi:63},
+ {t:"GLD", n:"SPDR Gold Shares", cat:"Gold", cls:"gold", er:.40, p:380, lo:285, hi:395, ma:352, r5:14.5, vol:15, dd:-22, val:null, avg:null, y:0, rsi:58},
+ {t:"BND", n:"Vanguard Total Bond Market", cat:"Bonds: core", cls:"bond", er:.03, p:74, lo:71.5, hi:75, ma:73.4, r5:-0.3, vol:6, dd:-19, val:4.4, avg:2.9, y:3.8, rsi:52},
+ {t:"TLT", n:"iShares 20+ Yr Treasury", cat:"Bonds: long", cls:"bond", er:.15, p:88, lo:83, hi:94, ma:88.5, r5:-8.2, vol:15, dd:-48, val:4.8, avg:3.1, y:4.3, rsi:47},
+ {t:"SHY", n:"iShares 1-3 Yr Treasury", cat:"Bonds: short", cls:"bond", er:.15, p:83, lo:81.7, hi:83.4, ma:82.8, r5:1.6, vol:2, dd:-6, val:3.6, avg:2.0, y:3.9, rsi:55},
+ {t:"TIP", n:"iShares TIPS Bond", cat:"Bonds: inflation", cls:"bond", er:.18, p:111, lo:106, hi:112, ma:110, r5:1.8, vol:6, dd:-14, val:1.9, avg:0.8, y:3.1, rsi:54},
+ {t:"HYG", n:"iShares High Yield Corporate", cat:"Bonds: high yield", cls:"hy", er:.49, p:81, lo:76, hi:82, ma:80.4, r5:4.3, vol:8, dd:-22, val:6.9, avg:6.4, y:5.8, rsi:56},
+];
+
+/* ---------- Analysis ---------- */
+const clamp=(x,a,b)=>Math.max(a,Math.min(b,x));
+const LONG_RUN={eq:8,reit:7,bond:3.5,hy:5,gold:4.5};
+
+const DEF_VOL={eq:18,reit:21,bond:6,hy:8,gold:15}, DEF_DD={eq:-35,reit:-45,bond:-18,hy:-25,gold:-25};
+function analyze(e){
+  e={...e}; e.cls=e.cls||"eq";
+  if(e.vol==null) e.vol=DEF_VOL[e.cls]; if(e.dd==null) e.dd=DEF_DD[e.cls];
+  e.hasVal=e.val!=null&&e.avg!=null&&e.avg>0;
+  // valuation gap: + = cheap, - = expensive
+  let gap=0, valTxt;
+  if(e.val!=null&&!e.hasVal){ valTxt=`${e.cls==="bond"||e.cls==="hy"?"Yield "+e.val.toFixed(1)+"%":"P/E "+e.val.toFixed(1)}, but no historical average in the data to compare against; valuation ignored.`; }
+  else if(!e.hasVal){ valTxt = e.cls==="gold" ? "Gold has no earnings, so only trend and momentum are used." : "No valuation history for this fund in the data; valuation ignored."; }
+  else if(e.cls==="bond"||e.cls==="hy"){ gap=clamp((e.val-e.avg)/e.avg*0.2,-.15,.15);
+    valTxt=`Yield ${e.val.toFixed(1)}% vs ${e.avg.toFixed(1)}% 10-yr average — ${gap>0?"bonds are paying more than usual (cheaper)":"yields below normal (pricier)"}.`; }
+  else { gap=(e.avg-e.val)/e.avg;
+    valTxt=`P/E ${e.val.toFixed(1)} vs ${e.avg.toFixed(1)} 10-yr average — ${Math.abs(gap)<.05?"about fair":gap>0?Math.round(gap*100)+"% cheaper than usual":Math.round(-gap*100)+"% more expensive than usual"}.`; }
+
+  const trend=e.ma?e.p/e.ma-1:0, hasRange=e.lo!=null&&e.hi!=null&&e.hi>e.lo;
+  const range=hasRange?clamp((e.p-e.lo)/(e.hi-e.lo),0,1):0.5;
+  const sVal=clamp(gap/0.12,-1.5,1.5);
+  const sTrend=clamp(trend/0.05,-1.5,1.5)*0.5;
+  const sRange=(0.5-range)*1.2;
+  const sRsi=e.rsi==null?0:e.rsi<30?0.8:e.rsi>70?-0.8:0;
+  const score=sVal+sTrend+sRange+sRsi;
+  const signal=score>=0.9?"Buy":score<=-1.3?"Sell":"Hold";
+
+  const reasons=[valTxt,
+    !e.ma?"No 200-day average in the data; trend ignored.":`Price is ${Math.abs(trend*100).toFixed(1)}% ${trend>=0?"above":"below"} its 200-day average — ${trend>=0?"the uptrend is intact":"momentum is weak"}.`,
+    !hasRange?"No 52-week range in the data.":`Sits at ${Math.round(range*100)}% of its 52-week range (${range>0.85?"near the high":range<0.25?"near the low":"mid-range"}).`,
+    e.rsi==null?"No RSI in the data.":`RSI ${e.rsi}: ${e.rsi>70?"overbought — short-term pullback risk":e.rsi<30?"oversold — often a bounce zone":"neutral"}.`];
+
+  // expected 1-yr return: blend history with long-run class average, tilt by valuation
+  const mu=clamp((e.r5==null?LONG_RUN[e.cls]:0.5*e.r5+0.5*LONG_RUN[e.cls])+clamp(gap*15,-3,3),-10,25);
+  return {...e,gap,trend,range,score,signal,reasons,mu,
+    up:mu+e.vol, down:mu-e.vol, bad:mu-2*e.vol};
+}
+let DATA=ETFS.map(analyze), SOURCE="Sample data — not live prices";
+
+/* ---------- CSV loading ----------
+   Reads funds.csv next to this page (refreshed daily by update_funds.py), or a file the user uploads.
+   Column names are matched loosely, so Fidelity screener exports work too. */
+function parseCSV(text){
+  const rows=[]; let row=[], f="", q=false;
+  for(let i=0;i<text.length;i++){ const c=text[i];
+    if(q){ if(c==='"'){ if(text[i+1]==='"'){f+='"';i++;} else q=false; } else f+=c; }
+    else if(c==='"') q=true; else if(c===","){row.push(f);f="";}
+    else if(c==="\n"||c==="\r"){ if(c==="\r"&&text[i+1]==="\n") i++; row.push(f); rows.push(row); row=[]; f=""; }
+    else f+=c; }
+  if(f!==""||row.length){row.push(f);rows.push(row);}
+  return rows;
+}
+const COLMAP=[ // [field, test on normalized header]
+ ["t",h=>/^(symbol|ticker)$/.test(h)], ["n",h=>/^(name|fundname|securityname|description|longname)$/.test(h)],
+ ["cat",h=>/category|assetclass/.test(h)], ["cls",h=>h==="class"], ["er",h=>/expense/.test(h)],
+ ["p",h=>/^(price|lastprice|last|close|nav|lastclose)$/.test(h)],
+ ["lo",h=>/52.*low|low.*52/.test(h)], ["hi",h=>/52.*high|high.*52/.test(h)],
+ ["ma",h=>/200/.test(h)], ["r5",h=>/5y|5year|fiveyear/.test(h)&&/ret|perf|5y$/.test(h)],
+ ["vol",h=>/volatil|stddev|standarddev/.test(h)], ["dd",h=>/drawdown/.test(h)],
+ ["avg",h=>/pe/.test(h)&&/avg|average|10y|hist/.test(h)], ["val",h=>/^(pe|peratio|priceearnings|trailingpe|pettm)$/.test(h)],
+ ["y",h=>/yield/.test(h)], ["rsi",h=>/rsi/.test(h)], ["asof",h=>/asof|date/.test(h)] ];
+function num(v){ if(v==null) return null; v=String(v).trim(); if(!v||/^(--|n\/?a|-)$/i.test(v)) return null;
+  const neg=/^\(.*\)$/.test(v); const x=parseFloat(v.replace(/[^0-9.\-]/g,"")); return isNaN(x)?null:(neg?-x:x); }
+function guessClass(cat,name){ const s=(cat+" "+name).toLowerCase();
+  if(/high yield|junk/.test(s)) return "hy"; if(/gold|precious/.test(s)) return "gold";
+  if(/real estate|reit/.test(s)) return "reit"; if(/bond|treasury|fixed|income|muni|credit|aggregate|tips|duration/.test(s)) return "bond"; return "eq"; }
+function rowsToFunds(rows){
+  const hi=rows.findIndex(r=>r.some(c=>/^(symbol|ticker)$/i.test(c.trim())));
+  if(hi<0) throw new Error("No Symbol or Ticker column found.");
+  const heads=rows[hi].map(h=>h.toLowerCase().replace(/[^a-z0-9]/g,""));
+  const idx={}; COLMAP.forEach(([k,test])=>{const i=heads.findIndex((h,j)=>test(h)&&!Object.values(idx).includes(j)); if(i>=0) idx[k]=i;});
+  if(idx.p==null) throw new Error("No price column found (e.g. Price, Last Price, Close).");
+  const out=[]; let asof="";
+  for(const r of rows.slice(hi+1)){
+    const t=(r[idx.t]||"").trim().toUpperCase(); if(!/^[A-Z][A-Z0-9.\-]{0,9}$/.test(t)) continue;
+    const g=k=>idx[k]==null?null:num(r[idx[k]]), str=k=>idx[k]==null?"":(r[idx[k]]||"").trim();
+    const p=g("p"); if(!p) continue;
+    const cat=str("cat")||"Uncategorized", n=str("n")||t;
+    let cls=str("cls").toLowerCase(); if(!DEF_VOL[cls]) cls=guessClass(cat,n);
+    if(str("asof")) asof=str("asof");
+    out.push({t,n,cat,cls,er:g("er"),p,lo:g("lo"),hi:g("hi"),ma:g("ma"),r5:g("r5"),vol:g("vol"),dd:g("dd"),val:g("val"),avg:g("avg"),y:g("y"),rsi:g("rsi")});
+  }
+  if(!out.length) throw new Error("No rows with a ticker and price.");
+  return {funds:out,asof};
+}
+function loadFunds(text,label){
+  const {funds,asof}=rowsToFunds(parseCSV(text));
+  DATA=funds.map(analyze); SOURCE=`${funds.length} funds from ${label}${asof?", updated "+asof:""}`;
+  $("cat").innerHTML='<option value="">All categories</option>';
+  [...new Set(DATA.map(e=>e.cat))].sort().forEach(c=>$("cat").insertAdjacentHTML("beforeend",`<option>${esc(c)}</option>`));
+  renderRateNote(); renderBundle(); renderTable();
+}
+
+/* ---------- Bundle builder ---------- */
+const COLORS=["#2F4FD8","#0F766E","#B7791F","#7A3FB5","#C2410C","#0E7490","#4D7C0F","#9F1239"];
+const RISK_WORDS=["very low","very low","low","low","moderate","moderate","growth","growth","high","very high"];
+function corr(a,b){
+  if(a.t===b.t) return 1;
+  if(a.cat===b.cat) return .9;
+  const k=[a.cls,b.cls].sort().join("-");
+  return ({"eq-eq":.8,"eq-reit":.7,"reit-reit":.9,"bond-eq":.05,"bond-bond":.7,"bond-hy":.4,"eq-hy":.55,"hy-reit":.5,
+    "hy-hy":.9,"bond-reit":.3,"eq-gold":.05,"bond-gold":.25,"gold-hy":.1,"gold-reit":.1,"gold-gold":1})[k] ?? .3;
+}
+function buildBundle(risk,count){
+  const targetVol=2+(risk-1)*(30-2)/9, t=(risk-1)/9;
+  const scored=DATA.map(e=>({e,s:-1.4*Math.abs(e.vol-targetVol)/Math.max(targetVol,6)+e.score*0.1+e.mu*0.04*t
+    +(e.cls==="gold"&&risk>=3&&risk<=7?0.3:0)})).sort((a,b)=>b.s-a.s);
+  const picks=[], cats=new Set(), tick=new Set(["VOO"]); // VOO duplicates SPY
+  for(const {e} of scored){ if(picks.length>=count) break;
+    if(cats.has(e.cat)||tick.has(e.t)) continue; picks.push(e); cats.add(e.cat); }
+  // weights: low risk -> inverse volatility, high risk -> expected return
+  const inv=picks.map(e=>1/e.vol), ret=picks.map(e=>Math.max(e.mu,1));
+  const si=inv.reduce((a,b)=>a+b), sr=ret.reduce((a,b)=>a+b);
+  let w=picks.map((e,i)=>(1-t)*inv[i]/si+t*ret[i]/sr);
+  w=w.map(x=>Math.min(x,.35)); const sw=w.reduce((a,b)=>a+b); w=w.map(x=>x/sw);
+  let mu=0,v=0; picks.forEach((a,i)=>{mu+=w[i]*a.mu; picks.forEach((b,j)=>v+=w[i]*w[j]*a.vol*b.vol*corr(a,b));});
+  const dd=picks.reduce((s,e,i)=>s+w[i]*e.dd,0);
+  const yld=picks.reduce((s,e,i)=>s+w[i]*e.y,0), er=picks.reduce((s,e,i)=>s+w[i]*e.er,0);
+  return {picks,w,mu,vol:Math.sqrt(v),dd,yld,er};
+}
+
+/* ---------- Rendering ---------- */
+const $=id=>document.getElementById(id);
+/* ---------- Currency (ETF prices are in USD; shown in the user's currency) ---------- */
+const REGION_CUR={US:"USD",GB:"GBP",CA:"CAD",AU:"AUD",NZ:"NZD",JP:"JPY",CN:"CNY",IN:"INR",CH:"CHF",SE:"SEK",NO:"NOK",DK:"DKK",PL:"PLN",CZ:"CZK",HU:"HUF",ZA:"ZAR",BR:"BRL",MX:"MXN",SG:"SGD",HK:"HKD",KR:"KRW",AE:"AED",SA:"SAR",TR:"TRY",IL:"ILS",NG:"NGN",KE:"KES",PH:"PHP",ID:"IDR",MY:"MYR",TH:"THB"};
+["DE","FR","NL","BE","IT","ES","PT","IE","AT","FI","GR","LU","SK","SI","EE","LV","LT","CY","MT","HR"].forEach(r=>REGION_CUR[r]="EUR");
+// Approximate fallback rates (units per 1 USD), used only if the live rate request fails
+let RATES={USD:1,EUR:.86,GBP:.74,CAD:1.37,AUD:1.52,NZD:1.68,JPY:147,CNY:7.15,INR:86,CHF:.80,SEK:9.5,NOK:10.1,DKK:6.4,PLN:3.65,CZK:21.3,HUF:345,ZAR:17.8,BRL:5.5,MXN:18.7,SGD:1.28,HKD:7.8,KRW:1380,AED:3.67,SAR:3.75,TRY:40,ILS:3.4,NGN:1530,KES:129,PHP:57,IDR:16300,MYR:4.25,THB:32.5};
+const LOCALE=navigator.language||"en-US";
+function detectCurrency(){
+  for(const l of (navigator.languages||[LOCALE])){ try{const r=new Intl.Locale(l).region; if(r&&REGION_CUR[r]) return REGION_CUR[r];}catch(e){} }
+  try{const r=new Intl.Locale(LOCALE).maximize().region; if(REGION_CUR[r]) return REGION_CUR[r];}catch(e){}
+  return "USD";
+}
+let CUR=detectCurrency(), RATE=RATES[CUR]||1, rateLive=false;
+const conv=x=>x*RATE;   // USD -> local currency
+function money(x){ const base=new Intl.NumberFormat(LOCALE,{style:"currency",currency:CUR}).resolvedOptions().maximumFractionDigits;
+  return new Intl.NumberFormat(LOCALE,{style:"currency",currency:CUR,maximumFractionDigits:Math.abs(x)>=100?0:base}).format(x); }
+const usd=money;
+const SEP=(()=>{const p=new Intl.NumberFormat(LOCALE).formatToParts(12345.6);return {g:(p.find(x=>x.type==="group")||{}).value||",",d:(p.find(x=>x.type==="decimal")||{}).value||"."};})();
+const niceRound=a=>{const m=Math.pow(10,Math.max(0,Math.floor(Math.log10(a||1))-1));return Math.round(a/m)*m;};
+function sizeAmount(){ $("amount").style.width=Math.max(6,$("amount").value.length+1)+"ch"; }
+function setCurrency(c,convertAmount){
+  const old=RATE; CUR=c; RATE=RATES[c]||1;
+  if(convertAmount) $("amount").value=niceRound(amount()/old*RATE).toLocaleString(LOCALE);
+  const sym=new Intl.NumberFormat(LOCALE,{style:"currency",currency:CUR}).formatToParts(0).find(x=>x.type==="currency");
+  $("curSym").textContent=sym?sym.value:CUR; sizeAmount();
+  renderRateNote(); renderBundle(); renderTable();
+}
+function renderRateNote(){ $("rateNote").textContent=SOURCE+(CUR==="USD"?"":` · 1 USD = ${RATE.toLocaleString(LOCALE,{maximumFractionDigits:4})} ${CUR} (${rateLive?"live":"approx."})`); }
+const pct=(x,d=1)=>(x>=0?"+":"")+x.toFixed(d)+"%";
+const esc=s=>String(s).replace(/[&<>"]/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]));
+function amount(){ const raw=$("amount").value.split(SEP.g).join("").replace(SEP.d,".").replace(/[^0-9.]/g,""); return Math.max(0,parseFloat(raw)||0); }
+
+function renderBundle(){
+  const risk=+$("riskSlider").value, count=+$("countSlider").value, amt=amount();
+  $("riskVal").textContent=risk+" / 10"; $("countVal").textContent=count;
+  $("riskWord").textContent=RISK_WORDS[risk-1]; $("countWord").textContent=count+" funds";
+  const b=buildBundle(risk,count);
+  $("allocBar").innerHTML=b.picks.map((e,i)=>`<div style="flex-grow:${b.w[i]};background:${COLORS[i]}" title="${e.t} ${(b.w[i]*100).toFixed(0)}%">${b.w[i]>.08?e.t:""}</div>`).join("");
+  $("allocBar").setAttribute("aria-label","Allocation: "+b.picks.map((e,i)=>`${e.t} ${(b.w[i]*100).toFixed(0)}%`).join(", "));
+  $("holdings").innerHTML=b.picks.map((e,i)=>{const $a=amt*b.w[i], sh=Math.floor($a/conv(e.p));
+    return `<li><span class="sw" style="background:${COLORS[i]}"></span><span class="tk">${e.t} <span class="pill ${e.signal}" style="min-width:0;padding:1px 6px;font-size:10px;vertical-align:middle">${e.signal}</span></span>
+    <span class="nm">${(b.w[i]*100).toFixed(1)}% · ${esc(e.n)}</span>
+    <span class="amt">${usd($a)}<small>${sh>0?sh+" share"+(sh>1?"s":"")+" @ "+money(conv(e.p)):"fractional"}</small></span></li>`;}).join("");
+  const sc=[["Good year",b.mu+b.vol,"Roughly 1 year in 6 does at least this well"],
+            ["Expected",b.mu,"Middle-of-the-road outcome"],
+            ["Bad year",b.mu-b.vol,"Roughly 1 year in 6 does this badly or worse"],
+            ["Crash (like 2008/2020)",b.dd,"Weighted worst past peak-to-trough drop of these funds"]];
+  $("outlook").innerHTML=sc.map(([l,r,d])=>`<div class="scen"><span>${l}</span><span class="v ${r>=0?"up":"down"}">${usd(amt*(1+r/100))} <small style="font-size:13px">${pct(r)}</small></span><span class="d">${d}</span></div>`).join("");
+  const y5=amt*Math.pow(1+b.mu/100,5);
+  $("pstats").innerHTML=`<span><b>${usd(y5)}</b>5-yr expected</span><span><b>${b.vol.toFixed(1)}%</b>Volatility</span><span><b>${b.yld.toFixed(1)}%</b>Dividend yield</span><span><b>${b.er.toFixed(2)}%</b>Avg fee</span>`;
+}
+
+let sortKey="score", sortDir=-1; const F={sig:new Set(),val:new Set()};
+const valCat=e=>!e.hasVal?"No data":Math.abs(e.gap)<.03?"Fair":e.gap>0?"Cheap":"Rich";
+const COLS=[["t","Ticker"],["n","Fund"],["signal","Signal",1],["range","52-wk range","c-range"],["r5","5-yr / yr","c-ret r"],["mu","Exp. 1-yr","c-exp r"],["gap","Value","r"]];
+function renderTable(){
+  const q=$("q").value.trim().toLowerCase(), cat=$("cat").value;
+  let rows=DATA.filter(e=>(!q||e.t.toLowerCase().includes(q)||e.n.toLowerCase().includes(q))&&(!cat||e.cat===cat)&&(!F.sig.size||F.sig.has(e.signal))&&(!F.val.size||F.val.has(valCat(e))));
+  $("count").textContent=`Showing ${rows.length} of ${DATA.length} funds`;
+  const k=sortKey==="signal"?"score":sortKey;
+  rows.sort((a,b)=>(typeof a[k]==="string"?a[k].localeCompare(b[k]):a[k]-b[k])*sortDir);
+  const head=`<div class="row head">${COLS.map(([key,l,c])=>`<span class="${typeof c==="string"?c:""}"><button data-k="${key}" aria-label="Sort by ${l}">${l}${sortKey===key?(sortDir>0?" ▲":" ▼"):""}</button></span>`).join("")}</div>`;
+  $("table").innerHTML=head+(rows.length?rows.map(e=>`<button class="row" data-t="${e.t}" aria-label="${e.t} ${e.signal}, open details">
+    <span class="tkr">${e.t}</span>
+    <span class="nm2">${esc(e.n)}<small>${esc(e.cat)} · ${money(conv(e.p))}</small></span>
+    <span><span class="pill ${e.signal}">${e.signal}</span></span>
+    <span class="c-range"><span class="mini"><i style="left:calc(${(e.range*100).toFixed(0)}% - 2px)"></i></span></span>
+    <span class="c-ret r ${e.r5==null?"":e.r5>=0?"pos":"neg"}">${e.r5==null?"—":pct(e.r5)}</span>
+    <span class="c-exp r">${pct(e.mu)}</span>
+    <span class="r ${e.gap>0.03?"pos":e.gap<-0.03?"neg":""}">${e.hasVal?valCat(e):"—"}</span>
+  </button>`).join(""):`<div class="empty">No funds match. Clear the search or pick a different category.</div>`);
+}
+
+function openDetail(t){
+  const e=DATA.find(x=>x.t===t), amt=amount()||conv(10000);
+  const cheapPos=clamp(50-e.gap*200,2,98);
+  $("dlgBody").innerHTML=`
+  <div class="dlg-h"><div><h3 id="dTitle">${e.t}</h3><p>${esc(e.n)} · ${esc(e.cat)} · ${money(conv(e.p))}</p></div>
+  <button class="close" onclick="dlg.close()">Close</button></div>
+  <div class="verdict ${e.signal}"><strong>${e.signal}</strong> <span style="font-size:14px">signal score ${e.score>=0?"+":""}${e.score.toFixed(2)}</span>
+    <ul>${e.reasons.map(r=>`<li>${r}</li>`).join("")}</ul></div>
+  <div class="gauge"><div class="lbl"><span>Cheap</span><b>${!e.hasVal?"No valuation history in data":"Valuation vs its own history"}</b><span>Expensive</span></div>
+    <div class="gbar">${!e.hasVal?"":`<i style="left:${cheapPos}%"></i>`}</div></div>
+  <div class="gauge"><div class="lbl"><span>52-wk low ${e.lo==null?"—":money(conv(e.lo))}</span><b>Now ${money(conv(e.p))}</b><span>High ${e.hi==null?"—":money(conv(e.hi))}</span></div>
+    <div class="gbar" style="background:var(--line)"><i style="left:${(e.range*100).toFixed(0)}%"></i></div></div>
+  <p style="margin:18px 0 0;font-weight:600">If you put ${usd(amt)} in for a year</p>
+  <div class="scen-grid">
+    <div><small>Upside</small><b class="pos">${pct(e.up)}</b><br><small>${usd(amt*(1+e.up/100))}</small></div>
+    <div><small>Expected</small><b>${pct(e.mu)}</b><br><small>${usd(amt*(1+e.mu/100))}</small></div>
+    <div><small>Downside</small><b class="neg">${pct(e.down)}</b><br><small>${usd(amt*(1+e.down/100))}</small></div>
+    <div><small>Worst past drop</small><b class="neg">${e.dd}%</b><br><small>${usd(amt*(1+e.dd/100))}</small></div>
+  </div>
+  <div class="facts">
+    <span><b>${e.r5==null?"—":pct(e.r5)}</b>5-yr annualized</span><span><b>${e.vol.toFixed(1)}%</b>Volatility</span><span><b>${e.y==null?"—":e.y+"%"}</b>Dividend yield</span>
+    <span><b>${e.er==null?"—":e.er+"%"}</b>Expense ratio</span><span><b>${e.ma?money(conv(e.ma)):"—"}</b>200-day average</span><span><b>${e.rsi??"—"}</b>RSI (14-day)</span>
+  </div>`;
+  dlg.showModal();
+}
+
+/* ---------- Wire up ---------- */
+[...new Set(DATA.map(e=>e.cat))].sort().forEach(c=>$("cat").insertAdjacentHTML("beforeend",`<option>${esc(c)}</option>`));
+["riskSlider","countSlider"].forEach(id=>$(id).addEventListener("input",renderBundle));
+$("amount").addEventListener("input",renderBundle);
+$("amount").addEventListener("blur",()=>{$("amount").value=amount().toLocaleString(LOCALE);sizeAmount();});
+$("q").addEventListener("input",renderTable); $("cat").addEventListener("change",renderTable);
+document.querySelectorAll(".chip").forEach(b=>b.addEventListener("click",()=>{
+  const set=F[b.dataset.g], on=!set.has(b.dataset.v);
+  on?set.add(b.dataset.v):set.delete(b.dataset.v); b.setAttribute("aria-pressed",on); renderTable();}));
+$("clearF").addEventListener("click",()=>{F.sig.clear();F.val.clear();$("q").value="";$("cat").value="";
+  document.querySelectorAll(".chip").forEach(b=>b.setAttribute("aria-pressed","false"));renderTable();});
+// Currency picker + live exchange rates (free, no API key)
+Object.keys(RATES).sort().forEach(c=>$("cur").insertAdjacentHTML("beforeend",`<option value="${c}">${c}</option>`));
+$("cur").value=CUR; $("cur").addEventListener("change",e=>setCurrency(e.target.value,true));
+fetch("https://open.er-api.com/v6/latest/USD").then(r=>r.json()).then(d=>{
+  if(d&&d.rates){ Object.keys(RATES).forEach(c=>{if(d.rates[c]) RATES[c]=d.rates[c];}); rateLive=true;
+    RATE=RATES[CUR]; renderRateNote(); renderBundle(); renderTable(); }
+}).catch(()=>{});
+$("table").addEventListener("click",ev=>{
+  const h=ev.target.closest("button[data-k]");
+  if(h){ const k=h.dataset.k; sortDir=sortKey===k?-sortDir:(k==="t"||k==="n"?1:-1); sortKey=k; renderTable(); return; }
+  const r=ev.target.closest("button.row"); if(r) openDetail(r.dataset.t);
+});
+const dlg=$("dlg"); dlg.addEventListener("click",ev=>{if(ev.target===dlg) dlg.close();});
+$("amount").value=niceRound(10000*RATE).toLocaleString(LOCALE);
+setCurrency(CUR,false);
+$("csvFile").addEventListener("change",ev=>{const f=ev.target.files[0]; if(!f) return;
+  f.text().then(t=>{try{loadFunds(t,f.name);$("csvMsg").textContent="";}catch(err){$("csvMsg").textContent=err.message+" Check the column headers.";}});});
+fetch("funds.csv",{cache:"no-store"}).then(r=>r.ok?r.text():Promise.reject()).then(t=>loadFunds(t,"funds.csv")).catch(()=>{});
+</script>
+</body>
+</html>
