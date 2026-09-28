@@ -4,7 +4,10 @@ Builds funds.csv for the screener from a list of tickers.
 Input:  tickers.csv  - needs a "Symbol" (or "Ticker") column. A Fidelity ETF
                        screener export works as-is. Optional columns:
                        Category, Class (eq/bond/hy/reit/gold), PE_10y_Avg.
-Output: funds.csv    - one row per fund with price, 52-week range, 200-day
+Output: history.csv  - date,ticker,close for every trading day, kept for up to
+                       10 years. Saved baskets use it to chart performance
+                       from the day they were saved.
+        funds.csv    - one row per fund with price, 52-week range, 200-day
                        average, RSI, 5-yr return, volatility, max drawdown,
                        expense ratio, yield and P/E.
 
@@ -18,6 +21,7 @@ Run:  pip install yfinance pandas
 import csv
 import datetime as dt
 import math
+import os
 import sys
 import time
 
@@ -26,6 +30,8 @@ import yfinance as yf
 
 TICKER_FILE = "tickers.csv"
 OUT_FILE = "funds.csv"
+HIST_FILE = "history.csv"
+HIST_KEEP_DAYS = 3650
 BATCH = 50  # tickers per price download
 
 
@@ -115,6 +121,30 @@ def metrics(h):
     }
 
 
+def update_history(hist):
+    """Merge the latest closes into history.csv. The first run seeds one year of
+    history; later runs add the last few days, so a missed run fills itself in."""
+    rows = {}
+    if os.path.exists(HIST_FILE):
+        with open(HIST_FILE, newline="", encoding="utf-8") as f:
+            for r in csv.DictReader(f):
+                rows[(r["date"], r["ticker"])] = r["close"]
+        recent = 10
+    else:
+        recent = 260
+    for s, h in hist.items():
+        for d, c in h["Close"].iloc[-recent:].items():
+            rows[(d.date().isoformat(), s)] = f"{float(c):.4f}"
+    cutoff = (dt.date.today() - dt.timedelta(days=HIST_KEEP_DAYS)).isoformat()
+    with open(HIST_FILE, "w", newline="", encoding="utf-8") as f:
+        w = csv.writer(f)
+        w.writerow(["date", "ticker", "close"])
+        for (d, s), c in sorted(rows.items()):
+            if d >= cutoff:
+                w.writerow([d, s, c])
+    print(f"history.csv now holds {len(rows)} prices.")
+
+
 def fmt(v, d=2):
     return "" if v is None or (isinstance(v, float) and math.isnan(v)) else round(v, d)
 
@@ -124,7 +154,8 @@ def main():
     symbols = [r["symbol"] for r in rows]
     print(f"Fetching {len(symbols)} tickers…")
     hist = fetch_history(symbols)
-    today = dt.date.today().isoformat()
+    # label data with the last trading day, not the run date
+    today = max(h.index[-1] for h in hist.values()).date().isoformat() if hist else dt.date.today().isoformat()
     cols = ["ticker", "name", "category", "class", "expense_ratio", "price", "low_52w", "high_52w",
             "ma_200", "return_5y", "volatility", "max_drawdown", "pe", "pe_10y_avg", "yield", "rsi", "as_of"]
     written, skipped = 0, []
@@ -152,6 +183,7 @@ def main():
             written += 1
             time.sleep(0.3)  # be gentle with the data source
     print(f"Wrote {written} funds to {OUT_FILE}.")
+    update_history(hist)
     if skipped:
         print("No price data for:", ", ".join(skipped))
 

@@ -52,7 +52,13 @@ input[type=range]{width:100%;accent-color:var(--cobalt);height:32px;margin:4px 0
 .alloc-bar{display:flex;height:56px;border-radius:6px;overflow:hidden;background:var(--line)}
 .alloc-bar div{transition:flex-grow .45s ease;display:flex;align-items:center;justify-content:center;color:#fff;font:700 13px var(--display);min-width:0;overflow:hidden;white-space:nowrap}
 .holdings{list-style:none;margin:14px 0 0;padding:0}
-.holdings li{display:grid;grid-template-columns:14px 64px 1fr auto;gap:10px;align-items:center;padding:9px 0;border-bottom:1px solid var(--line)}
+.holdings li{border-bottom:1px solid var(--line)}
+.hold-btn{all:unset;box-sizing:border-box;width:100%;display:grid;grid-template-columns:14px 64px 1fr auto 12px;gap:10px;align-items:center;padding:9px 4px;cursor:pointer;border-radius:6px}
+.hold-btn:hover{background:#E6EAF0}
+.hold-btn:focus-visible{outline:3px solid var(--cobalt);outline-offset:-2px}
+.hold-btn .chev{color:var(--muted);font-size:18px;line-height:1}
+.alloc-bar div{cursor:pointer}
+.basket-note{margin:10px 0 0;font-size:14px;font-weight:600;color:var(--cobalt)}
 .holdings .sw{width:12px;height:12px;border-radius:3px}
 .holdings .tk{font:700 15px var(--display);font-stretch:105%}
 .holdings .nm{font-size:14px;color:var(--muted);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
@@ -121,6 +127,46 @@ dialog::backdrop{background:rgba(20,33,61,.45)}
 .facts{display:grid;grid-template-columns:repeat(3,1fr);gap:10px 16px;margin-top:16px;font-size:13px;color:var(--muted)}
 .facts b{display:block;color:var(--ink);font-size:15px}
 
+
+/* Saved baskets */
+.save-row{display:flex;gap:10px;flex-wrap:wrap;align-items:center;margin-top:18px}
+.save-row input{flex:1 1 200px;font:15px var(--body);padding:10px 12px;border:1px solid var(--line);border-radius:6px;background:var(--panel);color:var(--ink)}
+.primary{font:700 15px var(--body);background:var(--cobalt);color:#fff;border:0;border-radius:6px;padding:11px 18px;cursor:pointer}
+.primary:hover{background:#2440B8}
+.ghost{font:600 14px var(--body);background:var(--panel);color:var(--ink);border:1px solid var(--line);border-radius:6px;padding:8px 12px;cursor:pointer}
+.danger{color:var(--sell);border-color:#E8B4AE}
+#saveMsg{font-size:14px;color:var(--buy);font-weight:600}
+.baskets{padding:40px 0 10px;border-top:1px solid var(--line);margin-top:30px}
+.baskets h2{font:750 30px/1.1 var(--display);font-stretch:92%;margin:0 0 6px}
+.baskets .lead{margin:0 0 16px;color:var(--muted);max-width:62ch}
+.bhead{display:flex;justify-content:space-between;align-items:flex-end;gap:12px;flex-wrap:wrap}
+#notifMsg{font-size:13px;color:var(--muted);display:block;margin-top:4px}
+.basket-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(250px,1fr));gap:12px}
+.bcard{all:unset;box-sizing:border-box;display:block;background:var(--panel);border:1px solid var(--line);border-radius:10px;padding:16px;cursor:pointer;position:relative}
+.bcard:hover{border-color:#AFB9CA}
+.bcard:focus-visible{outline:3px solid var(--cobalt);outline-offset:2px}
+.bcard h3{font:750 19px var(--display);margin:0 0 2px;padding-right:70px}
+.bcard .meta{font-size:13px;color:var(--muted)}
+.bcard .val{font:700 24px var(--display);margin-top:10px}
+.bcard .ret{font-weight:600;font-size:15px}
+.badge{position:absolute;top:14px;right:14px;background:var(--sell-bg);color:var(--sell);font:700 12px var(--body);padding:3px 9px;border-radius:99px}
+.bnums{display:grid;grid-template-columns:repeat(3,1fr);gap:10px;margin:16px 0}
+.bnums div{background:#F6F8FA;border-radius:8px;padding:10px}
+.bnums small{display:block;font-size:12px;color:var(--muted)}
+.bnums b{font:700 18px var(--display)}
+.chart svg{width:100%;height:auto;display:block}
+.chart .axis{display:flex;justify-content:space-between;font-size:12px;color:var(--muted);margin-top:4px}
+.alertbox{border:1px solid #E8B4AE;background:#FFF7F6;border-radius:8px;padding:12px 14px;margin:10px 0}
+.alertbox p{margin:0 0 8px;font-size:14px}
+.alertbox .acts{display:flex;gap:8px;flex-wrap:wrap}
+.htable{width:100%;border-collapse:collapse;font-size:14px;margin-top:8px}
+.htable th{text-align:left;font-size:12px;color:var(--muted);font-weight:600;padding:6px 4px;border-bottom:1px solid var(--line)}
+.htable td{padding:8px 4px;border-bottom:1px solid var(--line)}
+.htable td.r,.htable th.r{text-align:right}
+.htable button{all:unset;cursor:pointer;font:700 15px var(--display);color:var(--cobalt);text-decoration:underline}
+.log{font-size:13px;color:var(--muted);padding-left:18px;margin:6px 0 0}
+.dlg h4{font:700 16px var(--display);margin:22px 0 4px}
+.back{font:600 14px var(--body);background:none;border:0;color:var(--cobalt);cursor:pointer;padding:0;margin-bottom:10px}
 footer{padding:30px 0 50px;font-size:13px;color:var(--muted);max-width:70ch}
 
 @media (max-width:820px){
@@ -175,6 +221,20 @@ footer{padding:30px 0 50px;font-size:13px;color:var(--muted);max-width:70ch}
         <div class="stats" id="pstats"></div>
       </aside>
     </div>
+    <div class="save-row">
+      <input id="basketName" placeholder="Name this basket, e.g. Retirement" aria-label="Basket name" maxlength="40">
+      <button class="primary" id="saveBasket">Save basket</button>
+      <span id="saveMsg" role="status"></span>
+    </div>
+  </section>
+
+  <section class="baskets" aria-labelledby="bTitle">
+    <div class="bhead">
+      <div><h2 id="bTitle">My baskets</h2>
+      <p class="lead">Performance is tracked from the day you save, using each day's closing prices. You'll see an alert when a fund turns Sell, falls 15% below what you paid, or a clearly better fund appears in its category.</p></div>
+      <div><button class="ghost" id="notifBtn">Turn on notifications</button><span id="notifMsg"></span></div>
+    </div>
+    <div class="basket-grid" id="basketList"></div>
   </section>
 </div>
 
@@ -282,7 +342,7 @@ function analyze(e){
   return {...e,gap,trend,range,score,signal,reasons,mu,
     up:mu+e.vol, down:mu-e.vol, bad:mu-2*e.vol};
 }
-let DATA=ETFS.map(analyze), SOURCE="Sample data — not live prices";
+let ASOF=new Date().toISOString().slice(0,10), LIVE=false, LAST_BUNDLE=null, DATA=ETFS.map(analyze), SOURCE="Sample data — not live prices";
 
 /* ---------- CSV loading ----------
    Reads funds.csv next to this page (refreshed daily by update_funds.py), or a file the user uploads.
@@ -331,11 +391,11 @@ function rowsToFunds(rows){
   return {funds:out,asof};
 }
 function loadFunds(text,label){
-  const {funds,asof}=rowsToFunds(parseCSV(text));
+  const {funds,asof}=rowsToFunds(parseCSV(text)); if(asof) ASOF=asof; LIVE=true;
   DATA=funds.map(analyze); SOURCE=`${funds.length} funds from ${label}${asof?", updated "+asof:""}`;
   $("cat").innerHTML='<option value="">All categories</option>';
   [...new Set(DATA.map(e=>e.cat))].sort().forEach(c=>$("cat").insertAdjacentHTML("beforeend",`<option>${esc(c)}</option>`));
-  renderRateNote(); renderBundle(); renderTable();
+  renderRateNote(); renderBundle(); renderTable(); if(typeof renderBaskets==="function") renderBaskets();
 }
 
 /* ---------- Bundle builder ---------- */
@@ -354,7 +414,7 @@ function buildBundle(risk,count){
     +(e.cls==="gold"&&risk>=3&&risk<=7?0.3:0)})).sort((a,b)=>b.s-a.s);
   const picks=[], cats=new Set(), tick=new Set(["VOO"]); // VOO duplicates SPY
   for(const {e} of scored){ if(picks.length>=count) break;
-    if(cats.has(e.cat)||tick.has(e.t)) continue; picks.push(e); cats.add(e.cat); }
+    if(cats.has(e.cat)||tick.has(e.t)||/leveraged|inverse/i.test(e.cat)) continue; /* never bundle daily-reset leveraged funds */ picks.push(e); cats.add(e.cat); }
   // weights: low risk -> inverse volatility, high risk -> expected return
   const inv=picks.map(e=>1/e.vol), ret=picks.map(e=>Math.max(e.mu,1));
   const si=inv.reduce((a,b)=>a+b), sr=ret.reduce((a,b)=>a+b);
@@ -404,12 +464,13 @@ function renderBundle(){
   $("riskVal").textContent=risk+" / 10"; $("countVal").textContent=count;
   $("riskWord").textContent=RISK_WORDS[risk-1]; $("countWord").textContent=count+" funds";
   const b=buildBundle(risk,count);
-  $("allocBar").innerHTML=b.picks.map((e,i)=>`<div style="flex-grow:${b.w[i]};background:${COLORS[i]}" title="${e.t} ${(b.w[i]*100).toFixed(0)}%">${b.w[i]>.08?e.t:""}</div>`).join("");
+  $("allocBar").innerHTML=b.picks.map((e,i)=>`<div data-t="${e.t}" data-i="${i}" style="flex-grow:${b.w[i]};background:${COLORS[i]}" title="${e.t} ${(b.w[i]*100).toFixed(0)}%">${b.w[i]>.08?e.t:""}</div>`).join("");
   $("allocBar").setAttribute("aria-label","Allocation: "+b.picks.map((e,i)=>`${e.t} ${(b.w[i]*100).toFixed(0)}%`).join(", "));
   $("holdings").innerHTML=b.picks.map((e,i)=>{const $a=amt*b.w[i], sh=Math.floor($a/conv(e.p));
-    return `<li><span class="sw" style="background:${COLORS[i]}"></span><span class="tk">${e.t} <span class="pill ${e.signal}" style="min-width:0;padding:1px 6px;font-size:10px;vertical-align:middle">${e.signal}</span></span>
+    return `<li><button class="hold-btn" data-t="${e.t}" data-i="${i}" aria-label="${e.t}, ${e.signal}, ${(b.w[i]*100).toFixed(1)}% of basket. Show reasoning"><span class="sw" style="background:${COLORS[i]}"></span><span class="tk">${e.t} <span class="pill ${e.signal}" style="min-width:0;padding:1px 6px;font-size:10px;vertical-align:middle">${e.signal}</span></span>
     <span class="nm">${(b.w[i]*100).toFixed(1)}% · ${esc(e.n)}</span>
-    <span class="amt">${usd($a)}<small>${sh>0?sh+" share"+(sh>1?"s":"")+" @ "+money(conv(e.p)):"fractional"}</small></span></li>`;}).join("");
+    <span class="amt">${usd($a)}<small>${sh>0?sh+" share"+(sh>1?"s":"")+" @ "+money(conv(e.p)):"fractional"}</small></span><span class="chev" aria-hidden="true">›</span></button></li>`;}).join("");
+  LAST_BUNDLE={b,amt};
   const sc=[["Good year",b.mu+b.vol,"Roughly 1 year in 6 does at least this well"],
             ["Expected",b.mu,"Middle-of-the-road outcome"],
             ["Bad year",b.mu-b.vol,"Roughly 1 year in 6 does this badly or worse"],
@@ -440,11 +501,17 @@ function renderTable(){
   </button>`).join(""):`<div class="empty">No funds match. Clear the search or pick a different category.</div>`);
 }
 
-function openDetail(t){
-  const e=DATA.find(x=>x.t===t), amt=amount()||conv(10000);
+function openBasketDetail(i){
+  const {b,amt}=LAST_BUNDLE, e=b.picks[i], $a=amt*b.w[i];
+  openDetail(e.t,`In your basket: ${(b.w[i]*100).toFixed(1)}% · ${money($a)}`,$a);
+}
+let BACK=null;
+function openDetail(t,note,amtOverride,back){ BACK=back||null;
+  const e=DATA.find(x=>x.t===t), amt=amtOverride||amount()||conv(10000);
   const cheapPos=clamp(50-e.gap*200,2,98);
   $("dlgBody").innerHTML=`
-  <div class="dlg-h"><div><h3 id="dTitle">${e.t}</h3><p>${esc(e.n)} · ${esc(e.cat)} · ${money(conv(e.p))}</p></div>
+  ${BACK?'<button class="back" id="backBtn">‹ Back to basket</button>':""}
+  <div class="dlg-h"><div><h3 id="dTitle">${e.t}</h3><p>${esc(e.n)} · ${esc(e.cat)} · ${money(conv(e.p))}</p>${note?`<p class="basket-note">${note}</p>`:""}</div>
   <button class="close" onclick="dlg.close()">Close</button></div>
   <div class="verdict ${e.signal}"><strong>${e.signal}</strong> <span style="font-size:14px">signal score ${e.score>=0?"+":""}${e.score.toFixed(2)}</span>
     <ul>${e.reasons.map(r=>`<li>${r}</li>`).join("")}</ul></div>
@@ -463,7 +530,8 @@ function openDetail(t){
     <span><b>${e.r5==null?"—":pct(e.r5)}</b>5-yr annualized</span><span><b>${e.vol.toFixed(1)}%</b>Volatility</span><span><b>${e.y==null?"—":e.y+"%"}</b>Dividend yield</span>
     <span><b>${e.er==null?"—":e.er+"%"}</b>Expense ratio</span><span><b>${e.ma?money(conv(e.ma)):"—"}</b>200-day average</span><span><b>${e.rsi??"—"}</b>RSI (14-day)</span>
   </div>`;
-  dlg.showModal();
+  if(BACK) $("backBtn").onclick=BACK;
+  if(!dlg.open) dlg.showModal();
 }
 
 /* ---------- Wire up ---------- */
@@ -484,6 +552,8 @@ fetch("https://open.er-api.com/v6/latest/USD").then(r=>r.json()).then(d=>{
   if(d&&d.rates){ Object.keys(RATES).forEach(c=>{if(d.rates[c]) RATES[c]=d.rates[c];}); rateLive=true;
     RATE=RATES[CUR]; renderRateNote(); renderBundle(); renderTable(); }
 }).catch(()=>{});
+$("holdings").addEventListener("click",ev=>{const r=ev.target.closest(".hold-btn"); if(r) openBasketDetail(+r.dataset.i);});
+$("allocBar").addEventListener("click",ev=>{const d=ev.target.closest("[data-i]"); if(d) openBasketDetail(+d.dataset.i);});
 $("table").addEventListener("click",ev=>{
   const h=ev.target.closest("button[data-k]");
   if(h){ const k=h.dataset.k; sortDir=sortKey===k?-sortDir:(k==="t"||k==="n"?1:-1); sortKey=k; renderTable(); return; }
@@ -494,7 +564,174 @@ $("amount").value=niceRound(10000*RATE).toLocaleString(LOCALE);
 setCurrency(CUR,false);
 $("csvFile").addEventListener("change",ev=>{const f=ev.target.files[0]; if(!f) return;
   f.text().then(t=>{try{loadFunds(t,f.name);$("csvMsg").textContent="";}catch(err){$("csvMsg").textContent=err.message+" Check the column headers.";}});});
-fetch("funds.csv",{cache:"no-store"}).then(r=>r.ok?r.text():Promise.reject()).then(t=>loadFunds(t,"funds.csv")).catch(()=>{});
+fetch("funds.csv",{cache:"no-store"}).then(r=>r.ok?r.text():Promise.reject()).then(t=>{ loadFunds(t,"funds.csv"); notifyNew(); }).catch(()=>{});
+/* ---------- Saved baskets ----------
+   Stored on this device: Claude's artifact storage when available, otherwise the browser's localStorage. */
+let BASKETS=[], MEM=[], HIST={};
+const Store={
+  async load(){
+    if(window.storage){ try{ const r=await window.storage.get("baskets",false); return r?JSON.parse(r.value):[]; }catch(e){ return []; } }
+    try{ return JSON.parse(localStorage.getItem("fundwise-baskets")||"[]"); }catch(e){ return MEM; }
+  },
+  async save(){ const v=JSON.stringify(BASKETS);
+    if(window.storage){ try{ await window.storage.set("baskets",v,false); return true; }catch(e){ return false; } }
+    try{ localStorage.setItem("fundwise-baskets",v); return true; }catch(e){ MEM=BASKETS; return false; }
+  }
+};
+const fmtDate=d=>new Date(d+"T12:00:00").toLocaleDateString(LOCALE,{day:"numeric",month:"short",year:"numeric"});
+function moneyIn(x,cur){ return new Intl.NumberFormat(LOCALE,{style:"currency",currency:cur,maximumFractionDigits:Math.abs(x)>=100?0:2}).format(x); }
+const holdingsOf=b=>b.versions[b.versions.length-1].holdings;
+
+/* history.csv: date,ticker,close — appended daily by update_funds.py */
+function loadHistory(text){
+  HIST={};
+  parseCSV(text).slice(1).forEach(([d,t,c])=>{ const p=parseFloat(c); if(!d||!t||isNaN(p)) return; (HIST[t]=HIST[t]||[]).push([d.trim(),p]); });
+  Object.values(HIST).forEach(a=>a.sort((x,y)=>x[0]<y[0]?-1:1));
+}
+function priceOn(t,d,fallback){ const a=HIST[t]; let p=null;
+  if(a) for(const [dd,pp] of a){ if(dd<=d) p=pp; else break; }
+  return p??fallback; }
+function priceNow(h){ const e=DATA.find(x=>x.t===h.t); if(e) return e.p; const a=HIST[h.t]; return a&&a.length?a[a.length-1][1]:h.entry; }
+
+function basketStats(b){
+  const hs=holdingsOf(b), usdNow=hs.reduce((s,h)=>s+h.units*priceNow(h),0);
+  const rateNow=RATES[b.cur]||b.fx;
+  return {hs,usdNow,localNow:usdNow*rateNow,ret:usdNow/b.usdInvested-1,fxMove:rateNow/b.fx-1};
+}
+function series(b){
+  const dates=new Set([b.created,ASOF]);
+  Object.values(HIST).forEach(a=>a.forEach(([d])=>{ if(d>=b.created&&d<=ASOF) dates.add(d); }));
+  return [...dates].sort().map(d=>{
+    let ver=b.versions[0]; for(const v of b.versions) if(v.from<=d) ver=v;
+    const usd=ver.holdings.reduce((s,h)=>s+h.units*(d===ASOF?priceNow(h):d<=h.since?h.entry:priceOn(h.t,d,h.entry)),0);
+    return {d,r:(usd/b.usdInvested-1)*100};
+  });
+}
+function chartSVG(pts){
+  if(pts.length<2) return `<p class="lead" style="font-size:14px">The chart fills in as new daily prices arrive — check back after the next trading day.</p>`;
+  const W=600,H=170,rs=pts.map(p=>p.r); let lo=Math.min(0,...rs), hi=Math.max(0,...rs); if(hi-lo<1){hi+=.5;lo-=.5;}
+  const X=i=>i/(pts.length-1)*W, Y=r=>4+(hi-r)/(hi-lo)*(H-8);
+  const line=pts.map((p,i)=>`${X(i).toFixed(1)},${Y(p.r).toFixed(1)}`).join(" ");
+  const last=rs[rs.length-1], col=last>=0?"#0F766E":"#B42318";
+  return `<svg viewBox="0 0 ${W} ${H}" role="img" aria-label="Return since saved: ${last.toFixed(1)}% across ${pts.length} trading days">
+    <polygon points="0,${Y(0)} ${line} ${W},${Y(0)}" fill="${col}" opacity=".12"/>
+    <line x1="0" x2="${W}" y1="${Y(0)}" y2="${Y(0)}" stroke="#8A94A8" stroke-dasharray="4 4"/>
+    <polyline points="${line}" fill="none" stroke="${col}" stroke-width="2.5" stroke-linejoin="round"/>
+  </svg><div class="axis"><span>${fmtDate(pts[0].d)}</span><span>High ${pct(Math.max(...rs))} · Low ${pct(Math.min(...rs))}</span><span>${fmtDate(pts[pts.length-1].d)}</span></div>`;
+}
+
+/* ---------- Drop / replace alerts ---------- */
+function alertsFor(b){
+  const out=[], inBasket=new Set(holdingsOf(b).map(h=>h.t));
+  for(const h of holdingsOf(b)){
+    const e=DATA.find(x=>x.t===h.t), why=[];
+    if(!e){ out.push({t:h.t,key:h.t+":gone",msg:`${h.t} is no longer in your fund list, so its price has stopped updating.`,rep:null}); continue; }
+    if(e.signal==="Sell") why.push("its signal has turned Sell");
+    const chg=e.p/h.entry-1; if(chg<=-0.15) why.push(`it's down ${Math.abs(chg*100).toFixed(0)}% since you added it`);
+    const pool=DATA.filter(x=>!inBasket.has(x.t)&&x.signal!=="Sell"&&!/leveraged|inverse/i.test(x.cat));
+    let rep=pool.filter(x=>x.cat===e.cat).sort((a,c)=>c.score-a.score)[0];
+    if(!rep) rep=pool.filter(x=>x.cls===e.cls&&Math.abs(x.vol-e.vol)<=e.vol*0.3).sort((a,c)=>c.score-a.score)[0];
+    if(rep&&rep.score<e.score+0.8) rep=null;
+    if(!why.length&&rep&&e.signal!=="Buy"&&rep.signal==="Buy") why.push(`${rep.t} in the same category now scores clearly better`);
+    if(why.length) out.push({t:h.t,key:h.t+":"+why.join("|").replace(/\d+/g,""),msg:`Consider replacing ${h.t}: ${why.join(" and ")}.`,rep});
+  }
+  return out;
+}
+async function notifyNew(){
+  if(!LIVE) return; let changed=false;
+  for(const b of BASKETS){
+    const al=alertsFor(b), keys=al.map(a=>a.key); b.seen=(b.seen||[]).filter(k=>keys.includes(k)); // re-arm cleared alerts
+    for(const a of al) if(!b.seen.includes(a.key)){
+      if("Notification" in window&&Notification.permission==="granted") new Notification(`Fundwise · ${b.name}`,{body:a.msg});
+      b.seen.push(a.key); changed=true; }
+  }
+  if(changed) Store.save();
+}
+
+/* ---------- Actions ---------- */
+async function saveBasket(){
+  const risk=+$("riskSlider").value, count=+$("countSlider").value, amt=amount();
+  if(!amt){ $("saveMsg").textContent="Enter an amount first."; return; }
+  const b=buildBundle(risk,count), usd=amt/RATE;
+  const holdings=b.picks.map((e,i)=>({t:e.t,n:e.n,units:usd*b.w[i]/e.p,entry:e.p,since:ASOF}));
+  const name=$("basketName").value.trim()||`Basket ${BASKETS.length+1}`;
+  BASKETS.push({id:Date.now().toString(36),name,created:ASOF,cur:CUR,fx:RATE,invested:amt,usdInvested:usd,risk,
+    versions:[{from:ASOF,holdings}],log:[{d:ASOF,x:`Saved with ${holdings.map(h=>h.t).join(", ")}`}],seen:[]});
+  if(LIVE) BASKETS[BASKETS.length-1].seen=alertsFor(BASKETS[BASKETS.length-1]).map(a=>a.key); // don't notify about alerts you saved with
+  const ok=await Store.save(); $("basketName").value="";
+  $("saveMsg").textContent=ok?`Saved “${name}”`:"Saved for this visit only (storage unavailable)";
+  setTimeout(()=>$("saveMsg").textContent="",4000);
+  renderBaskets();
+}
+function swap(b,t,repT){
+  const hs=holdingsOf(b).map(h=>({...h})), i=hs.findIndex(h=>h.t===t), old=hs[i], val=old.units*priceNow(old);
+  if(repT){ const r=DATA.find(x=>x.t===repT); hs[i]={t:r.t,n:r.n,units:val/r.p,entry:r.p,since:ASOF};
+    b.log.push({d:ASOF,x:`Replaced ${t} with ${repT}`}); }
+  else { hs.splice(i,1); const tot=hs.reduce((s,h)=>s+h.units*priceNow(h),0);
+    hs.forEach(h=>{ const p=priceNow(h), add=val*(h.units*p/tot)/p; h.entry=(h.units*h.entry+add*p)/(h.units+add); h.units+=add; });
+    b.log.push({d:ASOF,x:`Dropped ${t}; money spread across the other funds`}); }
+  if(b.versions[b.versions.length-1].from===ASOF) b.versions[b.versions.length-1].holdings=hs; else b.versions.push({from:ASOF,holdings:hs});
+  Store.save(); renderBaskets(); openBasket(b.id);
+}
+
+/* ---------- Rendering ---------- */
+function renderBaskets(){
+  const el=$("basketList"); if(!el) return;
+  if(!BASKETS.length){ el.innerHTML=`<p class="lead" style="grid-column:1/-1">No saved baskets yet. Build one above and tap “Save basket”.</p>`; return; }
+  el.innerHTML=BASKETS.map(b=>{ const s=basketStats(b), n=alertsFor(b).length;
+    return `<button class="bcard" data-id="${b.id}" aria-label="${esc(b.name)}, ${pct(s.ret*100)} since ${fmtDate(b.created)}${n?", "+n+" alerts":""}">
+      ${n?`<span class="badge">${n} alert${n>1?"s":""}</span>`:""}
+      <h3>${esc(b.name)}</h3><div class="meta">Saved ${fmtDate(b.created)} · ${s.hs.length} funds</div>
+      <div class="val">${moneyIn(s.localNow,b.cur)}</div>
+      <div class="ret ${s.ret>=0?"pos":"neg"}">${pct(s.ret*100)} <span class="meta">on ${moneyIn(b.invested,b.cur)}</span></div></button>`;}).join("");
+}
+function openBasket(id){
+  const b=BASKETS.find(x=>x.id===id); if(!b) return;
+  const s=basketStats(b), al=alertsFor(b), days=series(b);
+  const rows=s.hs.map(h=>{ const p=priceNow(h), v=h.units*p, r=p/h.entry-1;
+    return `<tr><td><button data-fund="${h.t}">${h.t}</button></td><td class="r">${(v/s.usdNow*100).toFixed(1)}%</td>
+      <td class="r">${moneyIn(h.entry*(RATES[b.cur]||b.fx),b.cur)} → ${moneyIn(p*(RATES[b.cur]||b.fx),b.cur)}</td><td class="r ${r>=0?"pos":"neg"}">${pct(r*100)}</td></tr>`;}).join("");
+  $("dlgBody").innerHTML=`
+  <div class="dlg-h"><div><h3 id="dTitle">${esc(b.name)}</h3><p>Saved ${fmtDate(b.created)} · ${RISK_WORDS[b.risk-1]} risk · prices as of ${fmtDate(ASOF)}</p></div>
+  <button class="close" onclick="dlg.close()">Close</button></div>
+  <div class="bnums">
+    <div><small>Value now</small><b>${moneyIn(s.localNow,b.cur)}</b></div>
+    <div><small>Invested</small><b>${moneyIn(b.invested,b.cur)}</b></div>
+    <div><small>Fund return</small><b class="${s.ret>=0?"pos":"neg"}">${pct(s.ret*100)}</b></div>
+  </div>
+  ${b.cur!=="USD"?`<p style="font-size:13px;color:var(--muted);margin:-6px 0 10px">Value includes a ${pct(s.fxMove*100)} move in the USD/${b.cur} rate since you saved.</p>`:""}
+  <div class="chart">${chartSVG(days)}</div>
+  ${al.length?`<h4>Alerts</h4>`+al.map(a=>`<div class="alertbox"><p>${esc(a.msg)}</p><div class="acts">
+    ${a.rep?`<button class="ghost" data-swap="${a.t}" data-rep="${a.rep.t}">Replace with ${a.rep.t} (${a.rep.signal})</button>`:""}
+    ${s.hs.length>2?`<button class="ghost" data-swap="${a.t}">Drop & spread</button>`:""}
+    <button class="ghost" data-fund="${a.t}">Why?</button></div></div>`).join(""):""}
+  <h4>Holdings</h4>
+  <table class="htable"><thead><tr><th>Fund</th><th class="r">Weight</th><th class="r">Paid → now</th><th class="r">Return</th></tr></thead><tbody>${rows}</tbody></table>
+  <h4>History</h4><ul class="log">${b.log.slice().reverse().map(l=>`<li>${fmtDate(l.d)} — ${esc(l.x)}</li>`).join("")}</ul>
+  <p style="font-size:12px;color:var(--muted);margin-top:14px">Returns use closing prices and exclude dividends. Replacements are simulated at that day's closing price with no fees or tax.</p>
+  <button class="ghost danger" id="delBasket" style="margin-top:8px">Delete basket</button>`;
+  $("dlgBody").onclick=ev=>{
+    const f=ev.target.closest("[data-fund]"); if(f){ openDetail(f.dataset.fund,`In ${b.name}`,null,()=>openBasket(b.id)); return; }
+    const sw=ev.target.closest("[data-swap]"); if(sw){ swap(b,sw.dataset.swap,sw.dataset.rep||null); return; }
+    if(ev.target.id==="delBasket"){ if(ev.target.dataset.confirm){ BASKETS=BASKETS.filter(x=>x.id!==b.id); Store.save(); renderBaskets(); dlg.close(); }
+      else { ev.target.dataset.confirm=1; ev.target.textContent="Tap again to delete"; } }
+  };
+  if(!dlg.open) dlg.showModal();
+}
+dlg.addEventListener("close",()=>{ $("dlgBody").onclick=null; });
+
+/* ---------- Wire up ---------- */
+$("saveBasket").addEventListener("click",saveBasket);
+$("basketList").addEventListener("click",ev=>{const c=ev.target.closest(".bcard"); if(c) openBasket(c.dataset.id);});
+function renderNotif(){ const btn=$("notifBtn");
+  if(!("Notification" in window)){ btn.hidden=true; $("notifMsg").textContent="This browser can't show notifications, so alerts appear on your baskets instead."; return; }
+  if(Notification.permission==="granted"){ btn.hidden=true; $("notifMsg").textContent="Notifications on — you'll be alerted when you open Fundwise."; }
+  else if(Notification.permission==="denied"){ btn.hidden=true; $("notifMsg").textContent="Notifications are blocked in your browser settings."; } }
+$("notifBtn").addEventListener("click",()=>Notification.requestPermission().then(()=>{renderNotif(); notifyNew();}));
+renderNotif();
+Store.load().then(v=>{ BASKETS=Array.isArray(v)?v:[]; renderBaskets(); notifyNew(); });
+fetch("history.csv",{cache:"no-store"}).then(r=>r.ok?r.text():Promise.reject()).then(t=>{ loadHistory(t); renderBaskets(); }).catch(()=>{});
+
 </script>
 </body>
 </html>
