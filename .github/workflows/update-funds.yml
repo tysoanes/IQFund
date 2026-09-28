@@ -11,17 +11,18 @@ permissions:
 jobs:
   update:
     runs-on: ubuntu-latest
+    timeout-minutes: 20       # never let a stuck run go on for hours
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-python@v5
         with:
           python-version: "3.12"
       - run: pip install yfinance pandas
-      - run: python update_funds.py
+      - run: python -u update_funds.py
       - name: Commit data files
         run: |
           git config user.name "fund-data-bot"
           git config user.email "actions@users.noreply.github.com"
-          git add funds.csv history.csv
+          git add funds.csv history.csv info_cache.json
           git diff --cached --quiet || git commit -m "Update fund data $(date -u +%F)"
           git push
