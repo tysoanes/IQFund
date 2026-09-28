@@ -46,6 +46,16 @@ header.top{display:flex;justify-content:space-between;align-items:baseline;paddi
 .ctl .hint{font-size:13px;color:var(--muted);display:flex;justify-content:space-between}
 input[type=range]{width:100%;accent-color:var(--cobalt);height:32px;margin:4px 0 0}
 #riskSlider{accent-color:var(--ink)}
+.ctl-wide{grid-column:1/-1}
+.switch{display:inline-flex!important;align-items:center;gap:12px;cursor:pointer;justify-content:flex-start!important;min-height:44px}
+.switch input{position:absolute;opacity:0;width:1px;height:1px}
+.switch .knob{width:44px;height:26px;border-radius:13px;background:#B8C0CC;position:relative;flex:none;transition:background .15s}
+.switch .knob::after{content:"";position:absolute;top:3px;left:3px;width:20px;height:20px;border-radius:50%;background:#fff;transition:transform .15s}
+.switch input:checked+.knob{background:var(--cobalt)}
+.switch input:checked+.knob::after{transform:translateX(18px)}
+.switch input:focus-visible+.knob{outline:3px solid var(--cobalt);outline-offset:2px}
+.overlap-note{font-size:14px;color:var(--muted);margin:12px 0 0}
+.overlap-note b{color:var(--ink)}
 .risk-track{height:6px;border-radius:3px;background:linear-gradient(90deg,#7FB7AE,#E2C27A,#D98A7E);margin-top:-2px}
 
 .result{display:grid;grid-template-columns:1.25fr 1fr;gap:24px;margin-top:28px}
@@ -212,12 +222,17 @@ footer{padding:30px 0 50px;font-size:13px;color:var(--muted);max-width:70ch}
         <input type="range" id="countSlider" min="4" max="8" value="6">
         <div class="hint"><span>Simpler</span><span>More spread out</span></div>
       </div>
+      <div class="ctl ctl-wide">
+        <label class="switch" for="overlapToggle"><input type="checkbox" id="overlapToggle" role="switch" checked><span class="knob" aria-hidden="true"></span>Minimise overlap between funds</label>
+        <div class="hint" style="display:block">Avoids pairs that hold many of the same companies, like a global tracker plus an S&amp;P 500 fund.</div>
+      </div>
     </div>
 
     <div class="result">
       <div>
         <div class="alloc-bar" id="allocBar" role="img" aria-label="Portfolio allocation"></div>
         <ul class="holdings" id="holdings"></ul>
+        <p class="overlap-note" id="overlapNote"></p>
       </div>
       <aside class="outlook" aria-live="polite">
         <h3>One-year outlook</h3>
@@ -420,13 +435,85 @@ function corr(a,b){
   return ({"eq-eq":.8,"eq-reit":.7,"reit-reit":.9,"bond-eq":.05,"bond-bond":.7,"bond-hy":.4,"eq-hy":.55,"hy-reit":.5,
     "hy-hy":.9,"bond-reit":.3,"eq-gold":.05,"bond-gold":.25,"gold-hy":.1,"gold-reit":.1,"gold-gold":1})[k] ?? .3;
 }
-function buildBundle(risk,count){
+
+/* ---------- Overlap between funds ----------
+   We don't have each fund's holdings, so overlap is estimated from what each
+   fund covers: its split across markets and sectors, in %. Two funds overlap
+   by the share they have in common (the sum of the smaller weight in each
+   bucket). A global tracker is ~60% US, so it overlaps heavily with an S&P 500
+   fund; a semiconductor fund overlaps with the Nasdaq 100 through its chip makers. */
+const US500={US_SEMI:12,US_TECH:21,US_FIN:13,US_HEAL:10,US_ENER:3,US_REST:41};
+const scale=(p,k)=>Object.fromEntries(Object.entries(p).map(([a,v])=>[a,v*k]));
+const mix=(...ps)=>{const o={}; ps.forEach(p=>Object.entries(p).forEach(([a,v])=>o[a]=(o[a]||0)+v)); return o;};
+const GLOBAL=mix(scale(US500,.62),{UK_LARGE:3,EUR:12,JP:5,APAC:4,EM:7,CHINA:2.5,INDIA:1.5,INTL_SEMI:3});
+const DEVWORLD=mix(scale(US500,.72),{UK_LARGE:4,EUR:13,JP:6,APAC:3,INTL_SEMI:2});
+const EMERGING={EM:55,CHINA:27,INDIA:18};
+const PROFILES={
+ "Global stocks":GLOBAL, "Developed world":DEVWORLD, "Covered-call income":DEVWORLD,
+ "Global small cap":{US_SMALL:58,INTL_SMALL:42}, "Global small value":{US_SMALL:55,INTL_SMALL:45},
+ "Global min volatility":mix(scale(US500,.5),{US_REST:10,EUR:12,JP:12,APAC:8,UK_LARGE:4,MINVOL:4}),
+ "Global quality factor":mix(scale(US500,.5),{US_TECH:10,US_SEMI:8,EUR:14,UK_LARGE:3,JP:3,APAC:2,QUALITY:10}),
+ "Global value factor":mix(scale(US500,.35),{EUR:18,UK_LARGE:8,JP:12,APAC:5,VALUE:22}),
+ "Global momentum factor":mix(scale(US500,.55),{US_SEMI:10,EUR:12,JP:8,APAC:5,MOMENTUM:10}),
+ "US large cap blend":US500, "US large cap (GBP hedged)":US500, "US large cap":US500, "US total market":mix(scale(US500,.92),{US_MID:5,US_SMALL:3}),
+ "US equal weight":{US_SEMI:5,US_TECH:9,US_FIN:14,US_HEAL:12,US_ENER:4,US_REST:36,US_MID:20},
+ "US mid cap":{US_MID:100}, "US small cap":{US_SMALL:100},
+ "US quality factor":{US_SEMI:12,US_TECH:30,US_FIN:8,US_HEAL:10,US_REST:30,QUALITY:10},
+ "US wide moat":{US_TECH:12,US_SEMI:5,US_FIN:12,US_HEAL:12,US_REST:39,MOAT:20},
+ "US growth (Nasdaq 100)":{US_SEMI:25,US_TECH:37,US_HEAL:6,US_REST:32}, "US growth":{US_SEMI:25,US_TECH:37,US_HEAL:6,US_REST:32},
+ "Sector: tech":{US_SEMI:35,US_TECH:65}, "Sector: semiconductors":{US_SEMI:72,INTL_SEMI:28},
+ "Sector: financials":{US_FIN:100}, "Sector: health":{US_HEAL:100}, "Sector: energy":{US_ENER:100}, "Sector: utilities":{US_UTIL:100},
+ "US dividend growth":{US_REST:25,US_FIN:5,US_HEAL:5,US_ENER:2,DIV_US:63}, "US dividend income":{US_TECH:10,US_REST:20,US_FIN:5,US_HEAL:5,DIV_US:60},
+ "US dividend":{US_REST:25,US_FIN:5,US_HEAL:5,DIV_US:65}, "US defensive":{US_REST:40,US_HEAL:10,MINVOL:50},
+ "Global dividend income":{DIV_GLOBAL:60,US_REST:12,EUR:10,UK_LARGE:4,JP:4,APAC:4,EM:6}, "Global dividend growth":{DIV_ARISTOCRATS:50,DIV_GLOBAL:30,US_REST:8,EUR:6,UK_LARGE:3,JP:3},
+ "UK large cap (FTSE 100)":{UK_LARGE:100}, "UK mid cap (FTSE 250)":{UK_MID:100}, "UK dividend":{UK_LARGE:50,UK_MID:15,DIV_UK:35},
+ "Europe":{EUR:78,UK_LARGE:22}, "Europe ex UK":{EUR:100}, "International":{EUR:45,UK_LARGE:10,JP:17,APAC:10,EM:18},
+ "Japan":{JP:100}, "Asia Pacific ex Japan":{APAC:100}, "Asia Pacific dividend":{APAC:60,DIV_GLOBAL:40},
+ "Emerging markets":EMERGING, "India":{INDIA:100}, "China":{CHINA:100},
+ "Healthcare innovation":{US_HEAL:20,HEALTH_INNOV:80}, "Robotics & automation":{ROBOTICS:60,US_SEMI:15,US_TECH:10,JP:15},
+ "Cyber security":{CYBER:75,US_TECH:25}, "Artificial intelligence":{AI:50,US_SEMI:20,US_TECH:30},
+ "Video gaming":{GAMING:70,US_TECH:10,JP:10,CHINA:10}, "Defence":{DEF_EU:60,DEF_US:40}, "Uranium & nuclear":{URANIUM:100},
+ "Crypto & blockchain stocks":{CRYPTO_EQ:80,US_TECH:20}, "Crypto: bitcoin":{BTC:100}, "Clean energy":{CLEAN:100},
+ "Gold":{GOLD:100}, "Silver":{SILVER:100}, "Commodities (broad)":{COMMOD:81,GOLD:15,SILVER:4},
+ "Gold miners":{MINERS:100}, "Junior gold miners":{MINERS:30,JUNIOR_MINERS:70},
+ "Global property":{US_PROP:50,INTL_PROP:45,UK_PROP:5}, "US property":{US_PROP:100}, "UK property":{UK_PROP:100}, "Real estate":{US_PROP:100},
+ "Bonds: UK gilts":{GILT:70,GILT_SHORT:30}, "Bonds: short UK gilts":{GILT_SHORT:100}, "Bonds: index-linked gilts":{LINKER:100},
+ "Bonds: sterling corporate":{GBP_CORP:75,GBP_CORP_SHORT:25}, "Bonds: short sterling corporate":{GBP_CORP_SHORT:100},
+ "Bonds: ultra-short":{CASH:50,ULTRA_SHORT:50}, "Bonds: cash / overnight":{CASH:100},
+ "Bonds: global aggregate (GBP hedged)":{GLOBAL_AGG:90,GILT:5,UST:5}, "Bonds: long US Treasury":{UST_LONG:100},
+ "Bonds: short US Treasury":{UST_SHORT:100}, "Bonds: US corporate":{US_CORP:100},
+ "Bonds: high yield (GBP hedged)":{HIGH_YIELD:100}, "Bonds: high yield":{HIGH_YIELD:100}, "Bonds: emerging markets":{EM_DEBT:100},
+ "Bonds: core":{UST:50,US_CORP:25,MBS:25}, "Bonds: long":{UST_LONG:100}, "Bonds: short":{UST_SHORT:100}, "Bonds: inflation":{TIPS:100},
+};
+function profileOf(e){ return PROFILES[e.cat]||{["CAT:"+e.cat]:100}; }
+function overlap(a,b){
+  if(a.t===b.t) return 1;
+  const pa=profileOf(a), pb=profileOf(b); let s=0;
+  for(const k in pa) if(pb[k]) s+=Math.min(pa[k],pb[k]);
+  return Math.min(1,s/100);
+}
+function portfolioOverlap(picks,w){
+  let num=0,den=0,top=null;
+  picks.forEach((a,i)=>picks.forEach((b,j)=>{ if(j<=i) return; const o=overlap(a,b), ww=w[i]*w[j];
+    num+=ww*o; den+=ww; if(!top||o>top.o) top={a:a.t,b:b.t,o}; }));
+  return {avg:den?num/den:0,top};
+}
+const ovLabel=x=>x<0.15?"Low":x<0.35?"Moderate":"High";
+
+function buildBundle(risk,count,lowOverlap){
   const targetVol=2+(risk-1)*(30-2)/9, t=(risk-1)/9;
   const scored=DATA.map(e=>({e,s:-1.4*Math.abs(e.vol-targetVol)/Math.max(targetVol,6)+e.score*0.1+e.mu*0.04*t
     +(e.cls==="gold"&&risk>=3&&risk<=7?0.3:0)})).sort((a,b)=>b.s-a.s);
   const picks=[], cats=new Set(), tick=new Set(["VOO"]); // VOO duplicates SPY
-  for(const {e} of scored){ if(picks.length>=count) break;
-    if(cats.has(e.cat)||tick.has(e.t)||/leveraged|inverse/i.test(e.cat)) continue; /* never bundle daily-reset leveraged funds */ picks.push(e); cats.add(e.cat); }
+  // With "minimise overlap" on, skip funds sharing too much with ones already picked;
+  // loosen the limit step by step only if the basket can't otherwise be filled.
+  for(const limit of lowOverlap?[0.25,0.4,0.6,1.01]:[1.01]){
+    for(const {e} of scored){ if(picks.length>=count) break;
+      if(picks.includes(e)||cats.has(e.cat)||tick.has(e.t)||/leveraged|inverse/i.test(e.cat)) continue; /* never bundle daily-reset leveraged funds */
+      if(picks.some(p=>overlap(p,e)>limit)) continue;
+      picks.push(e); cats.add(e.cat); }
+    if(picks.length>=count) break;
+  }
   // weights: low risk -> inverse volatility, high risk -> expected return
   const inv=picks.map(e=>1/e.vol), ret=picks.map(e=>Math.max(e.mu,1));
   const si=inv.reduce((a,b)=>a+b), sr=ret.reduce((a,b)=>a+b);
@@ -435,7 +522,7 @@ function buildBundle(risk,count){
   let mu=0,v=0; picks.forEach((a,i)=>{mu+=w[i]*a.mu; picks.forEach((b,j)=>v+=w[i]*w[j]*a.vol*b.vol*corr(a,b));});
   const dd=picks.reduce((s,e,i)=>s+w[i]*e.dd,0);
   const yld=picks.reduce((s,e,i)=>s+w[i]*e.y,0), er=picks.reduce((s,e,i)=>s+w[i]*e.er,0);
-  return {picks,w,mu,vol:Math.sqrt(v),dd,yld,er};
+  return {picks,w,mu,vol:Math.sqrt(v),dd,yld,er,ov:portfolioOverlap(picks,w)};
 }
 
 /* ---------- Rendering ---------- */
@@ -479,7 +566,7 @@ function renderBundle(){
   const risk=+$("riskSlider").value, count=+$("countSlider").value, amt=amount();
   $("riskVal").textContent=risk+" / 10"; $("countVal").textContent=count;
   $("riskWord").textContent=RISK_WORDS[risk-1]; $("countWord").textContent=count+" funds";
-  const b=buildBundle(risk,count);
+  const b=buildBundle(risk,count,$("overlapToggle").checked);
   $("allocBar").innerHTML=b.picks.map((e,i)=>`<div data-t="${e.t}" data-i="${i}" style="flex-grow:${b.w[i]};background:${COLORS[i]}" title="${e.t} ${(b.w[i]*100).toFixed(0)}%">${b.w[i]>.08?e.t:""}</div>`).join("");
   $("allocBar").setAttribute("aria-label","Allocation: "+b.picks.map((e,i)=>`${e.t} ${(b.w[i]*100).toFixed(0)}%`).join(", "));
   $("holdings").innerHTML=b.picks.map((e,i)=>{const $a=amt*b.w[i], sh=Math.floor($a/conv(e.p));
@@ -493,7 +580,10 @@ function renderBundle(){
             ["Crash (like 2008/2020)",b.dd,"Weighted worst past peak-to-trough drop of these funds"]];
   $("outlook").innerHTML=sc.map(([l,r,d])=>`<div class="scen"><span>${l}</span><span class="v ${r>=0?"up":"down"}">${usd(amt*(1+r/100))} <small style="font-size:13px">${pct(r)}</small></span><span class="d">${d}</span></div>`).join("");
   const y5=amt*Math.pow(1+b.mu/100,5);
-  $("pstats").innerHTML=`<span><b>${usd(y5)}</b>5-yr expected</span><span><b>${b.vol.toFixed(1)}%</b>Volatility</span><span><b>${b.yld.toFixed(1)}%</b>Dividend yield</span><span><b>${b.er.toFixed(2)}%</b>Avg fee</span>`;
+  $("pstats").innerHTML=`<span><b>${usd(y5)}</b>5-yr expected</span><span><b>${b.vol.toFixed(1)}%</b>Volatility</span><span><b>${b.yld.toFixed(1)}%</b>Dividend yield</span><span><b>${b.er.toFixed(2)}%</b>Avg fee</span><span><b>${ovLabel(b.ov.avg)}</b>Fund overlap</span>`;
+  const top=b.ov.top;
+  $("overlapNote").innerHTML=top&&top.o>=0.15?`Estimated overlap between funds: <b>${ovLabel(b.ov.avg)} (${Math.round(b.ov.avg*100)}%)</b>. Most shared: ${top.a} and ${top.b}, about ${Math.round(top.o*100)}% in common.`
+    :`Estimated overlap between funds: <b>${ovLabel(b.ov.avg)}</b>. No two funds share much.`;
 }
 
 let sortKey="score", sortDir=-1; const F={sig:new Set(),val:new Set()};
@@ -553,6 +643,8 @@ function openDetail(t,note,amtOverride,back){ BACK=back||null;
 /* ---------- Wire up ---------- */
 [...new Set(DATA.map(e=>e.cat))].sort().forEach(c=>$("cat").insertAdjacentHTML("beforeend",`<option>${esc(c)}</option>`));
 ["riskSlider","countSlider"].forEach(id=>$(id).addEventListener("input",renderBundle));
+try{ if(localStorage.getItem("fundwise-overlap")==="off") $("overlapToggle").checked=false; }catch(e){}
+$("overlapToggle").addEventListener("change",()=>{ try{ localStorage.setItem("fundwise-overlap",$("overlapToggle").checked?"on":"off"); }catch(e){} renderBundle(); });
 let amountTouched=false;
 $("amount").addEventListener("input",()=>{amountTouched=true; renderBundle();});
 $("amount").addEventListener("blur",()=>{$("amount").value=amount().toLocaleString(LOCALE);sizeAmount();});
