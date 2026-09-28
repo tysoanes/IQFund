@@ -15,6 +15,14 @@
   "pe": null,
   "yield": 4.05
  },
+ "AIAG": {
+  "currency": "GBp",
+  "expense_ratio": 0.49,
+  "fetched": "2026-09-28",
+  "name": "L&G Artificial Intelligence UCITS ETF",
+  "pe": null,
+  "yield": null
+ },
  "AVEM": {
   "category": "Diversified Emerging Mkts",
   "expense_ratio": 0.33,
@@ -22,6 +30,14 @@
   "name": "Avantis Emerging Markets Equity ETF",
   "pe": 12.917605,
   "yield": 1.8599999999999999
+ },
+ "AVGS": {
+  "currency": "USD",
+  "expense_ratio": 0.39,
+  "fetched": "2026-09-28",
+  "name": "Avantis Global Small Cap Value UCITS ETF USD Acc",
+  "pe": 12.05001,
+  "yield": 0.0
  },
  "AVUV": {
   "category": "Small Value",
@@ -79,6 +95,46 @@
   "pe": 24.696754,
   "yield": 1.17
  },
+ "CNX1": {
+  "currency": "GBp",
+  "expense_ratio": 0.3,
+  "fetched": "2026-09-28",
+  "name": "iShares NASDAQ 100 UCITS ETF USD (Acc)",
+  "pe": null,
+  "yield": null
+ },
+ "CSH2": {
+  "currency": "GBp",
+  "expense_ratio": 0.1,
+  "fetched": "2026-09-28",
+  "name": "Multi Units Luxembourg - Amundi Smart Overnight Return GBP Hedged UCITS ETF Acc",
+  "pe": 28.369549,
+  "yield": 0.0
+ },
+ "CSP1": {
+  "currency": "GBp",
+  "expense_ratio": 0.07,
+  "fetched": "2026-09-28",
+  "name": "iShares Core S&P 500 UCITS ETF USD (Acc)",
+  "pe": null,
+  "yield": null
+ },
+ "CUKX": {
+  "currency": "GBp",
+  "expense_ratio": 0.07,
+  "fetched": "2026-09-28",
+  "name": "iShares VII PLC - iShares Core FTSE 100 ETF GBP Acc",
+  "pe": 15.386843,
+  "yield": null
+ },
+ "DAGB": {
+  "currency": "GBP",
+  "expense_ratio": 0.65,
+  "fetched": "2026-09-28",
+  "name": "VanEck Crypto& Blockchain Innovators ETF A USD Acc",
+  "pe": null,
+  "yield": null
+ },
  "DFAC": {
   "category": "Large Blend",
   "expense_ratio": 0.17,
@@ -86,6 +142,14 @@
   "name": "Dimensional U.S. Core Equity 2 ETF",
   "pe": 21.647097,
   "yield": 0.89
+ },
+ "DFNG": {
+  "currency": "GBP",
+  "expense_ratio": 0.55,
+  "fetched": "2026-09-28",
+  "name": "VanEck Defense ETF A USD Acc",
+  "pe": null,
+  "yield": null
  },
  "DGRO": {
   "category": "Large Value",
@@ -135,6 +199,38 @@
   "pe": 14.71216,
   "yield": 4.4699997
  },
+ "EMIM": {
+  "currency": "GBp",
+  "expense_ratio": 0.18,
+  "fetched": "2026-09-28",
+  "name": "iShares Core MSCI EM IMI UCITS ETF USD (Acc)",
+  "pe": null,
+  "yield": null
+ },
+ "EQQQ": {
+  "currency": "GBp",
+  "expense_ratio": 0.3,
+  "fetched": "2026-09-28",
+  "name": "Invesco EQQQ NASDAQ-100 UCITS ETF",
+  "pe": null,
+  "yield": null
+ },
+ "ERNS": {
+  "currency": "GBP",
+  "expense_ratio": 0.09,
+  "fetched": "2026-09-28",
+  "name": "iShares \u00a3 Ultrashort Bond UCITS ETF GBP (Dist)",
+  "pe": null,
+  "yield": 4.2600001999999995
+ },
+ "ESGB": {
+  "currency": "GBP",
+  "expense_ratio": 0.55,
+  "fetched": "2026-09-28",
+  "name": "VanEck Video Gaming and eSports UCITS ETF A USD",
+  "pe": null,
+  "yield": null
+ },
  "FBND": {
   "category": "Intermediate Core-Plus Bond",
   "expense_ratio": 0.36,
@@ -143,6 +239,46 @@
   "pe": 8.679884,
   "yield": 4.73
  },
+ "FRIN": {
+  "currency": "GBP",
+  "expense_ratio": 0.19,
+  "fetched": "2026-09-28",
+  "name": "Franklin FTSE India UCITS ETF",
+  "pe": null,
+  "yield": null
+ },
+ "FUSD": {
+  "currency": "USD",
+  "expense_ratio": 0.3,
+  "fetched": "2026-09-28",
+  "name": "Fidelity US Quality Income UCITS ETF Inc",
+  "pe": 22.408186,
+  "yield": 1.38
+ },
+ "FWRG": {
+  "currency": "GBp",
+  "expense_ratio": null,
+  "fetched": "2026-09-28",
+  "name": "Invesco FTSE All-World UCITS ETF USD Accumulation",
+  "pe": null,
+  "yield": null
+ },
+ "GBDV": {
+  "currency": "GBP",
+  "expense_ratio": 0.45,
+  "fetched": "2026-09-28",
+  "name": "State Street SPDR S&P Global Dividend Aristocrats UCITS ETF",
+  "pe": null,
+  "yield": null
+ },
+ "GDGB": {
+  "currency": "GBP",
+  "expense_ratio": 0.53,
+  "fetched": "2026-09-28",
+  "name": "VanEck Gold Miners UCITS ETF",
+  "pe": null,
+  "yield": null
+ },
  "GDX": {
   "category": "Equity Precious Metals",
   "expense_ratio": 0.51,
@@ -150,6 +286,30 @@
   "name": "VanEck Gold Miners ETF",
   "pe": 11.919311,
   "yield": 0.64
+ },
+ "GHYS": {
+  "currency": "GBP",
+  "expense_ratio": 0.55,
+  "fetched": "2026-09-28",
+  "name": "iShares Global High Yield Corp Bond GBP Hedged UCITS ETF (Dist)",
+  "pe": 10.5384035,
+  "yield": 7.22
+ },
+ "GILS": {
+  "currency": "GBp",
+  "expense_ratio": 0.05,
+  "fetched": "2026-09-28",
+  "name": "Amundi Core UK Government Bond UCITS ETF Dist",
+  "pe": null,
+  "yield": 3.1600002000000003
+ },
+ "GJGB": {
+  "currency": "GBP",
+  "expense_ratio": 0.55,
+  "fetched": "2026-09-28",
+  "name": "VanEck Junior Gold Miners UCITS ETF",
+  "pe": null,
+  "yield": null
  },
  "GLD": {
   "category": "Commodities Focused",
@@ -175,6 +335,46 @@
   "pe": null,
   "yield": 3.65
  },
+ "HEAL": {
+  "currency": "USD",
+  "expense_ratio": 0.4,
+  "fetched": "2026-09-28",
+  "name": "iShares Healthcare Innovation UCITS ETF USD (Acc)",
+  "pe": 26.282692,
+  "yield": 0.0
+ },
+ "HMCH": {
+  "currency": "GBp",
+  "expense_ratio": 0.3,
+  "fetched": "2026-09-28",
+  "name": "HSBC MSCI China UCITS ETF",
+  "pe": null,
+  "yield": null
+ },
+ "HMWO": {
+  "currency": "GBp",
+  "expense_ratio": 0.15,
+  "fetched": "2026-09-28",
+  "name": "HSBC MSCI World UCITS ETF",
+  "pe": null,
+  "yield": null
+ },
+ "HSPX": {
+  "currency": "GBp",
+  "expense_ratio": 0.09,
+  "fetched": "2026-09-28",
+  "name": "HSBC S&P 500 UCITS ETF",
+  "pe": null,
+  "yield": null
+ },
+ "IAPD": {
+  "currency": "GBp",
+  "expense_ratio": 0.59,
+  "fetched": "2026-09-28",
+  "name": "iShares Asia Pacific Dividend UCITS ETF USD (Dist)",
+  "pe": null,
+  "yield": null
+ },
  "IAU": {
   "category": "Commodities Focused",
   "expense_ratio": 0.25,
@@ -183,11 +383,35 @@
   "pe": null,
   "yield": 0.0
  },
+ "IB1T": {
+  "currency": "GBP",
+  "expense_ratio": null,
+  "fetched": "2026-09-28",
+  "name": "iShares Bitcoin ETP",
+  "pe": null,
+  "yield": null
+ },
  "IBIT": {
   "category": "Digital Assets",
   "expense_ratio": 0.25,
   "fetched": "2026-09-28",
   "name": "iShares Bitcoin Trust ETF",
+  "pe": null,
+  "yield": 0.0
+ },
+ "IBTS": {
+  "currency": "GBP",
+  "expense_ratio": 0.07,
+  "fetched": "2026-09-28",
+  "name": "iShares $ Treasury Bond 1-3yr UCITS ETF USD (Dist)",
+  "pe": null,
+  "yield": null
+ },
+ "ICOM": {
+  "currency": "USD",
+  "expense_ratio": 0.19,
+  "fetched": "2026-09-28",
+  "name": "iShares Diversified Commodity Swap UCITS ETF",
   "pe": null,
   "yield": 0.0
  },
@@ -198,6 +422,22 @@
   "name": "iShares Core MSCI International Developed Markets ETF",
   "pe": 18.014898,
   "yield": 3.11
+ },
+ "IDTG": {
+  "currency": "GBP",
+  "expense_ratio": 0.1,
+  "fetched": "2026-09-28",
+  "name": "iShares $ Treasury Bond 20+yr UCITS ETF GBP Hedged (Dist)",
+  "pe": null,
+  "yield": 4.78
+ },
+ "IEEM": {
+  "currency": "GBp",
+  "expense_ratio": 0.18,
+  "fetched": "2026-09-28",
+  "name": "iShares MSCI EM UCITS ETF USD (Dist)",
+  "pe": null,
+  "yield": null
  },
  "IEF": {
   "category": "Long Government",
@@ -223,6 +463,38 @@
   "pe": 14.47379,
   "yield": 2.1999999999999997
  },
+ "IGLS": {
+  "currency": "GBP",
+  "expense_ratio": 0.07,
+  "fetched": "2026-09-28",
+  "name": "iShares UK Gilts 0-5yr UCITS ETF GBP (Dist)",
+  "pe": null,
+  "yield": 3.9699999999999998
+ },
+ "IGLT": {
+  "currency": "GBP",
+  "expense_ratio": 0.07,
+  "fetched": "2026-09-28",
+  "name": "iShares Core UK Gilts UCITS ETF GBP (Dist)",
+  "pe": null,
+  "yield": 4.5
+ },
+ "IGUS": {
+  "currency": "GBp",
+  "expense_ratio": 0.2,
+  "fetched": "2026-09-28",
+  "name": "iShares S&P 500 GBP Hedged UCITS ETF (Acc)",
+  "pe": 24.952572,
+  "yield": 0.0
+ },
+ "IITU": {
+  "currency": "GBp",
+  "expense_ratio": 0.15,
+  "fetched": "2026-09-28",
+  "name": "iShares S&P 500 Information Technology Sector UCITS ETF USD (Acc)",
+  "pe": null,
+  "yield": null
+ },
  "IJH": {
   "category": "Mid-Cap Blend",
   "expense_ratio": 0.05,
@@ -230,6 +502,14 @@
   "name": "iShares Core S&P Mid-Cap ETF",
   "pe": 20.088749,
   "yield": 1.17999995
+ },
+ "IJPN": {
+  "currency": "GBp",
+  "expense_ratio": 0.59,
+  "fetched": "2026-09-28",
+  "name": "iShares MSCI Japan UCITS ETF USD (Dist)",
+  "pe": null,
+  "yield": null
  },
  "IJR": {
   "category": "Small Blend",
@@ -239,6 +519,54 @@
   "pe": 17.306778,
   "yield": 1.1400000000000001
  },
+ "IMEU": {
+  "currency": "GBp",
+  "expense_ratio": 0.12,
+  "fetched": "2026-09-28",
+  "name": "iShares Core MSCI Europe UCITS ETF EUR (Dist)",
+  "pe": null,
+  "yield": null
+ },
+ "INRG": {
+  "currency": "GBp",
+  "expense_ratio": 0.65,
+  "fetched": "2026-09-28",
+  "name": "iShares Global Clean Energy Transition UCITS ETF USD (Dist)",
+  "pe": null,
+  "yield": null
+ },
+ "INXG": {
+  "currency": "GBP",
+  "expense_ratio": 0.1,
+  "fetched": "2026-09-28",
+  "name": "iShares \u00a3 Index-Linked Gilts UCITS ETF GBP (Dist)",
+  "pe": null,
+  "yield": 7.630000000000001
+ },
+ "IS15": {
+  "currency": "GBP",
+  "expense_ratio": 0.2,
+  "fetched": "2026-09-28",
+  "name": "iShares \u00a3 Corp Bond 0-5yr UCITS ETF GBP (Dist)",
+  "pe": 15.400606,
+  "yield": 4.5
+ },
+ "ISF": {
+  "currency": "GBp",
+  "expense_ratio": 0.07,
+  "fetched": "2026-09-28",
+  "name": "iShares Core FTSE 100 UCITS ETF GBP (Dist)",
+  "pe": 15.279785,
+  "yield": 2.8800000999999997
+ },
+ "ISPY": {
+  "currency": "GBp",
+  "expense_ratio": 0.69,
+  "fetched": "2026-09-28",
+  "name": "L&G Cyber Security UCITS ETF",
+  "pe": null,
+  "yield": null
+ },
  "ITOT": {
   "category": "Large Blend",
   "expense_ratio": 0.03,
@@ -246,6 +574,62 @@
   "name": "iShares Core S&P Total U.S. Stock Market ETF",
   "pe": 24.324005,
   "yield": 0.98
+ },
+ "IUES": {
+  "currency": "USD",
+  "expense_ratio": 0.15,
+  "fetched": "2026-09-28",
+  "name": "iShares S&P 500 Energy Sector UCITS ETF USD (Acc)",
+  "pe": 20.762646,
+  "yield": 0.0
+ },
+ "IUFS": {
+  "currency": "USD",
+  "expense_ratio": 0.15,
+  "fetched": "2026-09-28",
+  "name": "iShares S&P 500 Financials Sector UCITS ETF USD (Acc)",
+  "pe": 15.823488,
+  "yield": 0.0
+ },
+ "IUHC": {
+  "currency": "USD",
+  "expense_ratio": 0.15,
+  "fetched": "2026-09-28",
+  "name": "iShares S&P 500 Health Care Sector UCITS ETF USD (Acc)",
+  "pe": 28.92687,
+  "yield": 0.0
+ },
+ "IUKD": {
+  "currency": "GBp",
+  "expense_ratio": 0.4,
+  "fetched": "2026-09-28",
+  "name": "iShares UK Dividend UCITS ETF GBP (Dist)",
+  "pe": 14.948522,
+  "yield": 4.5900002
+ },
+ "IUKP": {
+  "currency": "GBp",
+  "expense_ratio": 0.4,
+  "fetched": "2026-09-28",
+  "name": "iShares UK Property UCITS ETF GBP (Dist)",
+  "pe": 12.929264,
+  "yield": 4.1500002
+ },
+ "IUQA": {
+  "currency": "USD",
+  "expense_ratio": 0.2,
+  "fetched": "2026-09-28",
+  "name": "iShares Edge MSCI USA Quality Factor UCITS ETF USD (Acc)",
+  "pe": 27.036188,
+  "yield": 0.0
+ },
+ "IUSA": {
+  "currency": "GBp",
+  "expense_ratio": 0.07,
+  "fetched": "2026-09-28",
+  "name": "iShares Core S&P 500 UCITS ETF USD Dist",
+  "pe": null,
+  "yield": null
  },
  "IUSB": {
   "category": "Intermediate Core-Plus Bond",
@@ -262,6 +646,14 @@
   "name": "iShares Core S&P U.S. Growth ETF",
   "pe": 27.461529,
   "yield": 0.47999998000000005
+ },
+ "IUSP": {
+  "currency": "GBp",
+  "expense_ratio": 0.4,
+  "fetched": "2026-09-28",
+  "name": "iShares US Property Yield UCITS ETF USD (Dist)",
+  "pe": null,
+  "yield": null
  },
  "IVE": {
   "category": "Large Value",
@@ -303,6 +695,14 @@
   "pe": 20.802202,
   "yield": 1.3599999999999999
  },
+ "IWDP": {
+  "currency": "GBp",
+  "expense_ratio": 0.59,
+  "fetched": "2026-09-28",
+  "name": "iShares Developed Markets Property Yield UCITS ETF USD (Dist)",
+  "pe": null,
+  "yield": null
+ },
  "IWF": {
   "category": "Large Growth",
   "expense_ratio": 0.18,
@@ -310,6 +710,30 @@
   "name": "iShares Russell 1000 Growth ETF",
   "pe": 30.367432,
   "yield": 0.34999999
+ },
+ "IWFM": {
+  "currency": "GBp",
+  "expense_ratio": 0.3,
+  "fetched": "2026-09-28",
+  "name": "iShares Edge MSCI World Momentum Factor UCITS ETF USD (Acc)",
+  "pe": null,
+  "yield": null
+ },
+ "IWFQ": {
+  "currency": "GBp",
+  "expense_ratio": 0.3,
+  "fetched": "2026-09-28",
+  "name": "iShares Edge MSCI World Quality Factor UCITS ETF USD (Acc)",
+  "pe": null,
+  "yield": null
+ },
+ "IWFV": {
+  "currency": "GBp",
+  "expense_ratio": 0.3,
+  "fetched": "2026-09-28",
+  "name": "iShares Edge MSCI World Value Factor UCITS ETF USD (Acc)",
+  "pe": null,
+  "yield": null
  },
  "IWM": {
   "category": "Small Blend",
@@ -327,6 +751,14 @@
   "pe": 19.932888,
   "yield": 1.13
  },
+ "IWRD": {
+  "currency": "GBp",
+  "expense_ratio": 0.5,
+  "fetched": "2026-09-28",
+  "name": "iShares MSCI World UCITS ETF USD (Dist)",
+  "pe": null,
+  "yield": null
+ },
  "IXUS": {
   "category": "Foreign Large Blend",
   "expense_ratio": 0.07,
@@ -342,6 +774,14 @@
   "name": "Janus Henderson AAA CLO ETF",
   "pe": null,
   "yield": 5.3400002
+ },
+ "JEGP": {
+  "currency": "GBp",
+  "expense_ratio": 0.35,
+  "fetched": "2026-09-28",
+  "name": "JPM Global Equity Premium Income Active UCITS ETF - USD (dist)",
+  "pe": null,
+  "yield": null
  },
  "JEPI": {
   "category": "Derivative Income",
@@ -383,6 +823,22 @@
   "pe": 31.213793,
   "yield": 0.33000002
  },
+ "MIDD": {
+  "currency": "GBp",
+  "expense_ratio": 0.4,
+  "fetched": "2026-09-28",
+  "name": "iShares FTSE 250 UCITS ETF GBP (Dist)",
+  "pe": 15.447464,
+  "yield": 2.8800000999999997
+ },
+ "MOGB": {
+  "currency": "GBP",
+  "expense_ratio": 0.49,
+  "fetched": "2026-09-28",
+  "name": "VanEck Morningstar US ESG Wide Moat UCITS ETF",
+  "pe": null,
+  "yield": null
+ },
  "MUB": {
   "category": "Muni National Interm",
   "expense_ratio": 0.05,
@@ -390,6 +846,38 @@
   "name": "iShares National Muni Bond ETF",
   "pe": null,
   "yield": 3.25
+ },
+ "MVOL": {
+  "currency": "USD",
+  "expense_ratio": 0.3,
+  "fetched": "2026-09-28",
+  "name": "iShares Edge MSCI World Minimum Volatility UCITS ETF USD (Acc)",
+  "pe": 20.411884,
+  "yield": 0.0
+ },
+ "NUCG": {
+  "currency": "GBP",
+  "expense_ratio": 0.55,
+  "fetched": "2026-09-28",
+  "name": "VanEck Uranium and Nuclear Technologies UCITS ETF A USD Acc",
+  "pe": null,
+  "yield": null
+ },
+ "PHGP": {
+  "currency": "GBp",
+  "expense_ratio": null,
+  "fetched": "2026-09-28",
+  "name": "WisdomTree Physical Gold",
+  "pe": null,
+  "yield": null
+ },
+ "PHSP": {
+  "currency": "GBp",
+  "expense_ratio": null,
+  "fetched": "2026-09-28",
+  "name": "WisdomTree Physical Silver",
+  "pe": null,
+  "yield": null
  },
  "QQQ": {
   "category": "Large Growth",
@@ -414,6 +902,22 @@
   "name": "iShares MSCI USA Quality Factor ETF",
   "pe": 26.897621,
   "yield": 0.8500000000000001
+ },
+ "R2US": {
+  "currency": "USD",
+  "expense_ratio": 0.3,
+  "fetched": "2026-09-28",
+  "name": "State Street SPDR Russell 2000 US Small Cap UCITS ETF",
+  "pe": 16.538656,
+  "yield": 0.0
+ },
+ "RBOT": {
+  "currency": "USD",
+  "expense_ratio": 0.4,
+  "fetched": "2026-09-28",
+  "name": "iShares Automation & Robotics UCITS ETF USD (Acc)",
+  "pe": 34.30232,
+  "yield": 0.0
  },
  "RSP": {
   "category": "Large Blend",
@@ -463,6 +967,30 @@
   "pe": 25.06859,
   "yield": 1.0
  },
+ "SEMB": {
+  "currency": "GBp",
+  "expense_ratio": 0.45,
+  "fetched": "2026-09-28",
+  "name": "iShares J.P. Morgan $ EM Bond UCITS ETF USD (Dist)",
+  "pe": null,
+  "yield": null
+ },
+ "SEMI": {
+  "currency": "GBP",
+  "expense_ratio": 0.35,
+  "fetched": "2026-09-28",
+  "name": "iShares MSCI Global Semiconductors UCITS ETF USD Acc",
+  "pe": null,
+  "yield": null
+ },
+ "SGLN": {
+  "currency": "GBp",
+  "expense_ratio": null,
+  "fetched": "2026-09-28",
+  "name": "iShares Physical Gold ETC",
+  "pe": null,
+  "yield": null
+ },
  "SGOV": {
   "category": "Ultrashort Bond",
   "expense_ratio": 0.09,
@@ -478,6 +1006,22 @@
   "name": "iShares Silver Trust",
   "pe": null,
   "yield": 0.0
+ },
+ "SLXX": {
+  "currency": "GBP",
+  "expense_ratio": 0.2,
+  "fetched": "2026-09-28",
+  "name": "iShares Core \u00a3 Corp Bond UCITS ETF GBP (Dist)",
+  "pe": null,
+  "yield": 5.04
+ },
+ "SMGB": {
+  "currency": "GBP",
+  "expense_ratio": 0.35,
+  "fetched": "2026-09-28",
+  "name": "VanEck Semiconductor UCITS ETF",
+  "pe": null,
+  "yield": null
  },
  "SMH": {
   "category": "Technology",
@@ -503,6 +1047,14 @@
   "pe": 16.805674,
   "yield": 2.92
  },
+ "SPXP": {
+  "currency": "GBp",
+  "expense_ratio": 0.05,
+  "fetched": "2026-09-28",
+  "name": "Invesco S&P 500 UCITS ETF",
+  "pe": null,
+  "yield": null
+ },
  "SPY": {
   "category": "Large Blend",
   "expense_ratio": 0.0945,
@@ -510,6 +1062,14 @@
   "name": "State Street SPDR S&P 500 ETF Trust",
   "pe": 24.922077,
   "yield": 0.98
+ },
+ "SPY4": {
+  "currency": "USD",
+  "expense_ratio": 0.3,
+  "fetched": "2026-09-28",
+  "name": "State Street SPDR S&P 400 US Mid Cap UCITS ETF",
+  "pe": 19.783709,
+  "yield": 0.0
  },
  "SPYG": {
   "category": "Large Growth",
@@ -535,6 +1095,22 @@
   "pe": 22.192303,
   "yield": 1.6500000000000001
  },
+ "SSAC": {
+  "currency": "GBp",
+  "expense_ratio": 0.2,
+  "fetched": "2026-09-28",
+  "name": "iShares MSCI All Country World UCITS ETF USD Acc",
+  "pe": null,
+  "yield": null
+ },
+ "SWDA": {
+  "currency": "GBp",
+  "expense_ratio": 0.2,
+  "fetched": "2026-09-28",
+  "name": "iShares Core MSCI World UCITS ETF USD (Acc)",
+  "pe": null,
+  "yield": null
+ },
  "TLT": {
   "category": "Long Government",
   "expense_ratio": 0.15,
@@ -550,6 +1126,46 @@
   "name": "ProShares UltraPro QQQ",
   "pe": 32.33378,
   "yield": 0.52
+ },
+ "UKDV": {
+  "currency": "GBP",
+  "expense_ratio": 0.3,
+  "fetched": "2026-09-28",
+  "name": "State Street SPDR S&P UK Dividend Aristocrats UCITS ETF",
+  "pe": 16.05616,
+  "yield": 3.18
+ },
+ "USDV": {
+  "currency": "GBP",
+  "expense_ratio": 0.35,
+  "fetched": "2026-09-28",
+  "name": "State Street SPDR S&P US Dividend Aristocrats UCITS ETF Dis",
+  "pe": null,
+  "yield": null
+ },
+ "VAGP": {
+  "currency": "GBP",
+  "expense_ratio": null,
+  "fetched": "2026-09-28",
+  "name": "Vanguard Global Aggregate Bond UCITS ETF GBP Hedged Income",
+  "pe": null,
+  "yield": 3.5999999999999996
+ },
+ "VAGS": {
+  "currency": "GBP",
+  "expense_ratio": null,
+  "fetched": "2026-09-28",
+  "name": "Vanguard Global Aggregate Bond UCITS ETF GBP Hedged Accumulation",
+  "pe": null,
+  "yield": 2.0299999
+ },
+ "VAPX": {
+  "currency": "GBP",
+  "expense_ratio": null,
+  "fetched": "2026-09-28",
+  "name": "Vanguard FTSE Developed Asia Pacific ex Japan UCITS ETF USD Distributing",
+  "pe": null,
+  "yield": null
  },
  "VB": {
   "category": "Small Blend",
@@ -591,6 +1207,14 @@
   "pe": 16.724178,
   "yield": 2.4899999999999998
  },
+ "VERX": {
+  "currency": "GBP",
+  "expense_ratio": null,
+  "fetched": "2026-09-28",
+  "name": "Vanguard FTSE Developed Europe ex UK UCITS ETF Distributing",
+  "pe": null,
+  "yield": null
+ },
  "VEU": {
   "category": "Foreign Large Blend",
   "expense_ratio": 0.04,
@@ -598,6 +1222,30 @@
   "name": "Vanguard FTSE All-World ex-US Index Fund ETF Shares",
   "pe": 16.589209,
   "yield": 2.48
+ },
+ "VEUR": {
+  "currency": "GBP",
+  "expense_ratio": null,
+  "fetched": "2026-09-28",
+  "name": "Vanguard FTSE Developed Europe UCITS ETF",
+  "pe": null,
+  "yield": null
+ },
+ "VEVE": {
+  "currency": "GBP",
+  "expense_ratio": null,
+  "fetched": "2026-09-28",
+  "name": "Vanguard FTSE Developed World UCITS ETF USD Distributing",
+  "pe": null,
+  "yield": null
+ },
+ "VFEM": {
+  "currency": "GBP",
+  "expense_ratio": null,
+  "fetched": "2026-09-28",
+  "name": "Vanguard FTSE Emerging Markets UCITS ETF USD Distributing",
+  "pe": null,
+  "yield": null
  },
  "VGIT": {
   "category": "Intermediate Government",
@@ -615,6 +1263,14 @@
   "pe": 17.257595,
   "yield": 2.8099999
  },
+ "VGOV": {
+  "currency": "GBP",
+  "expense_ratio": null,
+  "fetched": "2026-09-28",
+  "name": "Vanguard U.K. Gilt UCITS ETF",
+  "pe": null,
+  "yield": 4.61
+ },
  "VGSH": {
   "category": "Short Government",
   "expense_ratio": 0.03,
@@ -631,6 +1287,30 @@
   "pe": 33.6593,
   "yield": 0.36000002
  },
+ "VHVG": {
+  "currency": "GBP",
+  "expense_ratio": null,
+  "fetched": "2026-09-28",
+  "name": "Vanguard FTSE Developed World UCITS ETF USD Accumulation",
+  "pe": null,
+  "yield": null
+ },
+ "VHYG": {
+  "currency": "GBP",
+  "expense_ratio": null,
+  "fetched": "2026-09-28",
+  "name": "Vanguard FTSE All-World High Dividend Yield UCITS ETF USD Accumulation",
+  "pe": null,
+  "yield": null
+ },
+ "VHYL": {
+  "currency": "GBP",
+  "expense_ratio": 0.29,
+  "fetched": "2026-09-28",
+  "name": "Vanguard FTSE All-World High Dividend Yield UCITS ETF USD Distributing",
+  "pe": null,
+  "yield": null
+ },
  "VIG": {
   "category": "Large Blend",
   "expense_ratio": 0.04,
@@ -639,6 +1319,30 @@
   "pe": 24.903622,
   "yield": 1.48
  },
+ "VJPN": {
+  "currency": "GBP",
+  "expense_ratio": null,
+  "fetched": "2026-09-28",
+  "name": "Vanguard FTSE Japan UCITS ETF USD Distributing",
+  "pe": null,
+  "yield": null
+ },
+ "VMID": {
+  "currency": "GBP",
+  "expense_ratio": null,
+  "fetched": "2026-09-28",
+  "name": "Vanguard FTSE 250 UCITS ETF",
+  "pe": 15.904227,
+  "yield": 3.1
+ },
+ "VMIG": {
+  "currency": "GBP",
+  "expense_ratio": null,
+  "fetched": "2026-09-28",
+  "name": "Vanguard FTSE 250 UCITS ETF GBP Accumulation",
+  "pe": 16.040382,
+  "yield": 1.9199998999999999
+ },
  "VNQ": {
   "category": "Real Estate",
   "expense_ratio": 0.13,
@@ -646,6 +1350,14 @@
   "name": "Vanguard Real Estate Index Fund ETF Shares",
   "pe": 28.486961,
   "yield": 3.5999999999999996
+ },
+ "VNRT": {
+  "currency": "GBP",
+  "expense_ratio": null,
+  "fetched": "2026-09-28",
+  "name": "Vanguard FTSE North America UCITS ETF",
+  "pe": null,
+  "yield": null
  },
  "VO": {
   "category": "Mid-Cap Blend",
@@ -711,6 +1423,22 @@
   "pe": 20.01697,
   "yield": 1.82
  },
+ "VUAG": {
+  "currency": "GBP",
+  "expense_ratio": null,
+  "fetched": "2026-09-28",
+  "name": "Vanguard S&P 500 UCITS ETF USD Accumulation",
+  "pe": null,
+  "yield": null
+ },
+ "VUCP": {
+  "currency": "GBP",
+  "expense_ratio": null,
+  "fetched": "2026-09-28",
+  "name": "Vanguard USD Corporate Bond UCITS ETF",
+  "pe": null,
+  "yield": null
+ },
  "VUG": {
   "category": "Large Growth",
   "expense_ratio": 0.03,
@@ -718,6 +1446,30 @@
   "name": "Vanguard Morningstar Growth ETF",
   "pe": 30.986122,
   "yield": 0.38
+ },
+ "VUKE": {
+  "currency": "GBP",
+  "expense_ratio": null,
+  "fetched": "2026-09-28",
+  "name": "Vanguard FTSE 100 UCITS ETF",
+  "pe": 16.765299,
+  "yield": 2.9899999999999998
+ },
+ "VUKG": {
+  "currency": "GBP",
+  "expense_ratio": null,
+  "fetched": "2026-09-28",
+  "name": "Vanguard FTSE 100 UCITS ETF GBP Accumulation",
+  "pe": 16.869967,
+  "yield": 1.97
+ },
+ "VUSA": {
+  "currency": "GBP",
+  "expense_ratio": null,
+  "fetched": "2026-09-28",
+  "name": "Vanguard S&P 500 UCITS ETF",
+  "pe": null,
+  "yield": null
  },
  "VV": {
   "category": "Large Blend",
@@ -734,6 +1486,22 @@
   "name": "Vanguard FTSE Emerging Markets Index Fund ETF Shares",
   "pe": 15.829331,
   "yield": 2.29
+ },
+ "VWRL": {
+  "currency": "GBP",
+  "expense_ratio": null,
+  "fetched": "2026-09-28",
+  "name": "Vanguard FTSE All-World UCITS ETF",
+  "pe": null,
+  "yield": null
+ },
+ "VWRP": {
+  "currency": "GBP",
+  "expense_ratio": null,
+  "fetched": "2026-09-28",
+  "name": "Vanguard FTSE All-World UCITS ETF USD Accumulation",
+  "pe": null,
+  "yield": null
  },
  "VXF": {
   "category": "Mid-Cap Blend",
@@ -758,6 +1526,30 @@
   "name": "Vanguard High Dividend Yield Index Fund ETF Shares",
   "pe": 19.807043,
   "yield": 2.22
+ },
+ "WDEP": {
+  "currency": "GBp",
+  "expense_ratio": 0.4,
+  "fetched": "2026-09-28",
+  "name": "WisdomTree Europe Defence UCITS ETF - EUR Acc",
+  "pe": null,
+  "yield": null
+ },
+ "WLDS": {
+  "currency": "GBP",
+  "expense_ratio": 0.35,
+  "fetched": "2026-09-28",
+  "name": "iShares MSCI World Small Cap UCITS ETF USD (Acc)",
+  "pe": null,
+  "yield": null
+ },
+ "XDEW": {
+  "currency": "USD",
+  "expense_ratio": 0.2,
+  "fetched": "2026-09-28",
+  "name": "Xtrackers S&P 500 Equal Weight UCITS ETF 1C",
+  "pe": 20.355747,
+  "yield": 0.0
  },
  "XLE": {
   "category": "Equity Energy",
