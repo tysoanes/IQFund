@@ -224,7 +224,18 @@ def metrics(h):
         "return_5y": (float(adj.iloc[-1] / adj.iloc[0]) ** (1 / years) - 1) * 100 if years > 4.5 else None,
         "volatility": float(rets.iloc[-756:].std() * math.sqrt(252) * 100),
         "max_drawdown": float(((adj / peak) - 1).min() * 100),
+        # total return (incl. dividends, in pounds) had you bought 3, 6 or 12 months ago
+        **{f"return_{k}": back_return(adj, months) for k, months in (("3m", 3), ("6m", 6), ("1y", 12))},
     }
+
+
+def back_return(adj, months):
+    """% change from the last close on or before `months` ago to the latest close."""
+    start = adj.index[-1] - pd.DateOffset(months=months)
+    if adj.index[0] > start:
+        return None  # fund too new
+    then = adj.asof(start)
+    return (float(adj.iloc[-1]) / float(then) - 1) * 100 if then and then > 0 else None
 
 
 def update_history(hist):
@@ -287,7 +298,7 @@ def main():
 
     as_of = max(h.index[-1] for h in hist.values()).date().isoformat() if hist else dt.date.today().isoformat()
     cols = ["ticker", "name", "category", "class", "expense_ratio", "price", "low_52w", "high_52w",
-            "ma_200", "return_5y", "volatility", "max_drawdown", "pe", "pe_10y_avg", "yield", "rsi",
+            "ma_200", "return_3m", "return_6m", "return_1y", "return_5y", "volatility", "max_drawdown", "pe", "pe_10y_avg", "yield", "rsi",
             "currency", "quote_currency", "as_of"]
     written, skipped = 0, []
     with open(OUT_FILE, "w", newline="", encoding="utf-8") as f:
@@ -303,6 +314,7 @@ def main():
                 s, info.get("name") or s, r.get("category") or "", r.get("class", ""),
                 fmt(info.get("expense_ratio")),
                 fmt(m["price"], 4), fmt(m["low_52w"], 4), fmt(m["high_52w"], 4), fmt(m["ma_200"], 4),
+                fmt(m["return_3m"], 2), fmt(m["return_6m"], 2), fmt(m["return_1y"], 2),
                 fmt(m["return_5y"], 1), fmt(m["volatility"], 1), fmt(m["max_drawdown"], 1),
                 fmt(info.get("pe"), 1), r.get("pe_10y_avg", ""),
                 fmt(info.get("yield")), fmt(m["rsi"], 0), BASE, info.get("currency", ""), as_of,

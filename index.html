@@ -95,12 +95,12 @@ input[type=range]{width:100%;accent-color:var(--cobalt);height:32px;margin:4px 0
 .seg button{font:600 14px var(--body);border:0;background:none;padding:9px 13px;cursor:pointer;color:var(--muted)}
 .seg button[aria-pressed=true]{background:var(--ink);color:#fff}
 .table{background:var(--panel);border-radius:10px;border:1px solid var(--line);overflow:hidden}
-.row{display:grid;grid-template-columns:78px 1fr 92px 110px 96px 96px 86px;gap:10px;align-items:center;padding:12px 16px;border-bottom:1px solid var(--line)}
+.row{display:grid;grid-template-columns:78px 1fr 92px 110px 80px 88px 88px 76px;gap:10px;align-items:center;padding:12px 16px;border-bottom:1px solid var(--line)}
 .row:last-child{border-bottom:0}
 .row.head{font-size:13px;color:var(--muted);font-weight:600;background:#F6F8FA}
 .row.head button{all:unset;cursor:pointer}
 .row.head button:hover,.row.head button:focus-visible{color:var(--ink);text-decoration:underline}
-button.row{all:unset;display:grid;grid-template-columns:78px 1fr 92px 110px 96px 96px 86px;gap:10px;align-items:center;padding:12px 16px;border-bottom:1px solid var(--line);cursor:pointer;width:100%;box-sizing:border-box}
+button.row{all:unset;display:grid;grid-template-columns:78px 1fr 92px 110px 80px 88px 88px 76px;gap:10px;align-items:center;padding:12px 16px;border-bottom:1px solid var(--line);cursor:pointer;width:100%;box-sizing:border-box}
 button.row:hover{background:#F6F8FA}
 button.row:focus-visible{outline:3px solid var(--cobalt);outline-offset:-3px}
 .r{text-align:right}
@@ -182,12 +182,26 @@ dialog::backdrop{background:rgba(20,33,61,.45)}
 .log{font-size:13px;color:var(--muted);padding-left:18px;margin:6px 0 0}
 .dlg h4{font:700 16px var(--display);margin:22px 0 4px}
 .back{font:600 14px var(--body);background:none;border:0;color:var(--cobalt);cursor:pointer;padding:0;margin-bottom:10px}
+/* "What if you'd bought earlier?" */
+.backtest{margin-top:26px;background:var(--panel);border:1px solid var(--line);border-radius:10px;padding:20px 22px}
+.backtest h3{font:700 18px var(--display);margin:0 0 4px}
+.backtest .sub{margin:0 0 14px;font-size:13px;color:var(--muted)}
+.bt-grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:10px}
+.bt-grid div{background:#F6F8FA;border-radius:8px;padding:12px 14px}
+.bt-grid small{display:block;font-size:12px;color:var(--muted)}
+.bt-grid b{display:block;font:700 22px var(--display);margin:2px 0}
+.bt-grid span{font-size:14px;font-weight:600}
+.bt-chart{margin-top:14px}
+.bt-chart svg{width:100%;height:auto;display:block}
+.bt-chart .axis{display:flex;justify-content:space-between;font-size:12px;color:var(--muted);margin-top:4px}
+.bt-note{font-size:12px;color:var(--muted);margin:10px 0 0}
 footer{padding:30px 0 50px;font-size:13px;color:var(--muted);max-width:70ch}
 
 @media (max-width:820px){
   .controls,.result{grid-template-columns:1fr}
   .row,button.row{grid-template-columns:62px 1fr 64px 60px}
-  .row .c-range,.row .c-ret,.row .c-exp{display:none}
+  .row .c-range,.row .c-ret,.row .c-exp,.row .c-1y{display:none}
+  .bt-grid{grid-template-columns:1fr!important}
   .scen-grid{grid-template-columns:repeat(2,1fr)}
   .facts{grid-template-columns:repeat(2,1fr)}
 }
@@ -241,6 +255,11 @@ footer{padding:30px 0 50px;font-size:13px;color:var(--muted);max-width:70ch}
         <div class="stats" id="pstats"></div>
       </aside>
     </div>
+    <section class="backtest" id="backtest" aria-labelledby="btTitle" hidden>
+      <h3 id="btTitle">What if you'd bought this basket earlier?</h3>
+      <p class="sub" id="btSub"></p>
+      <div id="btBody"></div>
+    </section>
     <div class="save-row">
       <input id="basketName" placeholder="Name this basket, e.g. Retirement" aria-label="Basket name" maxlength="40">
       <button class="primary" id="saveBasket">Save basket</button>
@@ -388,6 +407,7 @@ const COLMAP=[ // [field, test on normalized header]
  ["p",h=>/^(price|lastprice|last|close|nav|lastclose)$/.test(h)],
  ["lo",h=>/52.*low|low.*52/.test(h)], ["hi",h=>/52.*high|high.*52/.test(h)],
  ["ma",h=>/200/.test(h)], ["r5",h=>/5y|5year|fiveyear/.test(h)&&/ret|perf|5y$/.test(h)],
+ ["r3m",h=>/^(return|ret|perf)3m$/.test(h)], ["r6m",h=>/^(return|ret|perf)6m$/.test(h)], ["r1y",h=>/^(return|ret|perf)(1y|12m)$/.test(h)],
  ["vol",h=>/volatil|stddev|standarddev/.test(h)], ["dd",h=>/drawdown/.test(h)],
  ["avg",h=>/pe/.test(h)&&/avg|average|10y|hist/.test(h)], ["val",h=>/^(pe|peratio|priceearnings|trailingpe|pettm)$/.test(h)],
  ["y",h=>/yield/.test(h)], ["rsi",h=>/rsi/.test(h)], ["asof",h=>/asof|date/.test(h)], ["base",h=>h==="currency"] ];
@@ -410,7 +430,7 @@ function rowsToFunds(rows){
     const cat=str("cat")||"Uncategorized", n=str("n")||t;
     let cls=str("cls").toLowerCase(); if(!DEF_VOL[cls]) cls=guessClass(cat,n);
     if(str("asof")) asof=str("asof"); if(/^[A-Z]{3}$/.test(str("base"))) base=str("base");
-    out.push({t,n,cat,cls,er:g("er"),p,lo:g("lo"),hi:g("hi"),ma:g("ma"),r5:g("r5"),vol:g("vol"),dd:g("dd"),val:g("val"),avg:g("avg"),y:g("y"),rsi:g("rsi")});
+    out.push({t,n,cat,cls,er:g("er"),p,lo:g("lo"),hi:g("hi"),ma:g("ma"),r5:g("r5"),r3m:g("r3m"),r6m:g("r6m"),r1y:g("r1y"),vol:g("vol"),dd:g("dd"),val:g("val"),avg:g("avg"),y:g("y"),rsi:g("rsi")});
   }
   if(!out.length) throw new Error("No rows with a ticker and price.");
   return {funds:out,asof,base:base||"USD"};
@@ -526,6 +546,52 @@ function buildBundle(risk,count,lowOverlap){
 }
 
 /* ---------- Rendering ---------- */
+
+/* ---------- What if you'd bought earlier? ----------
+   Buy-and-hold: money split by the basket's weights on the start date, left alone
+   until today. Figures use each fund's total return (dividends included) from
+   funds.csv; the chart uses daily closing prices from history.csv. */
+const PERIODS=[["r3m","3 months ago",3],["r6m","6 months ago",6],["r1y","1 year ago",12]];
+function backtest(picks,w){
+  return PERIODS.map(([k,label])=>{
+    let ws=0, r=0; const missing=[];
+    picks.forEach((e,i)=>{ if(e[k]==null) missing.push(e.t); else { ws+=w[i]; r+=w[i]*e[k]; } });
+    return {k,label,ret:ws>0.5?r/ws:null,missing};   // need at least half the basket to say anything
+  });
+}
+function monthsBefore(iso,m){ const d=new Date(iso+"T12:00:00Z"); d.setUTCMonth(d.getUTCMonth()-m); return d.toISOString().slice(0,10); }
+function backPath(picks,w){
+  try{
+    if(!Object.keys(HIST).length) return null;
+    const start=monthsBefore(ASOF,12), base=[];
+    for(const e of picks){ const a=HIST[e.t]; if(!a||!a.length||a[0][0]>start) return null; base.push(priceOn(e.t,start,null)); }
+    const dates=[...new Set(picks.flatMap(e=>HIST[e.t].map(x=>x[0])).filter(d=>d>=start&&d<=ASOF))].sort();
+    return dates.map(d=>({d,v:picks.reduce((s,e,i)=>s+w[i]*priceOn(e.t,d,base[i])/base[i],0)}));
+  }catch(err){ return null; }   // history not loaded yet
+}
+function backChart(path){
+  if(!path||path.length<20) return "";
+  const W=600,H=150, vs=path.map(p=>p.v), lo=Math.min(...vs,1), hi=Math.max(...vs,1), pad=(hi-lo)*.08||.01;
+  const X=i=>i/(path.length-1)*W, Y=v=>4+(hi+pad-v)/(hi-lo+2*pad)*(H-8);
+  const line=path.map((p,i)=>`${X(i).toFixed(1)},${Y(p.v).toFixed(1)}`).join(" ");
+  const last=vs[vs.length-1], col=last>=1?"#0F766E":"#B42318";
+  const marks=[6,3].map(m=>{ const d=monthsBefore(ASOF,m), i=path.findIndex(p=>p.d>=d); return i<0?"":
+    `<line x1="${X(i)}" x2="${X(i)}" y1="0" y2="${H}" stroke="#8A94A8" stroke-dasharray="3 4"/><text x="${X(i)+4}" y="12" font-size="11" fill="#5B6781">${m}m</text>`; }).join("");
+  return `<div class="bt-chart"><svg viewBox="0 0 ${W} ${H}" role="img" aria-label="Basket value over the past year, ${pct((last-1)*100)} overall">
+    <line x1="0" x2="${W}" y1="${Y(1)}" y2="${Y(1)}" stroke="#8A94A8" stroke-dasharray="4 4"/>${marks}
+    <polyline points="${line}" fill="none" stroke="${col}" stroke-width="2.5" stroke-linejoin="round"/></svg>
+    <div class="axis"><span>${fmtDate(path[0].d)}</span><span>${fmtDate(path[path.length-1].d)}</span></div></div>`;
+}
+function backtestHTML(picks,w,amt,cur,rate){
+  const rows=backtest(picks,w); if(rows.every(r=>r.ret==null)) return null;
+  const fmt=x=>cur?moneyIn(x,cur):money(x);
+  const tiles=rows.map(r=>`<div><small>Bought ${r.label}</small>${r.ret==null?"<b>—</b><span>Not enough history</span>":
+    `<b>${fmt(amt*(1+r.ret/100))}</b><span class="${Math.round(r.ret*10)>=0?"pos":"neg"}">${pct(r.ret)}</span>`}</div>`).join("");
+  const miss=[...new Set(rows.flatMap(r=>r.missing))];
+  const chart=backChart(backPath(picks,w));
+  return `<div class="bt-grid">${tiles}</div>${chart}
+    <p class="bt-note">${chart?"The line tracks the basket bought 1 year ago (closing prices; the dashed line is break-even). ":""}Buy and hold from each date, dividends included, no fees or tax.${miss.length?` Left out where too new: ${miss.join(", ")}.`:""} Past returns don't predict future ones.</p>`;
+}
 const $=id=>document.getElementById(id);
 /* ---------- Currency (fund prices arrive in BASE — GBP from funds.csv, USD for the sample data — and are shown in the user's currency) ---------- */
 const REGION_CUR={US:"USD",GB:"GBP",CA:"CAD",AU:"AUD",NZ:"NZD",JP:"JPY",CN:"CNY",IN:"INR",CH:"CHF",SE:"SEK",NO:"NOK",DK:"DKK",PL:"PLN",CZ:"CZK",HU:"HUF",ZA:"ZAR",BR:"BRL",MX:"MXN",SG:"SGD",HK:"HKD",KR:"KRW",AE:"AED",SA:"SAR",TR:"TRY",IL:"ILS",NG:"NGN",KE:"KES",PH:"PHP",ID:"IDR",MY:"MYR",TH:"THB"};
@@ -582,13 +648,17 @@ function renderBundle(){
   const y5=amt*Math.pow(1+b.mu/100,5);
   $("pstats").innerHTML=`<span><b>${usd(y5)}</b>5-yr expected</span><span><b>${b.vol.toFixed(1)}%</b>Volatility</span><span><b>${b.yld.toFixed(1)}%</b>Dividend yield</span><span><b>${b.er.toFixed(2)}%</b>Avg fee</span><span><b>${ovLabel(b.ov.avg)}</b>Fund overlap</span>`;
   const top=b.ov.top;
+  const bt=backtestHTML(b.picks,b.w,amt);
+  $("backtest").hidden=!bt;
+  if(bt){ $("btBody").innerHTML=bt;
+    $("btSub").textContent=`${money(amt)} split across today's picks at the same weights. These funds were chosen with today's data, so this shows how the mix has behaved, not what the site would have picked back then.`; }
   $("overlapNote").innerHTML=top&&top.o>=0.15?`Estimated overlap between funds: <b>${ovLabel(b.ov.avg)} (${Math.round(b.ov.avg*100)}%)</b>. Most shared: ${top.a} and ${top.b}, about ${Math.round(top.o*100)}% in common.`
     :`Estimated overlap between funds: <b>${ovLabel(b.ov.avg)}</b>. No two funds share much.`;
 }
 
 let sortKey="score", sortDir=-1; const F={sig:new Set(),val:new Set()};
 const valCat=e=>!e.hasVal?"No data":Math.abs(e.gap)<.03?"Fair":e.gap>0?"Cheap":"Rich";
-const COLS=[["t","Ticker"],["n","Fund"],["signal","Signal",1],["range","52-wk range","c-range"],["r5","5-yr / yr","c-ret r"],["mu","Exp. 1-yr","c-exp r"],["gap","Value","r"]];
+const COLS=[["t","Ticker"],["n","Fund"],["signal","Signal",1],["range","52-wk range","c-range"],["r1y","Past 1-yr","c-1y r"],["r5","5-yr / yr","c-ret r"],["mu","Exp. 1-yr","c-exp r"],["gap","Value","r"]];
 function renderTable(){
   const q=$("q").value.trim().toLowerCase(), cat=$("cat").value;
   let rows=DATA.filter(e=>(!q||e.t.toLowerCase().includes(q)||e.n.toLowerCase().includes(q))&&(!cat||e.cat===cat)&&(!F.sig.size||F.sig.has(e.signal))&&(!F.val.size||F.val.has(valCat(e))));
@@ -601,6 +671,7 @@ function renderTable(){
     <span class="nm2">${esc(e.n)}<small>${esc(e.cat)} · ${priceFmt(conv(e.p))}</small></span>
     <span><span class="pill ${e.signal}">${e.signal}</span></span>
     <span class="c-range"><span class="mini"><i style="left:calc(${(e.range*100).toFixed(0)}% - 2px)"></i></span></span>
+    <span class="c-1y r ${e.r1y==null?"":e.r1y>=0?"pos":"neg"}">${e.r1y==null?"—":pct(e.r1y)}</span>
     <span class="c-ret r ${e.r5==null?"":e.r5>=0?"pos":"neg"}">${e.r5==null?"—":pct(e.r5)}</span>
     <span class="c-exp r">${pct(e.mu)}</span>
     <span class="r ${e.gap>0.03?"pos":e.gap<-0.03?"neg":""}">${e.hasVal?valCat(e):"—"}</span>
@@ -633,6 +704,7 @@ function openDetail(t,note,amtOverride,back){ BACK=back||null;
     <div><small>Worst past drop</small><b class="neg">${e.dd}%</b><br><small>${usd(amt*(1+e.dd/100))}</small></div>
   </div>
   <div class="facts">
+    <span><b class="${e.r3m==null?"":e.r3m>=0?"pos":"neg"}">${e.r3m==null?"—":pct(e.r3m)}</b>Past 3 months</span><span><b class="${e.r6m==null?"":e.r6m>=0?"pos":"neg"}">${e.r6m==null?"—":pct(e.r6m)}</b>Past 6 months</span><span><b class="${e.r1y==null?"":e.r1y>=0?"pos":"neg"}">${e.r1y==null?"—":pct(e.r1y)}</b>Past year</span>
     <span><b>${e.r5==null?"—":pct(e.r5)}</b>5-yr annualized</span><span><b>${e.vol.toFixed(1)}%</b>Volatility</span><span><b>${e.y==null?"—":e.y+"%"}</b>Dividend yield</span>
     <span><b>${e.er==null?"—":e.er+"%"}</b>Expense ratio</span><span><b>${e.ma?priceFmt(conv(e.ma)):"—"}</b>200-day average</span><span><b>${e.rsi??"—"}</b>RSI (14-day)</span>
   </div>`;
@@ -762,7 +834,7 @@ async function notifyNew(){
 async function saveBasket(){
   const risk=+$("riskSlider").value, count=+$("countSlider").value, amt=amount();
   if(!amt){ $("saveMsg").textContent="Enter an amount first."; return; }
-  const b=buildBundle(risk,count), usd=amt/RATE;   // amount in the base currency
+  const b=buildBundle(risk,count,$("overlapToggle").checked), usd=amt/RATE;   // amount in the base currency
   const holdings=b.picks.map((e,i)=>({t:e.t,n:e.n,units:usd*b.w[i]/e.p,entry:e.p,since:ASOF}));
   const name=$("basketName").value.trim()||`Basket ${BASKETS.length+1}`;
   BASKETS.push({id:Date.now().toString(36),name,created:ASOF,cur:CUR,base:BASE,fx:RATE,invested:amt,usdInvested:usd,risk,
@@ -819,6 +891,10 @@ function openBasket(id){
     ${a.rep?`<button class="ghost" data-swap="${a.t}" data-rep="${a.rep.t}">Replace with ${a.rep.t} (${a.rep.signal})</button>`:""}
     ${s.hs.length>2?`<button class="ghost" data-swap="${a.t}">Drop & spread</button>`:""}
     <button class="ghost" data-fund="${a.t}">Why?</button></div></div>`).join(""):""}
+  ${(()=>{ const hs=s.hs, ps=hs.map(h=>DATA.find(x=>x.t===h.t)), ok=ps.every(Boolean);
+    if(!ok) return ""; const vals=hs.map(h=>h.units*priceNow(h)), tot=vals.reduce((a,c)=>a+c,0);
+    const html=backtestHTML(ps,vals.map(v=>v/tot),s.localNow,b.cur);
+    return html?`<h4>If you'd bought these funds earlier</h4><p style="font-size:13px;color:var(--muted);margin:0 0 10px">Today's value, invested at today's weights 3, 6 or 12 months ago.</p>${html}`:""; })()}
   <h4>Holdings</h4>
   <table class="htable"><thead><tr><th>Fund</th><th class="r">Weight</th><th class="r">Paid → now</th><th class="r">Return</th></tr></thead><tbody>${rows}</tbody></table>
   <h4>History</h4><ul class="log">${b.log.slice().reverse().map(l=>`<li>${fmtDate(l.d)} — ${esc(l.x)}</li>`).join("")}</ul>
@@ -890,7 +966,7 @@ function renderNotif(){ const btn=$("notifBtn");
 $("notifBtn").addEventListener("click",()=>Notification.requestPermission().then(()=>{renderNotif(); notifyNew();}));
 renderNotif();
 Store.load().then(v=>{ BASKETS=Array.isArray(v)?v:[]; renderBaskets(); notifyNew(); });
-fetch("history.csv",{cache:"no-store"}).then(r=>r.ok?r.text():Promise.reject()).then(t=>{ loadHistory(t); renderBaskets(); }).catch(()=>{});
+fetch("history.csv",{cache:"no-store"}).then(r=>r.ok?r.text():Promise.reject()).then(t=>{ loadHistory(t); renderBaskets(); renderBundle(); }).catch(()=>{});
 
 </script>
 </body>
