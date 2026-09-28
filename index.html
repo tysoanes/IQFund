@@ -141,6 +141,11 @@ dialog::backdrop{background:rgba(20,33,61,.45)}
 .baskets .lead{margin:0 0 16px;color:var(--muted);max-width:62ch}
 .bhead{display:flex;justify-content:space-between;align-items:flex-end;gap:12px;flex-wrap:wrap}
 #notifMsg{font-size:13px;color:var(--muted);display:block;margin-top:4px}
+.transfer{display:flex;gap:8px;flex-wrap:wrap;align-items:center;margin:0 0 14px}
+.transfer label.ghost{display:inline-block}
+.transfer label.ghost:focus-within{outline:3px solid var(--cobalt);outline-offset:2px}
+#transferMsg{font-size:14px;font-weight:600}
+#transferMsg.ok{color:var(--buy)} #transferMsg.err{color:var(--sell)}
 .basket-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(250px,1fr));gap:12px}
 .bcard{all:unset;box-sizing:border-box;display:block;background:var(--panel);border:1px solid var(--line);border-radius:10px;padding:16px;cursor:pointer;position:relative}
 .bcard:hover{border-color:#AFB9CA}
@@ -233,6 +238,11 @@ footer{padding:30px 0 50px;font-size:13px;color:var(--muted);max-width:70ch}
       <div><h2 id="bTitle">My baskets</h2>
       <p class="lead">Performance is tracked from the day you save, using each day's closing prices. You'll see an alert when a fund turns Sell, falls 15% below what you paid, or a clearly better fund appears in its category.</p></div>
       <div><button class="ghost" id="notifBtn">Turn on notifications</button><span id="notifMsg"></span></div>
+    </div>
+    <div class="transfer">
+      <button class="ghost" id="exportBtn">Export baskets</button>
+      <label class="ghost">Import baskets<input type="file" id="importFile" accept=".json,application/json" hidden></label>
+      <span id="transferMsg" role="status"></span>
     </div>
     <div class="basket-grid" id="basketList"></div>
   </section>
@@ -734,6 +744,52 @@ dlg.addEventListener("close",()=>{ $("dlgBody").onclick=null; });
 
 /* ---------- Wire up ---------- */
 $("saveBasket").addEventListener("click",saveBasket);
+
+/* ---------- Export / import (move baskets between devices) ---------- */
+function transferMsg(text,ok){ const m=$("transferMsg"); m.textContent=text; m.className=ok?"ok":"err"; }
+async function exportBaskets(){
+  if(!BASKETS.length){ transferMsg("No baskets to export yet.",false); return; }
+  const data=JSON.stringify({app:"fundwise",version:1,exported:new Date().toISOString(),baskets:BASKETS},null,1);
+  const name=`fundwise-baskets-${new Date().toISOString().slice(0,10)}.json`;
+  const file=new File([data],name,{type:"application/json"});
+  // On phones, open the share sheet (save to Files, AirDrop, email...). Elsewhere, download.
+  if(navigator.canShare&&navigator.canShare({files:[file]})&&/Mobi|iPhone|iPad|Android/i.test(navigator.userAgent)){
+    try{ await navigator.share({files:[file],title:"Fundwise baskets"}); transferMsg(`Exported ${BASKETS.length} basket${BASKETS.length>1?"s":""}.`,true); return; }
+    catch(e){ if(e.name==="AbortError") return; }
+  }
+  const a=document.createElement("a"); a.href=URL.createObjectURL(file); a.download=name;
+  document.body.appendChild(a); a.click(); a.remove(); setTimeout(()=>URL.revokeObjectURL(a.href),2000);
+  transferMsg(`Exported ${BASKETS.length} basket${BASKETS.length>1?"s":""} to ${name}.`,true);
+}
+function validBasket(b){
+  const num=x=>typeof x==="number"&&isFinite(x);
+  return b&&typeof b==="object"&&typeof b.id==="string"&&b.id.length<40&&typeof b.name==="string"&&typeof b.created==="string"
+    &&num(b.invested)&&num(b.usdInvested)&&num(b.fx)&&typeof b.cur==="string"&&Array.isArray(b.versions)&&b.versions.length
+    &&b.versions.every(v=>v&&typeof v.from==="string"&&Array.isArray(v.holdings)&&v.holdings.every(h=>h&&typeof h.t==="string"&&num(h.units)&&num(h.entry)));
+}
+async function importBaskets(file){
+  let parsed; try{ parsed=JSON.parse(await file.text()); }catch(e){ transferMsg("That file isn't a Fundwise export. Choose the .json file you exported.",false); return; }
+  const list=Array.isArray(parsed)?parsed:parsed&&parsed.baskets;
+  if(!Array.isArray(list)){ transferMsg("That file isn't a Fundwise export. Choose the .json file you exported.",false); return; }
+  let added=0, updated=0, bad=0;
+  for(const raw of list){
+    if(!validBasket(raw)){ bad++; continue; }
+    const b={...raw,name:raw.name.slice(0,40),log:Array.isArray(raw.log)?raw.log:[],seen:Array.isArray(raw.seen)?raw.seen:[],risk:+raw.risk||5};
+    const i=BASKETS.findIndex(x=>x.id===b.id);
+    if(i<0){ BASKETS.push(b); added++; }
+    else if(JSON.stringify(BASKETS[i])!==JSON.stringify(b)){
+      // same basket on both devices: keep whichever has more history (swaps, drops)
+      if(b.versions.length+b.log.length>=BASKETS[i].versions.length+(BASKETS[i].log||[]).length){ BASKETS[i]=b; updated++; }
+    }
+  }
+  await Store.save(); renderBaskets();
+  const parts=[]; if(added) parts.push(`${added} added`); if(updated) parts.push(`${updated} updated`);
+  if(!parts.length&&!bad) parts.push("all baskets were already here");
+  if(bad) parts.push(`${bad} skipped (damaged)`);
+  transferMsg("Import done: "+parts.join(", ")+".",added+updated>0||!bad);
+}
+$("exportBtn").addEventListener("click",exportBaskets);
+$("importFile").addEventListener("change",ev=>{ const f=ev.target.files[0]; if(f) importBaskets(f); ev.target.value=""; });
 $("basketList").addEventListener("click",ev=>{const c=ev.target.closest(".bcard"); if(c) openBasket(c.dataset.id);});
 function renderNotif(){ const btn=$("notifBtn");
   if(!("Notification" in window)){ btn.hidden=true; $("notifMsg").textContent="This browser can't show notifications, so alerts appear on your baskets instead."; return; }
