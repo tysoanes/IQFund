@@ -1,0 +1,802 @@
+{
+ "ACWI": {
+  "category": "Global Large-Stock Blend",
+  "expense_ratio": 0.32,
+  "fetched": "2026-09-28",
+  "name": "iShares MSCI ACWI ETF",
+  "pe": 21.393867,
+  "yield": 1.39999995
+ },
+ "AGG": {
+  "category": "Intermediate Core Bond",
+  "expense_ratio": 0.03,
+  "fetched": "2026-09-28",
+  "name": "iShares Core U.S. Aggregate Bond ETF",
+  "pe": null,
+  "yield": 4.05
+ },
+ "AVEM": {
+  "category": "Diversified Emerging Mkts",
+  "expense_ratio": 0.33,
+  "fetched": "2026-09-28",
+  "name": "Avantis Emerging Markets Equity ETF",
+  "pe": 12.917605,
+  "yield": 1.8599999999999999
+ },
+ "AVUV": {
+  "category": "Small Value",
+  "expense_ratio": 0.25,
+  "fetched": "2026-09-28",
+  "name": "Avantis US Small Cap Value ETF",
+  "pe": 11.957793,
+  "yield": 1.25
+ },
+ "BIL": {
+  "category": "Ultrashort Bond",
+  "expense_ratio": 0.1353,
+  "fetched": "2026-09-28",
+  "name": "State Street SPDR Bloomberg 1-3 Month T-Bill ETF",
+  "pe": null,
+  "yield": 3.7600000000000002
+ },
+ "BIV": {
+  "category": "Intermediate Core Bond",
+  "expense_ratio": 0.03,
+  "fetched": "2026-09-28",
+  "name": "Vanguard Intermediate-Term Bond Index Fund ETF Shares",
+  "pe": null,
+  "yield": 4.32
+ },
+ "BND": {
+  "category": "Intermediate Core Bond",
+  "expense_ratio": 0.03,
+  "fetched": "2026-09-28",
+  "name": "Vanguard Total Bond Market Index Fund ETF Shares",
+  "pe": null,
+  "yield": 4.04
+ },
+ "BNDX": {
+  "category": "Global Bond-USD Hedged",
+  "expense_ratio": 0.07,
+  "fetched": "2026-09-28",
+  "name": "Vanguard Total International Bond Index Fund ETF Shares",
+  "pe": null,
+  "yield": 4.58
+ },
+ "BSV": {
+  "category": "Short-Term Bond",
+  "expense_ratio": 0.03,
+  "fetched": "2026-09-28",
+  "name": "Vanguard Short-Term Bond Index Fund ETF Shares",
+  "pe": null,
+  "yield": 4.03
+ },
+ "CGDV": {
+  "category": "Large Value",
+  "expense_ratio": 0.33,
+  "fetched": "2026-09-28",
+  "name": "Capital Group Dividend Value ETF",
+  "pe": 24.696754,
+  "yield": 1.17
+ },
+ "DFAC": {
+  "category": "Large Blend",
+  "expense_ratio": 0.17,
+  "fetched": "2026-09-28",
+  "name": "Dimensional U.S. Core Equity 2 ETF",
+  "pe": 21.647097,
+  "yield": 0.89
+ },
+ "DGRO": {
+  "category": "Large Value",
+  "expense_ratio": 0.08,
+  "fetched": "2026-09-28",
+  "name": "iShares Core Dividend Growth ETF",
+  "pe": 21.896315,
+  "yield": 1.87
+ },
+ "DIA": {
+  "category": "Large Value",
+  "expense_ratio": 0.16,
+  "fetched": "2026-09-28",
+  "name": "State Street SPDR Dow Jones Industrial Average ETF Trust",
+  "pe": 21.01257,
+  "yield": 1.38
+ },
+ "DYNF": {
+  "category": "Large Blend",
+  "expense_ratio": 0.26,
+  "fetched": "2026-09-28",
+  "name": "iShares U.S. Equity Factor Rotation Active ETF",
+  "pe": 23.002625,
+  "yield": 0.7799999999999999
+ },
+ "EEM": {
+  "category": "Diversified Emerging Mkts",
+  "expense_ratio": 0.72,
+  "fetched": "2026-09-28",
+  "name": "iShares MSCI Emerging Markets ETF",
+  "pe": 14.461422,
+  "yield": 1.66
+ },
+ "EFA": {
+  "category": "Foreign Large Blend",
+  "expense_ratio": 0.32,
+  "fetched": "2026-09-28",
+  "name": "iShares MSCI EAFE ETF",
+  "pe": 18.336851,
+  "yield": 3.1400003
+ },
+ "EFV": {
+  "category": "Foreign Large Value",
+  "expense_ratio": 0.31,
+  "fetched": "2026-09-28",
+  "name": "iShares MSCI EAFE Value ETF",
+  "pe": 14.71216,
+  "yield": 4.4699997
+ },
+ "FBND": {
+  "category": "Intermediate Core-Plus Bond",
+  "expense_ratio": 0.36,
+  "fetched": "2026-09-28",
+  "name": "Fidelity Total Bond ETF",
+  "pe": 8.679884,
+  "yield": 4.73
+ },
+ "GDX": {
+  "category": "Equity Precious Metals",
+  "expense_ratio": 0.51,
+  "fetched": "2026-09-28",
+  "name": "VanEck Gold Miners ETF",
+  "pe": 11.919311,
+  "yield": 0.64
+ },
+ "GLD": {
+  "category": "Commodities Focused",
+  "expense_ratio": 0.4,
+  "fetched": "2026-09-28",
+  "name": "SPDR Gold Shares",
+  "pe": null,
+  "yield": 0.0
+ },
+ "GLDM": {
+  "category": "Commodities Focused",
+  "expense_ratio": 0.1,
+  "fetched": "2026-09-28",
+  "name": "SPDR Gold MiniShares",
+  "pe": null,
+  "yield": 0.0
+ },
+ "GOVT": {
+  "category": "Intermediate Government",
+  "expense_ratio": 0.05,
+  "fetched": "2026-09-28",
+  "name": "iShares U.S. Treasury Bond ETF",
+  "pe": null,
+  "yield": 3.65
+ },
+ "IAU": {
+  "category": "Commodities Focused",
+  "expense_ratio": 0.25,
+  "fetched": "2026-09-28",
+  "name": "iShares Gold Trust",
+  "pe": null,
+  "yield": 0.0
+ },
+ "IBIT": {
+  "category": "Digital Assets",
+  "expense_ratio": 0.25,
+  "fetched": "2026-09-28",
+  "name": "iShares Bitcoin Trust ETF",
+  "pe": null,
+  "yield": 0.0
+ },
+ "IDEV": {
+  "category": "Foreign Large Blend",
+  "expense_ratio": 0.04,
+  "fetched": "2026-09-28",
+  "name": "iShares Core MSCI International Developed Markets ETF",
+  "pe": 18.014898,
+  "yield": 3.11
+ },
+ "IEF": {
+  "category": "Long Government",
+  "expense_ratio": 0.15,
+  "fetched": "2026-09-28",
+  "name": "iShares 7-10 Year Treasury Bond ETF",
+  "pe": null,
+  "yield": 3.9699999999999998
+ },
+ "IEFA": {
+  "category": "Foreign Large Blend",
+  "expense_ratio": 0.07,
+  "fetched": "2026-09-28",
+  "name": "iShares Core MSCI EAFE ETF",
+  "pe": 17.925684,
+  "yield": 3.2899998
+ },
+ "IEMG": {
+  "category": "Diversified Emerging Mkts",
+  "expense_ratio": 0.09,
+  "fetched": "2026-09-28",
+  "name": "iShares Core MSCI Emerging Markets ETF",
+  "pe": 14.47379,
+  "yield": 2.1999999999999997
+ },
+ "IJH": {
+  "category": "Mid-Cap Blend",
+  "expense_ratio": 0.05,
+  "fetched": "2026-09-28",
+  "name": "iShares Core S&P Mid-Cap ETF",
+  "pe": 20.088749,
+  "yield": 1.17999995
+ },
+ "IJR": {
+  "category": "Small Blend",
+  "expense_ratio": 0.06,
+  "fetched": "2026-09-28",
+  "name": "iShares Core S&P Small-Cap ETF",
+  "pe": 17.306778,
+  "yield": 1.1400000000000001
+ },
+ "ITOT": {
+  "category": "Large Blend",
+  "expense_ratio": 0.03,
+  "fetched": "2026-09-28",
+  "name": "iShares Core S&P Total U.S. Stock Market ETF",
+  "pe": 24.324005,
+  "yield": 0.98
+ },
+ "IUSB": {
+  "category": "Intermediate Core-Plus Bond",
+  "expense_ratio": 0.06,
+  "fetched": "2026-09-28",
+  "name": "iShares Core Universal USD Bond ETF",
+  "pe": 10.54945,
+  "yield": 4.29
+ },
+ "IUSG": {
+  "category": "Large Growth",
+  "expense_ratio": 0.04,
+  "fetched": "2026-09-28",
+  "name": "iShares Core S&P U.S. Growth ETF",
+  "pe": 27.461529,
+  "yield": 0.47999998000000005
+ },
+ "IVE": {
+  "category": "Large Value",
+  "expense_ratio": 0.18,
+  "fetched": "2026-09-28",
+  "name": "iShares S&P 500 Value ETF",
+  "pe": 22.194962,
+  "yield": 1.5
+ },
+ "IVV": {
+  "category": "Large Blend",
+  "expense_ratio": 0.03,
+  "fetched": "2026-09-28",
+  "name": "iShares Core S&P 500 ETF",
+  "pe": 24.91466,
+  "yield": 1.06
+ },
+ "IVW": {
+  "category": "Large Growth",
+  "expense_ratio": 0.18,
+  "fetched": "2026-09-28",
+  "name": "iShares S&P 500 Growth ETF",
+  "pe": 27.582937,
+  "yield": 0.36000002
+ },
+ "IWB": {
+  "category": "Large Blend",
+  "expense_ratio": 0.15,
+  "fetched": "2026-09-28",
+  "name": "iShares Russell 1000 ETF",
+  "pe": 24.546494,
+  "yield": 0.8999999999999999
+ },
+ "IWD": {
+  "category": "Large Value",
+  "expense_ratio": 0.18,
+  "fetched": "2026-09-28",
+  "name": "iShares Russell 1000 Value ETF",
+  "pe": 20.802202,
+  "yield": 1.3599999999999999
+ },
+ "IWF": {
+  "category": "Large Growth",
+  "expense_ratio": 0.18,
+  "fetched": "2026-09-28",
+  "name": "iShares Russell 1000 Growth ETF",
+  "pe": 30.367432,
+  "yield": 0.34999999
+ },
+ "IWM": {
+  "category": "Small Blend",
+  "expense_ratio": 0.19,
+  "fetched": "2026-09-28",
+  "name": "iShares Russell 2000 ETF",
+  "pe": 16.59993,
+  "yield": 0.8999999999999999
+ },
+ "IWR": {
+  "category": "Mid-Cap Blend",
+  "expense_ratio": 0.18,
+  "fetched": "2026-09-28",
+  "name": "iShares Russell Mid-Cap ETF",
+  "pe": 19.932888,
+  "yield": 1.13
+ },
+ "IXUS": {
+  "category": "Foreign Large Blend",
+  "expense_ratio": 0.07,
+  "fetched": "2026-09-28",
+  "name": "iShares Core MSCI Total International Stock ETF",
+  "pe": 16.727198,
+  "yield": 2.8800000999999997
+ },
+ "JAAA": {
+  "category": "Securitized Bond - Focused",
+  "expense_ratio": 0.2,
+  "fetched": "2026-09-28",
+  "name": "Janus Henderson AAA CLO ETF",
+  "pe": null,
+  "yield": 5.3400002
+ },
+ "JEPI": {
+  "category": "Derivative Income",
+  "expense_ratio": 0.35,
+  "fetched": "2026-09-28",
+  "name": "JPMorgan Equity Premium Income ETF",
+  "pe": 25.233397,
+  "yield": 7.969999999999999
+ },
+ "JEPQ": {
+  "category": "Derivative Income",
+  "expense_ratio": 0.35,
+  "fetched": "2026-09-28",
+  "name": "JPMorgan Nasdaq Equity Premium Income ETF",
+  "pe": 29.622429,
+  "yield": 10.84
+ },
+ "JPST": {
+  "category": "Ultrashort Bond",
+  "expense_ratio": 0.18,
+  "fetched": "2026-09-28",
+  "name": "JPMorgan Ultra-Short Income ETF",
+  "pe": null,
+  "yield": 4.19
+ },
+ "MBB": {
+  "category": "Government Mortgage-Backed Bond",
+  "expense_ratio": 0.04,
+  "fetched": "2026-09-28",
+  "name": "iShares MBS ETF",
+  "pe": null,
+  "yield": 4.34
+ },
+ "MGK": {
+  "category": "Large Growth",
+  "expense_ratio": 0.05,
+  "fetched": "2026-09-28",
+  "name": "Vanguard Morningstar Mega Cap Growth ETF",
+  "pe": 31.213793,
+  "yield": 0.33000002
+ },
+ "MUB": {
+  "category": "Muni National Interm",
+  "expense_ratio": 0.05,
+  "fetched": "2026-09-28",
+  "name": "iShares National Muni Bond ETF",
+  "pe": null,
+  "yield": 3.25
+ },
+ "QQQ": {
+  "category": "Large Growth",
+  "expense_ratio": 0.18,
+  "fetched": "2026-09-28",
+  "name": "Invesco QQQ Trust",
+  "pe": 30.344782,
+  "yield": 0.42
+ },
+ "QQQM": {
+  "category": "Large Growth",
+  "expense_ratio": 0.15,
+  "fetched": "2026-09-28",
+  "name": "Invesco NASDAQ 100 ETF",
+  "pe": 30.339472,
+  "yield": 0.44
+ },
+ "QUAL": {
+  "category": "Large Blend",
+  "expense_ratio": 0.15,
+  "fetched": "2026-09-28",
+  "name": "iShares MSCI USA Quality Factor ETF",
+  "pe": 26.897621,
+  "yield": 0.8500000000000001
+ },
+ "RSP": {
+  "category": "Large Blend",
+  "expense_ratio": 0.2,
+  "fetched": "2026-09-28",
+  "name": "Invesco S&P 500 Equal Weight ETF",
+  "pe": 20.594994,
+  "yield": 1.46
+ },
+ "SCHB": {
+  "category": "Large Blend",
+  "expense_ratio": 0.03,
+  "fetched": "2026-09-28",
+  "name": "Schwab U.S. Broad Market ETF",
+  "pe": 24.684702,
+  "yield": 1.0199999
+ },
+ "SCHD": {
+  "category": "Large Value",
+  "expense_ratio": 0.06,
+  "fetched": "2026-09-28",
+  "name": "Schwab U.S. Dividend Equity ETF",
+  "pe": 18.327732,
+  "yield": 3.0
+ },
+ "SCHF": {
+  "category": "Foreign Large Blend",
+  "expense_ratio": 0.03,
+  "fetched": "2026-09-28",
+  "name": "Schwab International Equity ETF",
+  "pe": 18.012068,
+  "yield": 2.98
+ },
+ "SCHG": {
+  "category": "Large Growth",
+  "expense_ratio": 0.04,
+  "fetched": "2026-09-28",
+  "name": "Schwab U.S. Large-Cap Growth ETF",
+  "pe": 29.876629,
+  "yield": 0.37
+ },
+ "SCHX": {
+  "category": "Large Blend",
+  "expense_ratio": 0.03,
+  "fetched": "2026-09-28",
+  "name": "Schwab U.S. Large-Cap ETF",
+  "pe": 25.06859,
+  "yield": 1.0
+ },
+ "SGOV": {
+  "category": "Ultrashort Bond",
+  "expense_ratio": 0.09,
+  "fetched": "2026-09-28",
+  "name": "iShares 0-3 Month Treasury Bond ETF",
+  "pe": null,
+  "yield": 3.74
+ },
+ "SLV": {
+  "category": "Commodities Focused",
+  "expense_ratio": 0.5,
+  "fetched": "2026-09-28",
+  "name": "iShares Silver Trust",
+  "pe": null,
+  "yield": 0.0
+ },
+ "SMH": {
+  "category": "Technology",
+  "expense_ratio": 0.35,
+  "fetched": "2026-09-28",
+  "name": "VanEck Semiconductor ETF",
+  "pe": 41.42862,
+  "yield": 0.2
+ },
+ "SOXX": {
+  "category": "Technology",
+  "expense_ratio": 0.33,
+  "fetched": "2026-09-28",
+  "name": "iShares Semiconductor ETF",
+  "pe": 42.096794,
+  "yield": 0.29
+ },
+ "SPDW": {
+  "category": "Foreign Large Blend",
+  "expense_ratio": 0.03,
+  "fetched": "2026-09-28",
+  "name": "State Street SPDR Portfolio Developed World ex-US ETF",
+  "pe": 16.805674,
+  "yield": 2.92
+ },
+ "SPY": {
+  "category": "Large Blend",
+  "expense_ratio": 0.0945,
+  "fetched": "2026-09-28",
+  "name": "State Street SPDR S&P 500 ETF Trust",
+  "pe": 24.922077,
+  "yield": 0.98
+ },
+ "SPYG": {
+  "category": "Large Growth",
+  "expense_ratio": 0.04,
+  "fetched": "2026-09-28",
+  "name": "State Street SPDR Portfolio S&P 500 Growth ETF",
+  "pe": 27.579205,
+  "yield": 0.47999998000000005
+ },
+ "SPYM": {
+  "category": "Large Blend",
+  "expense_ratio": 0.02,
+  "fetched": "2026-09-28",
+  "name": "State Street SPDR Portfolio S&P 500 ETF",
+  "pe": 24.925894,
+  "yield": 1.01
+ },
+ "SPYV": {
+  "category": "Large Value",
+  "expense_ratio": 0.04,
+  "fetched": "2026-09-28",
+  "name": "State Street SPDR Portfolio S&P 500 Value ETF",
+  "pe": 22.192303,
+  "yield": 1.6500000000000001
+ },
+ "TLT": {
+  "category": "Long Government",
+  "expense_ratio": 0.15,
+  "fetched": "2026-09-28",
+  "name": "iShares 20+ Year Treasury Bond ETF",
+  "pe": null,
+  "yield": 4.73
+ },
+ "TQQQ": {
+  "category": "Trading--Leveraged Equity",
+  "expense_ratio": 0.82,
+  "fetched": "2026-09-28",
+  "name": "ProShares UltraPro QQQ",
+  "pe": 32.33378,
+  "yield": 0.52
+ },
+ "VB": {
+  "category": "Small Blend",
+  "expense_ratio": 0.03,
+  "fetched": "2026-09-28",
+  "name": "Vanguard Morningstar Small-Cap ETF",
+  "pe": 19.455103,
+  "yield": 1.21
+ },
+ "VBR": {
+  "category": "Small Value",
+  "expense_ratio": 0.05,
+  "fetched": "2026-09-28",
+  "name": "Vanguard Morningstar Small-Cap Value ETF",
+  "pe": 16.148142,
+  "yield": 1.76
+ },
+ "VCIT": {
+  "category": "Corporate Bond",
+  "expense_ratio": 0.03,
+  "fetched": "2026-09-28",
+  "name": "Vanguard Intermediate-Term Corporate Bond Index Fund ETF Shares",
+  "pe": null,
+  "yield": 4.8899997
+ },
+ "VCSH": {
+  "category": "Short-Term Bond",
+  "expense_ratio": 0.03,
+  "fetched": "2026-09-28",
+  "name": "Vanguard Short-Term Corporate Bond Index Fund ETF Shares",
+  "pe": null,
+  "yield": 4.4699997
+ },
+ "VEA": {
+  "category": "Foreign Large Blend",
+  "expense_ratio": 0.03,
+  "fetched": "2026-09-28",
+  "name": "Vanguard FTSE Developed Markets Index Fund ETF Shares",
+  "pe": 16.724178,
+  "yield": 2.4899999999999998
+ },
+ "VEU": {
+  "category": "Foreign Large Blend",
+  "expense_ratio": 0.04,
+  "fetched": "2026-09-28",
+  "name": "Vanguard FTSE All-World ex-US Index Fund ETF Shares",
+  "pe": 16.589209,
+  "yield": 2.48
+ },
+ "VGIT": {
+  "category": "Intermediate Government",
+  "expense_ratio": 0.03,
+  "fetched": "2026-09-28",
+  "name": "Vanguard Intermediate-Term Treasury Index Fund ETF Shares",
+  "pe": null,
+  "yield": 3.9
+ },
+ "VGK": {
+  "category": "Europe Stock",
+  "expense_ratio": 0.06,
+  "fetched": "2026-09-28",
+  "name": "Vanguard FTSE Europe ETF",
+  "pe": 17.257595,
+  "yield": 2.8099999
+ },
+ "VGSH": {
+  "category": "Short Government",
+  "expense_ratio": 0.03,
+  "fetched": "2026-09-28",
+  "name": "Vanguard Short-Term Treasury Index Fund ETF Shares",
+  "pe": null,
+  "yield": 3.82
+ },
+ "VGT": {
+  "category": "Technology",
+  "expense_ratio": 0.09,
+  "fetched": "2026-09-28",
+  "name": "Vanguard Information Technology Index Fund ETF Shares",
+  "pe": 33.6593,
+  "yield": 0.36000002
+ },
+ "VIG": {
+  "category": "Large Blend",
+  "expense_ratio": 0.04,
+  "fetched": "2026-09-28",
+  "name": "Vanguard Dividend Appreciation Index Fund ETF Shares",
+  "pe": 24.903622,
+  "yield": 1.48
+ },
+ "VNQ": {
+  "category": "Real Estate",
+  "expense_ratio": 0.13,
+  "fetched": "2026-09-28",
+  "name": "Vanguard Real Estate Index Fund ETF Shares",
+  "pe": 28.486961,
+  "yield": 3.5999999999999996
+ },
+ "VO": {
+  "category": "Mid-Cap Blend",
+  "expense_ratio": 0.03,
+  "fetched": "2026-09-28",
+  "name": "Vanguard Morningstar Mid-Cap ETF",
+  "pe": 21.613626,
+  "yield": 1.2999999
+ },
+ "VONG": {
+  "category": "Large Growth",
+  "expense_ratio": 0.06,
+  "fetched": "2026-09-28",
+  "name": "Vanguard Russell 1000 Growth Index Fund ETF Shares",
+  "pe": 30.347307,
+  "yield": 0.45999999999999996
+ },
+ "VOO": {
+  "category": "Large Blend",
+  "expense_ratio": 0.03,
+  "fetched": "2026-09-28",
+  "name": "Vanguard S&P 500 ETF",
+  "pe": 25.001913,
+  "yield": 1.04
+ },
+ "VOOG": {
+  "category": "Large Growth",
+  "expense_ratio": 0.07,
+  "fetched": "2026-09-28",
+  "name": "Vanguard S&P 500 Growth Index Fund ETF Shares",
+  "pe": 27.589554,
+  "yield": 0.44999999999999996
+ },
+ "VT": {
+  "category": "Global Large-Stock Blend",
+  "expense_ratio": 0.06,
+  "fetched": "2026-09-28",
+  "name": "Vanguard Total World Stock Index Fund ETF Shares",
+  "pe": 20.679691,
+  "yield": 1.55
+ },
+ "VTEB": {
+  "category": "Muni National Interm",
+  "expense_ratio": 0.03,
+  "fetched": "2026-09-28",
+  "name": "Vanguard Tax-Exempt Bond Index Fund ETF Shares",
+  "pe": null,
+  "yield": 3.44
+ },
+ "VTI": {
+  "category": "Large Blend",
+  "expense_ratio": 0.03,
+  "fetched": "2026-09-28",
+  "name": "Vanguard Morningstar Total Stock Market ETF",
+  "pe": 24.387663,
+  "yield": 1.0299999
+ },
+ "VTV": {
+  "category": "Large Value",
+  "expense_ratio": 0.03,
+  "fetched": "2026-09-28",
+  "name": "Vanguard Morningstar Value ETF",
+  "pe": 20.01697,
+  "yield": 1.82
+ },
+ "VUG": {
+  "category": "Large Growth",
+  "expense_ratio": 0.03,
+  "fetched": "2026-09-28",
+  "name": "Vanguard Morningstar Growth ETF",
+  "pe": 30.986122,
+  "yield": 0.38
+ },
+ "VV": {
+  "category": "Large Blend",
+  "expense_ratio": 0.03,
+  "fetched": "2026-09-28",
+  "name": "Vanguard Morningstar Large-Cap ETF",
+  "pe": 25.190882,
+  "yield": 0.9900000000000001
+ },
+ "VWO": {
+  "category": "Diversified Emerging Mkts",
+  "expense_ratio": 0.06,
+  "fetched": "2026-09-28",
+  "name": "Vanguard FTSE Emerging Markets Index Fund ETF Shares",
+  "pe": 15.829331,
+  "yield": 2.29
+ },
+ "VXF": {
+  "category": "Mid-Cap Blend",
+  "expense_ratio": 0.05,
+  "fetched": "2026-09-28",
+  "name": "Vanguard Extended Market Index Fund ETF Shares",
+  "pe": 19.251173,
+  "yield": 1.01
+ },
+ "VXUS": {
+  "category": "Foreign Large Blend",
+  "expense_ratio": 0.05,
+  "fetched": "2026-09-28",
+  "name": "Vanguard Total International Stock Index Fund ETF Shares",
+  "pe": 16.49252,
+  "yield": 2.5100000000000002
+ },
+ "VYM": {
+  "category": "Large Value",
+  "expense_ratio": 0.04,
+  "fetched": "2026-09-28",
+  "name": "Vanguard High Dividend Yield Index Fund ETF Shares",
+  "pe": 19.807043,
+  "yield": 2.22
+ },
+ "XLE": {
+  "category": "Equity Energy",
+  "expense_ratio": 0.08,
+  "fetched": "2026-09-28",
+  "name": "State Street Energy Select Sector SPDR ETF",
+  "pe": 17.210455,
+  "yield": 2.3699999
+ },
+ "XLF": {
+  "category": "Financial",
+  "expense_ratio": 0.08,
+  "fetched": "2026-09-28",
+  "name": "State Street Financial Select Sector SPDR ETF",
+  "pe": 15.550133,
+  "yield": 1.39999995
+ },
+ "XLI": {
+  "category": "Industrials",
+  "expense_ratio": 0.08,
+  "fetched": "2026-09-28",
+  "name": "State Street Industrial Select Sector SPDR ETF",
+  "pe": 27.670252,
+  "yield": 1.17999995
+ },
+ "XLK": {
+  "category": "Technology",
+  "expense_ratio": 0.08,
+  "fetched": "2026-09-28",
+  "name": "State Street Technology Select Sector SPDR ETF",
+  "pe": 34.74368,
+  "yield": 0.43
+ },
+ "XLV": {
+  "category": "Health",
+  "expense_ratio": 0.08,
+  "fetched": "2026-09-28",
+  "name": "State Street Health Care Select Sector SPDR ETF",
+  "pe": 30.49781,
+  "yield": 1.49
+ }
+}
