@@ -365,7 +365,7 @@ const COLMAP=[ // [field, test on normalized header]
  ["ma",h=>/200/.test(h)], ["r5",h=>/5y|5year|fiveyear/.test(h)&&/ret|perf|5y$/.test(h)],
  ["vol",h=>/volatil|stddev|standarddev/.test(h)], ["dd",h=>/drawdown/.test(h)],
  ["avg",h=>/pe/.test(h)&&/avg|average|10y|hist/.test(h)], ["val",h=>/^(pe|peratio|priceearnings|trailingpe|pettm)$/.test(h)],
- ["y",h=>/yield/.test(h)], ["rsi",h=>/rsi/.test(h)], ["asof",h=>/asof|date/.test(h)] ];
+ ["y",h=>/yield/.test(h)], ["rsi",h=>/rsi/.test(h)], ["asof",h=>/asof|date/.test(h)], ["base",h=>h==="currency"] ];
 function num(v){ if(v==null) return null; v=String(v).trim(); if(!v||/^(--|n\/?a|-)$/i.test(v)) return null;
   const neg=/^\(.*\)$/.test(v); const x=parseFloat(v.replace(/[^0-9.\-]/g,"")); return isNaN(x)?null:(neg?-x:x); }
 function guessClass(cat,name){ const s=(cat+" "+name).toLowerCase();
@@ -377,21 +377,23 @@ function rowsToFunds(rows){
   const heads=rows[hi].map(h=>h.toLowerCase().replace(/[^a-z0-9]/g,""));
   const idx={}; COLMAP.forEach(([k,test])=>{const i=heads.findIndex((h,j)=>test(h)&&!Object.values(idx).includes(j)); if(i>=0) idx[k]=i;});
   if(idx.p==null) throw new Error("No price column found (e.g. Price, Last Price, Close).");
-  const out=[]; let asof="";
+  const out=[]; let asof="", base="";
   for(const r of rows.slice(hi+1)){
     const t=(r[idx.t]||"").trim().toUpperCase(); if(!/^[A-Z][A-Z0-9.\-]{0,9}$/.test(t)) continue;
     const g=k=>idx[k]==null?null:num(r[idx[k]]), str=k=>idx[k]==null?"":(r[idx[k]]||"").trim();
     const p=g("p"); if(!p) continue;
     const cat=str("cat")||"Uncategorized", n=str("n")||t;
     let cls=str("cls").toLowerCase(); if(!DEF_VOL[cls]) cls=guessClass(cat,n);
-    if(str("asof")) asof=str("asof");
+    if(str("asof")) asof=str("asof"); if(/^[A-Z]{3}$/.test(str("base"))) base=str("base");
     out.push({t,n,cat,cls,er:g("er"),p,lo:g("lo"),hi:g("hi"),ma:g("ma"),r5:g("r5"),vol:g("vol"),dd:g("dd"),val:g("val"),avg:g("avg"),y:g("y"),rsi:g("rsi")});
   }
   if(!out.length) throw new Error("No rows with a ticker and price.");
-  return {funds:out,asof};
+  return {funds:out,asof,base:base||"USD"};
 }
 function loadFunds(text,label){
-  const {funds,asof}=rowsToFunds(parseCSV(text)); if(asof) ASOF=asof; LIVE=true;
+  const {funds,asof,base}=rowsToFunds(parseCSV(text)); if(asof) ASOF=asof; LIVE=true;
+  BASE=base; RATE=rateOf(CUR);
+  if(!amountTouched){ $("amount").value=niceRound(10000*rateOf(CUR,"GBP")).toLocaleString(LOCALE); sizeAmount(); }
   DATA=funds.map(analyze); SOURCE=`${funds.length} funds from ${label}${asof?", updated "+asof:""}`;
   $("cat").innerHTML='<option value="">All categories</option>';
   [...new Set(DATA.map(e=>e.cat))].sort().forEach(c=>$("cat").insertAdjacentHTML("beforeend",`<option>${esc(c)}</option>`));
@@ -428,7 +430,7 @@ function buildBundle(risk,count){
 
 /* ---------- Rendering ---------- */
 const $=id=>document.getElementById(id);
-/* ---------- Currency (ETF prices are in USD; shown in the user's currency) ---------- */
+/* ---------- Currency (fund prices arrive in BASE — GBP from funds.csv, USD for the sample data — and are shown in the user's currency) ---------- */
 const REGION_CUR={US:"USD",GB:"GBP",CA:"CAD",AU:"AUD",NZ:"NZD",JP:"JPY",CN:"CNY",IN:"INR",CH:"CHF",SE:"SEK",NO:"NOK",DK:"DKK",PL:"PLN",CZ:"CZK",HU:"HUF",ZA:"ZAR",BR:"BRL",MX:"MXN",SG:"SGD",HK:"HKD",KR:"KRW",AE:"AED",SA:"SAR",TR:"TRY",IL:"ILS",NG:"NGN",KE:"KES",PH:"PHP",ID:"IDR",MY:"MYR",TH:"THB"};
 ["DE","FR","NL","BE","IT","ES","PT","IE","AT","FI","GR","LU","SK","SI","EE","LV","LT","CY","MT","HR"].forEach(r=>REGION_CUR[r]="EUR");
 // Approximate fallback rates (units per 1 USD), used only if the live rate request fails
@@ -439,23 +441,27 @@ function detectCurrency(){
   try{const r=new Intl.Locale(LOCALE).maximize().region; if(REGION_CUR[r]) return REGION_CUR[r];}catch(e){}
   return "USD";
 }
-let CUR=detectCurrency(), RATE=RATES[CUR]||1, rateLive=false;
-const conv=x=>x*RATE;   // USD -> local currency
+let BASE="USD";
+const rateOf=(c,base=BASE)=>(RATES[c]||1)/(RATES[base]||1);   // units of c per 1 unit of base
+let CUR=detectCurrency(), RATE=rateOf(CUR), rateLive=false;
+const conv=x=>x*RATE;   // base currency -> viewer's currency
 function money(x){ const base=new Intl.NumberFormat(LOCALE,{style:"currency",currency:CUR}).resolvedOptions().maximumFractionDigits;
   return new Intl.NumberFormat(LOCALE,{style:"currency",currency:CUR,maximumFractionDigits:Math.abs(x)>=100?0:base}).format(x); }
 const usd=money;
+function priceFmt(x){ const d=new Intl.NumberFormat(LOCALE,{style:"currency",currency:CUR}).resolvedOptions().maximumFractionDigits;
+  return new Intl.NumberFormat(LOCALE,{style:"currency",currency:CUR,minimumFractionDigits:d,maximumFractionDigits:d}).format(x); }  // share prices keep their pence
 const SEP=(()=>{const p=new Intl.NumberFormat(LOCALE).formatToParts(12345.6);return {g:(p.find(x=>x.type==="group")||{}).value||",",d:(p.find(x=>x.type==="decimal")||{}).value||"."};})();
 const niceRound=a=>{const m=Math.pow(10,Math.max(0,Math.floor(Math.log10(a||1))-1));return Math.round(a/m)*m;};
 function sizeAmount(){ $("amount").style.width=Math.max(6,$("amount").value.length+1)+"ch"; }
 function setCurrency(c,convertAmount){
-  const old=RATE; CUR=c; RATE=RATES[c]||1;
+  const old=RATE; CUR=c; RATE=rateOf(c);
   if(convertAmount) $("amount").value=niceRound(amount()/old*RATE).toLocaleString(LOCALE);
   const sym=new Intl.NumberFormat(LOCALE,{style:"currency",currency:CUR}).formatToParts(0).find(x=>x.type==="currency");
   $("curSym").textContent=sym?sym.value:CUR; sizeAmount();
   renderRateNote(); renderBundle(); renderTable();
 }
-function renderRateNote(){ $("rateNote").textContent=SOURCE+(CUR==="USD"?"":` · 1 USD = ${RATE.toLocaleString(LOCALE,{maximumFractionDigits:4})} ${CUR} (${rateLive?"live":"approx."})`); }
-const pct=(x,d=1)=>(x>=0?"+":"")+x.toFixed(d)+"%";
+function renderRateNote(){ $("rateNote").textContent=SOURCE+(CUR===BASE?"":` · prices in ${BASE}, shown in ${CUR} at 1 ${BASE} = ${RATE.toLocaleString(LOCALE,{maximumFractionDigits:4})} ${CUR} (${rateLive?"live":"approx."})`); }
+const pct=(x,d=1)=>{ if(Math.abs(x)<0.5*Math.pow(10,-d)) x=0; return (x>=0?"+":"")+x.toFixed(d)+"%"; };
 const esc=s=>String(s).replace(/[&<>"]/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]));
 function amount(){ const raw=$("amount").value.split(SEP.g).join("").replace(SEP.d,".").replace(/[^0-9.]/g,""); return Math.max(0,parseFloat(raw)||0); }
 
@@ -469,7 +475,7 @@ function renderBundle(){
   $("holdings").innerHTML=b.picks.map((e,i)=>{const $a=amt*b.w[i], sh=Math.floor($a/conv(e.p));
     return `<li><button class="hold-btn" data-t="${e.t}" data-i="${i}" aria-label="${e.t}, ${e.signal}, ${(b.w[i]*100).toFixed(1)}% of basket. Show reasoning"><span class="sw" style="background:${COLORS[i]}"></span><span class="tk">${e.t} <span class="pill ${e.signal}" style="min-width:0;padding:1px 6px;font-size:10px;vertical-align:middle">${e.signal}</span></span>
     <span class="nm">${(b.w[i]*100).toFixed(1)}% · ${esc(e.n)}</span>
-    <span class="amt">${usd($a)}<small>${sh>0?sh+" share"+(sh>1?"s":"")+" @ "+money(conv(e.p)):"fractional"}</small></span><span class="chev" aria-hidden="true">›</span></button></li>`;}).join("");
+    <span class="amt">${usd($a)}<small>${sh>0?sh+" share"+(sh>1?"s":"")+" @ "+priceFmt(conv(e.p)):"fractional"}</small></span><span class="chev" aria-hidden="true">›</span></button></li>`;}).join("");
   LAST_BUNDLE={b,amt};
   const sc=[["Good year",b.mu+b.vol,"Roughly 1 year in 6 does at least this well"],
             ["Expected",b.mu,"Middle-of-the-road outcome"],
@@ -492,7 +498,7 @@ function renderTable(){
   const head=`<div class="row head">${COLS.map(([key,l,c])=>`<span class="${typeof c==="string"?c:""}"><button data-k="${key}" aria-label="Sort by ${l}">${l}${sortKey===key?(sortDir>0?" ▲":" ▼"):""}</button></span>`).join("")}</div>`;
   $("table").innerHTML=head+(rows.length?rows.map(e=>`<button class="row" data-t="${e.t}" aria-label="${e.t} ${e.signal}, open details">
     <span class="tkr">${e.t}</span>
-    <span class="nm2">${esc(e.n)}<small>${esc(e.cat)} · ${money(conv(e.p))}</small></span>
+    <span class="nm2">${esc(e.n)}<small>${esc(e.cat)} · ${priceFmt(conv(e.p))}</small></span>
     <span><span class="pill ${e.signal}">${e.signal}</span></span>
     <span class="c-range"><span class="mini"><i style="left:calc(${(e.range*100).toFixed(0)}% - 2px)"></i></span></span>
     <span class="c-ret r ${e.r5==null?"":e.r5>=0?"pos":"neg"}">${e.r5==null?"—":pct(e.r5)}</span>
@@ -511,13 +517,13 @@ function openDetail(t,note,amtOverride,back){ BACK=back||null;
   const cheapPos=clamp(50-e.gap*200,2,98);
   $("dlgBody").innerHTML=`
   ${BACK?'<button class="back" id="backBtn">‹ Back to basket</button>':""}
-  <div class="dlg-h"><div><h3 id="dTitle">${e.t}</h3><p>${esc(e.n)} · ${esc(e.cat)} · ${money(conv(e.p))}</p>${note?`<p class="basket-note">${note}</p>`:""}</div>
+  <div class="dlg-h"><div><h3 id="dTitle">${e.t}</h3><p>${esc(e.n)} · ${esc(e.cat)} · ${priceFmt(conv(e.p))}</p>${note?`<p class="basket-note">${note}</p>`:""}</div>
   <button class="close" onclick="dlg.close()">Close</button></div>
   <div class="verdict ${e.signal}"><strong>${e.signal}</strong> <span style="font-size:14px">signal score ${e.score>=0?"+":""}${e.score.toFixed(2)}</span>
     <ul>${e.reasons.map(r=>`<li>${r}</li>`).join("")}</ul></div>
   <div class="gauge"><div class="lbl"><span>Cheap</span><b>${!e.hasVal?"No valuation history in data":"Valuation vs its own history"}</b><span>Expensive</span></div>
     <div class="gbar">${!e.hasVal?"":`<i style="left:${cheapPos}%"></i>`}</div></div>
-  <div class="gauge"><div class="lbl"><span>52-wk low ${e.lo==null?"—":money(conv(e.lo))}</span><b>Now ${money(conv(e.p))}</b><span>High ${e.hi==null?"—":money(conv(e.hi))}</span></div>
+  <div class="gauge"><div class="lbl"><span>52-wk low ${e.lo==null?"—":priceFmt(conv(e.lo))}</span><b>Now ${priceFmt(conv(e.p))}</b><span>High ${e.hi==null?"—":priceFmt(conv(e.hi))}</span></div>
     <div class="gbar" style="background:var(--line)"><i style="left:${(e.range*100).toFixed(0)}%"></i></div></div>
   <p style="margin:18px 0 0;font-weight:600">If you put ${usd(amt)} in for a year</p>
   <div class="scen-grid">
@@ -528,7 +534,7 @@ function openDetail(t,note,amtOverride,back){ BACK=back||null;
   </div>
   <div class="facts">
     <span><b>${e.r5==null?"—":pct(e.r5)}</b>5-yr annualized</span><span><b>${e.vol.toFixed(1)}%</b>Volatility</span><span><b>${e.y==null?"—":e.y+"%"}</b>Dividend yield</span>
-    <span><b>${e.er==null?"—":e.er+"%"}</b>Expense ratio</span><span><b>${e.ma?money(conv(e.ma)):"—"}</b>200-day average</span><span><b>${e.rsi??"—"}</b>RSI (14-day)</span>
+    <span><b>${e.er==null?"—":e.er+"%"}</b>Expense ratio</span><span><b>${e.ma?priceFmt(conv(e.ma)):"—"}</b>200-day average</span><span><b>${e.rsi??"—"}</b>RSI (14-day)</span>
   </div>`;
   if(BACK) $("backBtn").onclick=BACK;
   if(!dlg.open) dlg.showModal();
@@ -537,7 +543,8 @@ function openDetail(t,note,amtOverride,back){ BACK=back||null;
 /* ---------- Wire up ---------- */
 [...new Set(DATA.map(e=>e.cat))].sort().forEach(c=>$("cat").insertAdjacentHTML("beforeend",`<option>${esc(c)}</option>`));
 ["riskSlider","countSlider"].forEach(id=>$(id).addEventListener("input",renderBundle));
-$("amount").addEventListener("input",renderBundle);
+let amountTouched=false;
+$("amount").addEventListener("input",()=>{amountTouched=true; renderBundle();});
 $("amount").addEventListener("blur",()=>{$("amount").value=amount().toLocaleString(LOCALE);sizeAmount();});
 $("q").addEventListener("input",renderTable); $("cat").addEventListener("change",renderTable);
 document.querySelectorAll(".chip").forEach(b=>b.addEventListener("click",()=>{
@@ -550,7 +557,7 @@ Object.keys(RATES).sort().forEach(c=>$("cur").insertAdjacentHTML("beforeend",`<o
 $("cur").value=CUR; $("cur").addEventListener("change",e=>setCurrency(e.target.value,true));
 fetch("https://open.er-api.com/v6/latest/USD").then(r=>r.json()).then(d=>{
   if(d&&d.rates){ Object.keys(RATES).forEach(c=>{if(d.rates[c]) RATES[c]=d.rates[c];}); rateLive=true;
-    RATE=RATES[CUR]; renderRateNote(); renderBundle(); renderTable(); }
+    RATE=rateOf(CUR); renderRateNote(); renderBundle(); renderTable(); if(typeof renderBaskets==="function") renderBaskets(); }
 }).catch(()=>{});
 $("holdings").addEventListener("click",ev=>{const r=ev.target.closest(".hold-btn"); if(r) openBasketDetail(+r.dataset.i);});
 $("allocBar").addEventListener("click",ev=>{const d=ev.target.closest("[data-i]"); if(d) openBasketDetail(+d.dataset.i);});
@@ -560,7 +567,7 @@ $("table").addEventListener("click",ev=>{
   const r=ev.target.closest("button.row"); if(r) openDetail(r.dataset.t);
 });
 const dlg=$("dlg"); dlg.addEventListener("click",ev=>{if(ev.target===dlg) dlg.close();});
-$("amount").value=niceRound(10000*RATE).toLocaleString(LOCALE);
+$("amount").value=niceRound(10000*rateOf(CUR,"GBP")).toLocaleString(LOCALE);
 setCurrency(CUR,false);
 $("csvFile").addEventListener("change",ev=>{const f=ev.target.files[0]; if(!f) return;
   f.text().then(t=>{try{loadFunds(t,f.name);$("csvMsg").textContent="";}catch(err){$("csvMsg").textContent=err.message+" Check the column headers.";}});});
@@ -595,7 +602,7 @@ function priceNow(h){ const e=DATA.find(x=>x.t===h.t); if(e) return e.p; const a
 
 function basketStats(b){
   const hs=holdingsOf(b), usdNow=hs.reduce((s,h)=>s+h.units*priceNow(h),0);
-  const rateNow=RATES[b.cur]||b.fx;
+  const rateNow=rateOf(b.cur,b.base||"USD");
   return {hs,usdNow,localNow:usdNow*rateNow,ret:usdNow/b.usdInvested-1,fxMove:rateNow/b.fx-1};
 }
 function series(b){
@@ -622,6 +629,7 @@ function chartSVG(pts){
 
 /* ---------- Drop / replace alerts ---------- */
 function alertsFor(b){
+  if((b.base||"USD")!==BASE&&LIVE) return [];   // saved with the old US list; see note in the basket
   const out=[], inBasket=new Set(holdingsOf(b).map(h=>h.t));
   for(const h of holdingsOf(b)){
     const e=DATA.find(x=>x.t===h.t), why=[];
@@ -652,10 +660,10 @@ async function notifyNew(){
 async function saveBasket(){
   const risk=+$("riskSlider").value, count=+$("countSlider").value, amt=amount();
   if(!amt){ $("saveMsg").textContent="Enter an amount first."; return; }
-  const b=buildBundle(risk,count), usd=amt/RATE;
+  const b=buildBundle(risk,count), usd=amt/RATE;   // amount in the base currency
   const holdings=b.picks.map((e,i)=>({t:e.t,n:e.n,units:usd*b.w[i]/e.p,entry:e.p,since:ASOF}));
   const name=$("basketName").value.trim()||`Basket ${BASKETS.length+1}`;
-  BASKETS.push({id:Date.now().toString(36),name,created:ASOF,cur:CUR,fx:RATE,invested:amt,usdInvested:usd,risk,
+  BASKETS.push({id:Date.now().toString(36),name,created:ASOF,cur:CUR,base:BASE,fx:RATE,invested:amt,usdInvested:usd,risk,
     versions:[{from:ASOF,holdings}],log:[{d:ASOF,x:`Saved with ${holdings.map(h=>h.t).join(", ")}`}],seen:[]});
   if(LIVE) BASKETS[BASKETS.length-1].seen=alertsFor(BASKETS[BASKETS.length-1]).map(a=>a.key); // don't notify about alerts you saved with
   const ok=await Store.save(); $("basketName").value="";
@@ -678,28 +686,32 @@ function swap(b,t,repT){
 function renderBaskets(){
   const el=$("basketList"); if(!el) return;
   if(!BASKETS.length){ el.innerHTML=`<p class="lead" style="grid-column:1/-1">No saved baskets yet. Build one above and tap “Save basket”.</p>`; return; }
-  el.innerHTML=BASKETS.map(b=>{ const s=basketStats(b), n=alertsFor(b).length;
+  el.innerHTML=BASKETS.map(b=>{ const s=basketStats(b), n=alertsFor(b).length, old=(b.base||"USD")!==BASE&&LIVE;
+    if(old) return `<button class="bcard" data-id="${b.id}" aria-label="${esc(b.name)}, saved with the old US fund list">
+      <h3>${esc(b.name)}</h3><div class="meta">Saved ${fmtDate(b.created)} · old US fund list</div>
+      <div class="val" style="font-size:17px">Prices no longer update</div><div class="meta">Save it again with the London funds</div></button>`;
     return `<button class="bcard" data-id="${b.id}" aria-label="${esc(b.name)}, ${pct(s.ret*100)} since ${fmtDate(b.created)}${n?", "+n+" alerts":""}">
       ${n?`<span class="badge">${n} alert${n>1?"s":""}</span>`:""}
-      <h3>${esc(b.name)}</h3><div class="meta">Saved ${fmtDate(b.created)} · ${s.hs.length} funds</div>
+      <h3>${esc(b.name)}</h3><div class="meta">Saved ${fmtDate(b.created)} · ${s.hs.length} funds${(b.base||"USD")!==BASE&&LIVE?" · old US fund list":""}</div>
       <div class="val">${moneyIn(s.localNow,b.cur)}</div>
-      <div class="ret ${s.ret>=0?"pos":"neg"}">${pct(s.ret*100)} <span class="meta">on ${moneyIn(b.invested,b.cur)}</span></div></button>`;}).join("");
+      <div class="ret ${Math.round(s.ret*1000)>=0?"pos":"neg"}">${pct(s.ret*100)} <span class="meta">on ${moneyIn(b.invested,b.cur)}</span></div></button>`;}).join("");
 }
 function openBasket(id){
   const b=BASKETS.find(x=>x.id===id); if(!b) return;
   const s=basketStats(b), al=alertsFor(b), days=series(b);
   const rows=s.hs.map(h=>{ const p=priceNow(h), v=h.units*p, r=p/h.entry-1;
     return `<tr><td><button data-fund="${h.t}">${h.t}</button></td><td class="r">${(v/s.usdNow*100).toFixed(1)}%</td>
-      <td class="r">${moneyIn(h.entry*(RATES[b.cur]||b.fx),b.cur)} → ${moneyIn(p*(RATES[b.cur]||b.fx),b.cur)}</td><td class="r ${r>=0?"pos":"neg"}">${pct(r*100)}</td></tr>`;}).join("");
+      <td class="r">${moneyIn(h.entry*rateOf(b.cur,b.base||"USD"),b.cur)} → ${moneyIn(p*rateOf(b.cur,b.base||"USD"),b.cur)}</td><td class="r ${r>=0?"pos":"neg"}">${pct(r*100)}</td></tr>`;}).join("");
   $("dlgBody").innerHTML=`
   <div class="dlg-h"><div><h3 id="dTitle">${esc(b.name)}</h3><p>Saved ${fmtDate(b.created)} · ${RISK_WORDS[b.risk-1]} risk · prices as of ${fmtDate(ASOF)}</p></div>
   <button class="close" onclick="dlg.close()">Close</button></div>
   <div class="bnums">
     <div><small>Value now</small><b>${moneyIn(s.localNow,b.cur)}</b></div>
     <div><small>Invested</small><b>${moneyIn(b.invested,b.cur)}</b></div>
-    <div><small>Fund return</small><b class="${s.ret>=0?"pos":"neg"}">${pct(s.ret*100)}</b></div>
+    <div><small>Fund return</small><b class="${Math.round(s.ret*1000)>=0?"pos":"neg"}">${pct(s.ret*100)}</b></div>
   </div>
-  ${b.cur!=="USD"?`<p style="font-size:13px;color:var(--muted);margin:-6px 0 10px">Value includes a ${pct(s.fxMove*100)} move in the USD/${b.cur} rate since you saved.</p>`:""}
+  ${(b.base||"USD")!==BASE&&LIVE?`<p class="alertbox" style="font-size:14px">This basket was saved with the old US fund list, so its prices no longer update. Build and save it again to track the London-listed funds.</p>`:""}
+  ${b.cur!==(b.base||"USD")?`<p style="font-size:13px;color:var(--muted);margin:-6px 0 10px">Value includes a ${pct(s.fxMove*100)} move in the ${b.base||"USD"}/${b.cur} rate since you saved.</p>`:""}
   <div class="chart">${chartSVG(days)}</div>
   ${al.length?`<h4>Alerts</h4>`+al.map(a=>`<div class="alertbox"><p>${esc(a.msg)}</p><div class="acts">
     ${a.rep?`<button class="ghost" data-swap="${a.t}" data-rep="${a.rep.t}">Replace with ${a.rep.t} (${a.rep.signal})</button>`:""}

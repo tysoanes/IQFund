@@ -1,101 +1,101 @@
-Rank,Symbol,Category,Class,PE_10y_Avg
-1,VOO,US large cap blend,eq,
-2,IVV,US large cap blend,eq,
-3,SPY,US large cap blend,eq,
-4,VTI,US total market,eq,
-5,QQQ,US growth (Nasdaq 100),eq,
-6,VEA,International developed,eq,
-7,VUG,US large growth,eq,
-8,IEFA,International developed,eq,
-9,VTV,US large value,eq,
-10,SPYM,US large cap blend,eq,
-11,VXUS,International total,eq,
-12,IEMG,Emerging markets,eq,
-13,BND,Bonds: core,bond,
-14,VGT,Sector: tech,eq,
-15,GLD,Gold,gold,
-16,AGG,Bonds: core,bond,
-17,IWF,US large growth,eq,
-18,VWO,Emerging markets,eq,
-19,XLK,Sector: tech,eq,
-20,IJH,US mid cap,eq,
-21,SGOV,Bonds: T-bills,bond,
-22,VIG,US dividend growth,eq,
-23,SCHD,US dividend income,eq,
-24,QQQM,US growth (Nasdaq 100),eq,
-25,VO,US mid cap,eq,
-26,IJR,US small cap,eq,
-27,RSP,US equal weight,eq,
-28,ITOT,US total market,eq,
-29,BNDX,Bonds: international,bond,
-30,IWD,US large value,eq,
-31,VT,Global stocks,eq,
-32,VYM,US dividend income,eq,
-33,VB,US small cap,eq,
-34,IVW,US large growth,eq,
-35,EFA,International developed,eq,
-36,IWM,US small cap,eq,
-37,SCHX,US large cap blend,eq,
-38,SMH,Sector: semiconductors,eq,
-39,VEU,International total,eq,
-40,SCHF,International developed,eq,
-41,VCIT,Bonds: corporate,bond,
-42,IBIT,Crypto: bitcoin,eq,
-43,SCHG,US large growth,eq,
-44,IAU,Gold,gold,
-45,IXUS,International total,eq,
-46,SPYG,US large growth,eq,
-47,IWR,US mid cap,eq,
-48,VV,US large cap blend,eq,
-49,XLF,Sector: financials,eq,
-50,IVE,US large value,eq,
-51,IWB,US large cap blend,eq,
-52,DFAC,US core equity (factor),eq,
-53,SOXX,Sector: semiconductors,eq,
-54,BIL,Bonds: T-bills,bond,
-55,QUAL,US quality factor,eq,
-56,IUSB,Bonds: core,bond,
-57,VONG,US large growth,eq,
-58,VTEB,Bonds: municipal,bond,
-59,BSV,Bonds: short-term,bond,
-60,MUB,Bonds: municipal,bond,
-61,JEPI,Covered-call income,eq,
-62,TLT,Bonds: long Treasury,bond,
-63,DIA,US large cap (Dow 30),eq,
-64,SCHB,US total market,eq,
-65,VCSH,Bonds: short corporate,bond,
-66,JEPQ,Covered-call income,eq,
-67,XLV,Sector: health,eq,
-68,DGRO,US dividend growth,eq,
-69,DYNF,US factor rotation (active),eq,
-70,JPST,Bonds: ultra-short,bond,
-71,IEF,Bonds: intermediate Treasury,bond,
-72,GOVT,Bonds: Treasury (all maturities),bond,
-73,SPDW,International developed,eq,
-74,XLE,Sector: energy,eq,
-75,VGIT,Bonds: intermediate Treasury,bond,
-76,TQQQ,Leveraged (3x Nasdaq 100),eq,
-77,CGDV,US dividend income,eq,
-78,MBB,Bonds: mortgage-backed,bond,
-79,VNQ,Real estate,reit,
-80,SPYV,US large value,eq,
-81,VBR,US small value,eq,
-82,VGSH,Bonds: short Treasury,bond,
-83,MGK,US large growth,eq,
-84,IUSG,US large growth,eq,
-85,ACWI,Global stocks,eq,
-86,IDEV,International developed,eq,
-87,SLV,Silver,gold,
-88,EEM,Emerging markets,eq,
-89,JAAA,Bonds: AAA CLO,bond,
-90,GLDM,Gold,gold,
-91,EFV,International value,eq,
-92,AVUV,US small value,eq,
-93,VXF,US small cap,eq,
-94,XLI,Sector: industrials,eq,
-95,VGK,Europe,eq,
-96,AVEM,Emerging markets,eq,
-97,BIV,Bonds: intermediate,bond,
-98,FBND,Bonds: core,bond,
-99,GDX,Gold miners,eq,
-100,VOOG,US large growth,eq,
+Symbol,Category,Class,PE_10y_Avg,US_equivalent
+VWRL,Global stocks,eq,,VT
+VWRP,Global stocks,eq,,VT
+FWRG,Global stocks,eq,,VT
+SSAC,Global stocks,eq,,ACWI
+SWDA,Developed world,eq,,URTH
+IWRD,Developed world,eq,,URTH
+HMWO,Developed world,eq,,URTH
+VEVE,Developed world,eq,,URTH
+VHVG,Developed world,eq,,URTH
+WLDS,Global small cap,eq,,VSS
+AVGS,Global small value,eq,,AVUV
+MVOL,Global min volatility,eq,,ACWV
+IWFQ,Global quality factor,eq,,QUAL
+IWFV,Global value factor,eq,,IVE
+IWFM,Global momentum factor,eq,,MTUM
+VUSA,US large cap blend,eq,,VOO
+VUAG,US large cap blend,eq,,VOO
+CSP1,US large cap blend,eq,,IVV
+IUSA,US large cap blend,eq,,SPY
+SPXP,US large cap blend,eq,,SPY
+HSPX,US large cap blend,eq,,SPY
+IGUS,US large cap (GBP hedged),eq,,SPY
+VNRT,US total market,eq,,VTI
+XDEW,US equal weight,eq,,RSP
+SPY4,US mid cap,eq,,IJH
+R2US,US small cap,eq,,IWM
+IUQA,US quality factor,eq,,QUAL
+MOGB,US wide moat,eq,,MOAT
+EQQQ,US growth (Nasdaq 100),eq,,QQQ
+CNX1,US growth (Nasdaq 100),eq,,QQQ
+IITU,Sector: tech,eq,,XLK
+IUFS,Sector: financials,eq,,XLF
+IUHC,Sector: health,eq,,XLV
+IUES,Sector: energy,eq,,XLE
+USDV,US dividend growth,eq,,VIG
+FUSD,US dividend income,eq,,SCHD
+JEGP,Covered-call income,eq,,JEPI
+SMGB,Sector: semiconductors,eq,,SMH
+SEMI,Sector: semiconductors,eq,,SOXX
+INRG,Clean energy,eq,,ICLN
+HEAL,Healthcare innovation,eq,,
+RBOT,Robotics & automation,eq,,BOTZ
+ISPY,Cyber security,eq,,CIBR
+AIAG,Artificial intelligence,eq,,
+ESGB,Video gaming,eq,,ESPO
+DFNG,Defence,eq,,DFEN
+WDEP,Defence,eq,,
+NUCG,Uranium & nuclear,eq,,NLR
+DAGB,Crypto & blockchain stocks,eq,,
+IB1T,Crypto: bitcoin,eq,,IBIT
+ISF,UK large cap (FTSE 100),eq,,
+CUKX,UK large cap (FTSE 100),eq,,
+VUKE,UK large cap (FTSE 100),eq,,
+VUKG,UK large cap (FTSE 100),eq,,
+VMID,UK mid cap (FTSE 250),eq,,
+VMIG,UK mid cap (FTSE 250),eq,,
+MIDD,UK mid cap (FTSE 250),eq,,
+IUKD,UK dividend,eq,,
+UKDV,UK dividend,eq,,
+VEUR,Europe,eq,,VGK
+VERX,Europe ex UK,eq,,VGK
+IMEU,Europe,eq,,VGK
+VJPN,Japan,eq,,EWJ
+IJPN,Japan,eq,,EWJ
+VAPX,Asia Pacific ex Japan,eq,,
+IAPD,Asia Pacific dividend,eq,,
+VFEM,Emerging markets,eq,,VWO
+EMIM,Emerging markets,eq,,IEMG
+IEEM,Emerging markets,eq,,EEM
+FRIN,India,eq,,INDA
+HMCH,China,eq,,MCHI
+VHYL,Global dividend income,eq,,VYM
+VHYG,Global dividend income,eq,,VYM
+GBDV,Global dividend growth,eq,,SDIV
+IGLT,Bonds: UK gilts,bond,,GOVT
+VGOV,Bonds: UK gilts,bond,,GOVT
+GILS,Bonds: UK gilts,bond,,GOVT
+IGLS,Bonds: short UK gilts,bond,,VGSH
+INXG,Bonds: index-linked gilts,bond,,TIP
+SLXX,Bonds: sterling corporate,bond,,VCIT
+IS15,Bonds: short sterling corporate,bond,,VCSH
+ERNS,Bonds: ultra-short,bond,,JPST
+CSH2,Bonds: cash / overnight,bond,,SGOV
+VAGP,Bonds: global aggregate (GBP hedged),bond,,BNDX
+VAGS,Bonds: global aggregate (GBP hedged),bond,,BNDX
+IDTG,Bonds: long US Treasury,bond,,TLT
+IBTS,Bonds: short US Treasury,bond,,SHY
+VUCP,Bonds: US corporate,bond,,VCIT
+GHYS,Bonds: high yield (GBP hedged),hy,,HYG
+SEMB,Bonds: emerging markets,hy,,EMB
+SGLN,Gold,gold,,IAU
+PHGP,Gold,gold,,GLD
+SGLP,Gold,gold,,GLDM
+PHSP,Silver,gold,,SLV
+ICOM,Commodities (broad),gold,,DBC
+GDGB,Gold miners,eq,,GDX
+GJGB,Junior gold miners,eq,,GDXJ
+IWDP,Global property,reit,,REET
+IUKP,UK property,reit,,
+IUSP,US property,reit,,VNQ
