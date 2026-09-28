@@ -20,8 +20,10 @@ Run:  pip install yfinance pandas
 """
 import csv
 import datetime as dt
+import json
 import math
 import os
+import threading
 import sys
 import time
 
@@ -32,6 +34,10 @@ TICKER_FILE = "tickers.csv"
 OUT_FILE = "funds.csv"
 HIST_FILE = "history.csv"
 HIST_KEEP_DAYS = 3650
+INFO_CACHE = "info_cache.json"   # fund details (name, fees, P/E, yield) change slowly
+INFO_MAX_AGE_DAYS = 7            # refresh each fund's details about once a week
+INFO_TIMEOUT = 15                # seconds to wait for one fund's details
+INFO_BUDGET = 240                # stop fetching details after 4 minutes; retry next run
 BATCH = 50  # tickers per price download
 
 
@@ -61,8 +67,9 @@ def fetch_history(symbols):
     result = {}
     for i in range(0, len(symbols), BATCH):
         chunk = symbols[i:i + BATCH]
+        print(f"  prices {i + 1}-{i + len(chunk)} of {len(symbols)}", flush=True)
         df = yf.download(chunk, period="5y", interval="1d", auto_adjust=False,
-                         group_by="ticker", progress=False, threads=True)
+                         group_by="ticker", progress=False, threads=True, timeout=30)
         for s in chunk:
             try:
                 sub = df[s] if len(chunk) > 1 else df
@@ -75,12 +82,50 @@ def fetch_history(symbols):
     return result
 
 
-def fetch_info(symbol):
-    """Name, category, fees, yield, P/E. Fields vary by fund; all optional."""
+def _info_with_timeout(symbol):
+    """yfinance can hang when Yahoo rate-limits; give up after INFO_TIMEOUT."""
+    box = {}
+
+    def work():
+        try:
+            box["info"] = yf.Ticker(symbol).info or {}
+        except Exception as e:
+            box["err"] = e
+
+    t = threading.Thread(target=work, daemon=True)  # daemon: never blocks exit
+    t.start()
+    t.join(INFO_TIMEOUT)
+    return box.get("info")
+
+
+def load_info(symbols):
+    """Fund details from the cache, refreshing stale ones within a time budget."""
     try:
-        info = yf.Ticker(symbol).info or {}
-    except Exception:
-        return {}
+        with open(INFO_CACHE, encoding="utf-8") as f:
+            cache = json.load(f)
+    except (FileNotFoundError, ValueError):
+        cache = {}
+    today = dt.date.today()
+    stale = [s for s in symbols
+             if s not in cache or (today - dt.date.fromisoformat(cache[s].get("fetched", "2000-01-01"))).days >= INFO_MAX_AGE_DAYS]
+    print(f"Fund details: {len(symbols) - len(stale)} cached, {len(stale)} to fetch", flush=True)
+    start, fetched = time.time(), 0
+    for s in stale:
+        if time.time() - start > INFO_BUDGET:
+            print(f"  time budget reached; {len(stale) - fetched} left for the next run", flush=True)
+            break
+        raw = _info_with_timeout(s)
+        fetched += 1
+        if raw:
+            cache[s] = {**parse_info(raw), "fetched": today.isoformat()}
+        time.sleep(0.5)
+    with open(INFO_CACHE, "w", encoding="utf-8") as f:
+        json.dump(cache, f, indent=1, sort_keys=True)
+    return cache
+
+
+def parse_info(info):
+    """Name, category, fees, yield, P/E. Fields vary by fund; all optional."""
     er = info.get("netExpenseRatio")  # already a percent, e.g. 0.08
     y = info.get("yield") or info.get("dividendYield")
     if y is not None and y < 1:  # fraction -> percent
@@ -154,6 +199,7 @@ def main():
     symbols = [r["symbol"] for r in rows]
     print(f"Fetching {len(symbols)} tickers…")
     hist = fetch_history(symbols)
+    infos = load_info([s for s in symbols if s in hist])
     # label data with the last trading day, not the run date
     today = max(h.index[-1] for h in hist.values()).date().isoformat() if hist else dt.date.today().isoformat()
     cols = ["ticker", "name", "category", "class", "expense_ratio", "price", "low_52w", "high_52w",
@@ -168,7 +214,7 @@ def main():
                 skipped.append(s)
                 continue
             m = metrics(hist[s])
-            info = fetch_info(s)
+            info = infos.get(s, {})
             w.writerow([
                 s,
                 info.get("name") or r.get("name") or s,
@@ -181,7 +227,6 @@ def main():
                 fmt(info.get("yield")), fmt(m["rsi"], 0), today,
             ])
             written += 1
-            time.sleep(0.3)  # be gentle with the data source
     print(f"Wrote {written} funds to {OUT_FILE}.")
     update_history(hist)
     if skipped:
