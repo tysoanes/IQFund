@@ -2,7 +2,7 @@ name: Update fund data
 
 on:
   schedule:
-    - cron: "30 22 * * 1-5"   # 22:30 UTC on weekdays, after the US market close
+           - cron: "45 17 * * 1-5"   # 17:45 UTC on weekdays, after the London close
   workflow_dispatch:          # lets you run it by hand from the Actions tab
 
 permissions:
