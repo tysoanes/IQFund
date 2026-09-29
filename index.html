@@ -3,9 +3,26 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Fundwise — ETF screener & bundle builder</title>
+<title>IQFund — ETF screener & basket builder</title>
+<script>/* apply the saved style before anything paints, and load that style's fonts */
+var IQ_THEMES={broadsheet:"",classic:"",
+  ledger:"family=Libre+Caslon+Display&family=Libre+Caslon+Text:wght@400;700&family=Public+Sans:wght@400;500;600;700",
+  harbour:"family=Young+Serif&family=Figtree:wght@400;500;600;700",
+  monograph:"family=Schibsted+Grotesk:wght@400;500;700;900",
+  nightdesk:"family=Red+Hat+Display:wght@400;500;700;900&family=Red+Hat+Mono:wght@400;500"};
+function iqApplyTheme(t){
+  if(!(t in IQ_THEMES)) t="broadsheet";
+  document.documentElement.dataset.theme=t;
+  if(IQ_THEMES[t]&&!document.getElementById("font-"+t)){
+    var l=document.createElement("link"); l.rel="stylesheet"; l.id="font-"+t;
+    l.href="https://fonts.googleapis.com/css2?"+IQ_THEMES[t]+"&display=swap"; document.head.appendChild(l); }
+  return t;
+}
+var iqSaved; try{ iqSaved=localStorage.getItem("iqfund-theme"); }catch(e){}
+iqApplyTheme(iqSaved||"broadsheet");
+</script>
 <link rel="preconnect" href="https://fonts.googleapis.com">
-<link href="https://fonts.googleapis.com/css2?family=Archivo:wdth,wght@62..125,400..800&family=IBM+Plex+Sans:wght@400;500;600&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Archivo:wdth,wght@62..125,400..800&family=Newsreader:opsz,wght@6..72,400;6..72,600;6..72,700&family=IBM+Plex+Sans:wght@400;500;600&display=swap" rel="stylesheet">
 <style>
 :root{
   --paper:#EEF1F4; --panel:#FFFFFF; --ink:#14213D; --muted:#5B6781; --line:#D4DAE3;
@@ -39,7 +56,7 @@ header.top{display:flex;justify-content:space-between;align-items:baseline;paddi
 .sentence .slot{display:inline-flex;align-items:baseline;border-bottom:4px solid var(--cobalt);color:var(--cobalt);padding:0 2px}
 .sentence input[type=text]{font:inherit;font-stretch:inherit;color:inherit;background:none;border:0;width:6.2ch;padding:0}
 .sentence input[type=text]:focus{outline:none}
-.sentence .slot:focus-within{background:#DFE5FB}
+.sentence .slot:focus-within{background:var(--slot-focus)}
 .controls{display:grid;grid-template-columns:1fr 1fr;gap:28px;margin:30px 0 8px;max-width:760px}
 .ctl label{display:flex;justify-content:space-between;font-weight:600;font-size:15px}
 .ctl label b{font:700 15px var(--body);color:var(--cobalt)}
@@ -64,7 +81,7 @@ input[type=range]{width:100%;accent-color:var(--cobalt);height:32px;margin:4px 0
 .holdings{list-style:none;margin:14px 0 0;padding:0}
 .holdings li{border-bottom:1px solid var(--line)}
 .hold-btn{all:unset;box-sizing:border-box;width:100%;display:grid;grid-template-columns:14px 64px 1fr auto 12px;gap:10px;align-items:center;padding:9px 4px;cursor:pointer;border-radius:6px}
-.hold-btn:hover{background:#E6EAF0}
+.hold-btn:hover{background:var(--hover)}
 .hold-btn:focus-visible{outline:3px solid var(--cobalt);outline-offset:-2px}
 .hold-btn .chev{color:var(--muted);font-size:18px;line-height:1}
 .alloc-bar div{cursor:pointer}
@@ -97,18 +114,18 @@ input[type=range]{width:100%;accent-color:var(--cobalt);height:32px;margin:4px 0
 .table{background:var(--panel);border-radius:10px;border:1px solid var(--line);overflow:hidden}
 .row{display:grid;grid-template-columns:78px 1fr 92px 110px 80px 88px 88px 76px;gap:10px;align-items:center;padding:12px 16px;border-bottom:1px solid var(--line)}
 .row:last-child{border-bottom:0}
-.row.head{font-size:13px;color:var(--muted);font-weight:600;background:#F6F8FA}
+.row.head{font-size:13px;color:var(--muted);font-weight:600;background:var(--soft)}
 .row.head button{all:unset;cursor:pointer}
 .row.head button:hover,.row.head button:focus-visible{color:var(--ink);text-decoration:underline}
 button.row{all:unset;display:grid;grid-template-columns:78px 1fr 92px 110px 80px 88px 88px 76px;gap:10px;align-items:center;padding:12px 16px;border-bottom:1px solid var(--line);cursor:pointer;width:100%;box-sizing:border-box}
-button.row:hover{background:#F6F8FA}
+button.row:hover{background:var(--soft)}
 button.row:focus-visible{outline:3px solid var(--cobalt);outline-offset:-3px}
 .r{text-align:right}
 .tkr{font:700 16px var(--display);font-stretch:105%}
 .nm2{font-size:14px;line-height:1.3}.nm2 small{display:block;color:var(--muted);font-size:12px}
 .pill{display:inline-block;font:700 12px var(--body);padding:4px 10px;border-radius:99px;text-align:center;min-width:52px}
 .pill.Buy{background:var(--buy-bg);color:var(--buy)}.pill.Hold{background:var(--hold-bg);color:var(--hold)}.pill.Sell{background:var(--sell-bg);color:var(--sell)}
-.mini{position:relative;height:6px;background:var(--line);border-radius:3px}
+.mini{display:block;position:relative;height:6px;background:var(--line);border-radius:3px}
 .mini i{position:absolute;top:-4px;width:4px;height:14px;border-radius:2px;background:var(--ink)}
 .pos{color:var(--buy)}.neg{color:var(--sell)}
 .empty{padding:28px 16px;color:var(--muted)}
@@ -131,7 +148,7 @@ dialog::backdrop{background:rgba(20,33,61,.45)}
 .gbar{position:relative;height:10px;border-radius:5px;background:linear-gradient(90deg,var(--buy),#E2C27A,var(--sell))}
 .gbar i{position:absolute;top:-5px;width:6px;height:20px;border-radius:3px;background:var(--ink);border:2px solid #fff;transform:translateX(-3px)}
 .scen-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:8px;margin-top:10px}
-.scen-grid div{background:#F6F8FA;border-radius:8px;padding:10px}
+.scen-grid div{background:var(--soft);border-radius:8px;padding:10px}
 .scen-grid small{display:block;font-size:12px;color:var(--muted)}
 .scen-grid b{font:700 18px var(--display)}
 .facts{display:grid;grid-template-columns:repeat(3,1fr);gap:10px 16px;margin-top:16px;font-size:13px;color:var(--muted)}
@@ -142,7 +159,7 @@ dialog::backdrop{background:rgba(20,33,61,.45)}
 .save-row{display:flex;gap:10px;flex-wrap:wrap;align-items:center;margin-top:18px}
 .save-row input{flex:1 1 200px;font:15px var(--body);padding:10px 12px;border:1px solid var(--line);border-radius:6px;background:var(--panel);color:var(--ink)}
 .primary{font:700 15px var(--body);background:var(--cobalt);color:#fff;border:0;border-radius:6px;padding:11px 18px;cursor:pointer}
-.primary:hover{background:#2440B8}
+.primary:hover{background:var(--accent-dark)}
 .ghost{font:600 14px var(--body);background:var(--panel);color:var(--ink);border:1px solid var(--line);border-radius:6px;padding:8px 12px;cursor:pointer}
 .danger{color:var(--sell);border-color:#E8B4AE}
 #saveMsg{font-size:14px;color:var(--buy);font-weight:600}
@@ -166,7 +183,7 @@ dialog::backdrop{background:rgba(20,33,61,.45)}
 .bcard .ret{font-weight:600;font-size:15px}
 .badge{position:absolute;top:14px;right:14px;background:var(--sell-bg);color:var(--sell);font:700 12px var(--body);padding:3px 9px;border-radius:99px}
 .bnums{display:grid;grid-template-columns:repeat(3,1fr);gap:10px;margin:16px 0}
-.bnums div{background:#F6F8FA;border-radius:8px;padding:10px}
+.bnums div{background:var(--soft);border-radius:8px;padding:10px}
 .bnums small{display:block;font-size:12px;color:var(--muted)}
 .bnums b{font:700 18px var(--display)}
 .chart svg{width:100%;height:auto;display:block}
@@ -187,7 +204,7 @@ dialog::backdrop{background:rgba(20,33,61,.45)}
 .backtest h3{font:700 18px var(--display);margin:0 0 4px}
 .backtest .sub{margin:0 0 14px;font-size:13px;color:var(--muted)}
 .bt-grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:10px}
-.bt-grid div{background:#F6F8FA;border-radius:8px;padding:12px 14px}
+.bt-grid div{background:var(--soft);border-radius:8px;padding:12px 14px}
 .bt-grid small{display:block;font-size:12px;color:var(--muted)}
 .bt-grid b{display:block;font:700 22px var(--display);margin:2px 0}
 .bt-grid span{font-size:14px;font-weight:600}
@@ -196,6 +213,162 @@ dialog::backdrop{background:rgba(20,33,61,.45)}
 .bt-chart .axis{display:flex;justify-content:space-between;font-size:12px;color:var(--muted);margin-top:4px}
 .bt-note{font-size:12px;color:var(--muted);margin:10px 0 0}
 footer{padding:30px 0 50px;font-size:13px;color:var(--muted);max-width:70ch}
+
+
+/* ---------- Broadsheet theme (default). Classic = the original look above. ---------- */
+:root{--soft:#F6F8FA;--hover:#E6EAF0;--slot-focus:#DFE5FB;--accent-dark:#2440B8;--radius:10px}
+html[data-theme="broadsheet"]{
+  --paper:#F2ECE1; --panel:#FBF8F2; --ink:#1B1A17; --muted:#5C554B; --line:#C9BFAE;
+  --cobalt:#7A1F2B; --accent-dark:#5A1520; --buy:#2D4A6B; --hold:#735612; --sell:#A6461C;
+  --buy-bg:#E1E6EC; --hold-bg:#EDE3CC; --sell-bg:#F2DDD2;
+  --soft:#F5EFE5; --hover:#EAE2D4; --slot-focus:#EBD9D6; --radius:2px;
+  --display:"Newsreader",Georgia,serif;
+}
+html[data-theme="broadsheet"] header.top{position:relative;border-bottom:3px solid var(--ink);padding-bottom:14px;margin-bottom:5px;align-items:flex-end}
+html[data-theme="broadsheet"] header.top::after{content:"";position:absolute;left:0;right:0;bottom:-6px;border-bottom:1px solid var(--ink)}
+html[data-theme="broadsheet"] .brand{font:700 44px/1 var(--display);letter-spacing:-.02em;font-stretch:normal}
+html[data-theme="broadsheet"] .brand span{color:var(--ink);font-weight:400}
+html[data-theme="broadsheet"] .sentence{font-family:var(--display);font-weight:400;font-stretch:normal;letter-spacing:-.01em;line-height:1.14}
+html[data-theme="broadsheet"] .sentence .slot{border-bottom-width:3px;font-weight:600}
+html[data-theme="broadsheet"] .screener h2,html[data-theme="broadsheet"] .baskets h2{font-weight:600;font-stretch:normal;font-size:34px}
+html[data-theme="broadsheet"] .tkr,html[data-theme="broadsheet"] .holdings .tk{font-weight:700;font-stretch:normal;font-size:17px}
+html[data-theme="broadsheet"] .dlg-h h3{font-weight:700;font-stretch:normal}
+html[data-theme="broadsheet"] .table,html[data-theme="broadsheet"] .backtest,html[data-theme="broadsheet"] .bcard,
+html[data-theme="broadsheet"] .alloc-bar,html[data-theme="broadsheet"] dialog,html[data-theme="broadsheet"] .bt-grid div,
+html[data-theme="broadsheet"] .scen-grid div,html[data-theme="broadsheet"] .bnums div,html[data-theme="broadsheet"] .verdict,
+html[data-theme="broadsheet"] .primary,html[data-theme="broadsheet"] .ghost,html[data-theme="broadsheet"] .close,
+html[data-theme="broadsheet"] .filters input,html[data-theme="broadsheet"] .filters select,html[data-theme="broadsheet"] .save-row input{border-radius:var(--radius)}
+html[data-theme="broadsheet"] .table{border:0;border-top:2px solid var(--ink);background:transparent}
+html[data-theme="broadsheet"] .row.head{background:transparent}
+html[data-theme="broadsheet"] .pill{border-radius:2px;background:transparent!important;border:1px solid currentColor;min-width:0}
+html[data-theme="broadsheet"] .chip{border-radius:2px}
+html[data-theme="broadsheet"] .outlook{background:var(--panel);color:var(--ink);border-radius:0;border-top:3px solid var(--cobalt)}
+html[data-theme="broadsheet"] .outlook h3{color:var(--ink);font-weight:600;font-size:22px}
+html[data-theme="broadsheet"] .outlook p.sub,html[data-theme="broadsheet"] .scen .d,html[data-theme="broadsheet"] .stats{color:var(--muted)}
+html[data-theme="broadsheet"] .scen{border-top-color:var(--line)}
+html[data-theme="broadsheet"] .scen .v{font-weight:600}
+html[data-theme="broadsheet"] .up{color:var(--buy)} html[data-theme="broadsheet"] .down{color:var(--sell)}
+html[data-theme="broadsheet"] .stats b{color:var(--ink);font-weight:600}
+html[data-theme="broadsheet"] .risk-track{background:linear-gradient(90deg,#8FA3B8,#C9AE6E,#C48467)}
+html[data-theme="broadsheet"] .bcard{border:0;border-top:3px solid var(--cobalt)}
+html[data-theme="broadsheet"] .bcard:hover{background:var(--hover)}
+html[data-theme="broadsheet"] .bcard h3,html[data-theme="broadsheet"] .backtest h3{font-weight:600}
+html[data-theme="broadsheet"] .backtest{border:0;border-top:3px solid var(--ink)}
+html[data-theme="broadsheet"] .alertbox{border-radius:2px;background:#F8ECE6;border-color:#D9A58E}
+
+/* Shared by every style except Classic */
+html:not([data-theme="classic"]) .table,html:not([data-theme="classic"]) .backtest,html:not([data-theme="classic"]) .bcard,
+html:not([data-theme="classic"]) .alloc-bar,html:not([data-theme="classic"]) dialog,html:not([data-theme="classic"]) .bt-grid div,
+html:not([data-theme="classic"]) .scen-grid div,html:not([data-theme="classic"]) .bnums div,html:not([data-theme="classic"]) .verdict,
+html:not([data-theme="classic"]) .primary,html:not([data-theme="classic"]) .ghost,html:not([data-theme="classic"]) .close,html:not([data-theme="classic"]) .outlook,
+html:not([data-theme="classic"]) .filters input,html:not([data-theme="classic"]) .filters select,html:not([data-theme="classic"]) .save-row input,
+html:not([data-theme="classic"]) .chip,html:not([data-theme="classic"]) .alertbox{border-radius:var(--radius)}
+html:not([data-theme="classic"]) :is(.brand,.sentence,.screener h2,.baskets h2,.tkr,.holdings .tk,.dlg-h h3){font-stretch:normal}
+dialog{background:var(--panel)}
+
+/* B · Ledger: private-bank green and brass */
+html[data-theme="ledger"]{
+  --paper:#F6F3EA; --panel:#FFFDF7; --ink:#16231E; --muted:#5B6660; --line:#D8D1BF;
+  --cobalt:#1E5A45; --accent-dark:#123A2F; --buy:#1E5A45; --hold:#7D6128; --sell:#9B2C2C;
+  --buy-bg:#DDEAE3; --hold-bg:#F1E8D2; --sell-bg:#F4DEDB; --soft:#F1EDE2; --hover:#EAE4D5; --slot-focus:#F1E8D2; --radius:0px;
+  --display:"Libre Caslon Text",Georgia,serif; --body:"Public Sans",system-ui,sans-serif;
+}
+html[data-theme="ledger"] header.top{background:#123A2F;color:#F6F3EA;padding:20px 24px;margin-top:16px;align-items:center}
+html[data-theme="ledger"] .brand{font:400 34px/1 "Libre Caslon Display",Georgia,serif;letter-spacing:.02em;color:#F6F3EA}
+html[data-theme="ledger"] .brand span{color:#C9A961}
+html[data-theme="ledger"] .asof,html[data-theme="ledger"] .asof label{color:#C9D3CD}
+html[data-theme="ledger"] .upload{color:#E4CF9A}
+html[data-theme="ledger"] .sentence{font-family:var(--display);font-weight:400;line-height:1.2}
+html[data-theme="ledger"] .sentence .slot{color:var(--ink);font-weight:700;border-bottom:2px solid #C9A961}
+html[data-theme="ledger"] .screener h2,html[data-theme="ledger"] .baskets h2{font-weight:400;font-size:32px}
+html[data-theme="ledger"] .outlook{background:#123A2F}
+html[data-theme="ledger"] .outlook h3{font-weight:400;font-size:22px}
+html[data-theme="ledger"] .scen{border-top-color:#3C6154}
+html[data-theme="ledger"] .up{color:#C9E4D6} html[data-theme="ledger"] .down{color:#F2C7B8}
+html[data-theme="ledger"] .outlook p.sub,html[data-theme="ledger"] .scen .d,html[data-theme="ledger"] .stats{color:#B5C4BC}
+html[data-theme="ledger"] .table{border-color:#D8D1BF}
+html[data-theme="ledger"] .bcard{border:1px solid #C9A961}
+html[data-theme="ledger"] .pill{background:transparent!important;min-width:0;padding:0}
+
+/* D · Harbour: friendly sea blue and sunset */
+html[data-theme="harbour"]{
+  --paper:#E9F0F2; --panel:#FFFFFF; --ink:#0B2545; --muted:#3D5170; --line:#C6D3DA;
+  --cobalt:#0B2545; --accent-dark:#13315C; --buy:#164A7A; --hold:#3D4A5C; --sell:#B4441C;
+  --buy-bg:#DDEBF7; --hold-bg:#EEF1F5; --sell-bg:#F9E0D3; --soft:#F2F6F8; --hover:#E3ECF0; --slot-focus:#FAD3B0; --radius:16px;
+  --display:"Young Serif",Georgia,serif; --body:"Figtree",system-ui,sans-serif;
+}
+html[data-theme="harbour"] .brand{font:400 30px/1 var(--display)}
+html[data-theme="harbour"] .brand span{color:#C8692A}
+html[data-theme="harbour"] .sentence{font-family:var(--display);font-weight:400;line-height:1.25}
+html[data-theme="harbour"] .sentence .slot{color:var(--ink);border-bottom:0;background:#FCE3CC;border-radius:12px;padding:0 10px}
+html[data-theme="harbour"] .screener h2,html[data-theme="harbour"] .baskets h2{font-weight:400}
+html[data-theme="harbour"] .primary{border-radius:99px;padding:12px 24px}
+html[data-theme="harbour"] .outlook{background:#0B2545;border-radius:22px}
+html[data-theme="harbour"] .outlook h3{font-weight:400}
+html[data-theme="harbour"] .up{color:#9FD3E6} html[data-theme="harbour"] .down{color:#F7B89A}
+html[data-theme="harbour"] .table{border:0}
+html[data-theme="harbour"] .bcard{border:0}
+html[data-theme="harbour"] .chip{border-radius:99px}
+html[data-theme="harbour"] .risk-track{background:linear-gradient(90deg,#8FC1D4,#F7D08A,#F4A259)}
+
+/* E · Monograph: Swiss grid, one typeface, plum */
+html[data-theme="monograph"]{
+  --paper:#FAFAF7; --panel:#FFFFFF; --ink:#1C1C1E; --muted:#4A4A50; --line:#D6D6D0;
+  --cobalt:#5B2A86; --accent-dark:#43206A; --buy:#5B2A86; --hold:#4A4A50; --sell:#B3541E;
+  --buy-bg:#EDE6F3; --hold-bg:#ECECE8; --sell-bg:#F5E3D9; --soft:#F3F3EE; --hover:#EDEDE6; --slot-focus:#EDE6F3; --radius:0px;
+  --display:"Schibsted Grotesk",system-ui,sans-serif; --body:"Schibsted Grotesk",system-ui,sans-serif;
+}
+html[data-theme="monograph"] header.top{border-bottom:2px solid var(--ink);padding-bottom:14px}
+html[data-theme="monograph"] .brand{font:900 26px/1 var(--display);letter-spacing:-.03em;text-transform:lowercase}
+html[data-theme="monograph"] .brand span{color:var(--ink)}
+html[data-theme="monograph"] .brand::after{content:"."}
+html[data-theme="monograph"] .sentence{font-weight:700;letter-spacing:-.035em;line-height:1.04}
+html[data-theme="monograph"] .sentence .slot{border-bottom-width:2px}
+html[data-theme="monograph"] .screener h2,html[data-theme="monograph"] .baskets h2{font-weight:900;letter-spacing:-.03em}
+html[data-theme="monograph"] .table{border:0;border-top:1px solid var(--ink);background:transparent}
+html[data-theme="monograph"] .row.head{background:transparent}
+html[data-theme="monograph"] .pill{background:transparent!important;padding:0;min-width:0;font-size:13px}
+html[data-theme="monograph"] .outlook{background:var(--panel);color:var(--ink);border-top:2px solid var(--ink)}
+html[data-theme="monograph"] .outlook h3{color:var(--ink);font-weight:900}
+html[data-theme="monograph"] .outlook p.sub,html[data-theme="monograph"] .scen .d,html[data-theme="monograph"] .stats{color:var(--muted)}
+html[data-theme="monograph"] .scen{border-top-color:var(--line)}
+html[data-theme="monograph"] .up{color:var(--buy)} html[data-theme="monograph"] .down{color:var(--sell)}
+html[data-theme="monograph"] .stats b{color:var(--ink)}
+html[data-theme="monograph"] .scen .v,html[data-theme="monograph"] .bcard .val{font-weight:900;letter-spacing:-.03em}
+html[data-theme="monograph"] .bcard{border:0;border-top:2px solid var(--ink)}
+html[data-theme="monograph"] .backtest{border:0;border-top:2px solid var(--ink)}
+html[data-theme="monograph"] .risk-track{background:linear-gradient(90deg,#B9A6CC,#9A9AA0,#D19A78)}
+
+/* F · Night desk: dark, amber, monospaced figures */
+html[data-theme="nightdesk"]{
+  color-scheme:dark;
+  --paper:#15171B; --panel:#1D2026; --ink:#E8E6E1; --muted:#A9A59C; --line:#2F343C;
+  --cobalt:#F2B84B; --accent-dark:#F7CD7A; --buy:#7FB2FF; --hold:#F2B84B; --sell:#FF7A59;
+  --buy-bg:#1E2A3D; --hold-bg:#3A311D; --sell-bg:#3D231C; --soft:#22262D; --hover:#2A2F37; --slot-focus:#3A311D; --radius:6px;
+  --display:"Red Hat Display",system-ui,sans-serif; --body:"Red Hat Display",system-ui,sans-serif; --mono:"Red Hat Mono",ui-monospace,monospace;
+}
+html[data-theme="nightdesk"] header.top{border-bottom:1px solid var(--line);padding-bottom:16px}
+html[data-theme="nightdesk"] .brand{font:900 24px/1 var(--display);letter-spacing:.04em;text-transform:uppercase}
+html[data-theme="nightdesk"] .brand span{color:var(--ink)}
+html[data-theme="nightdesk"] .sentence{font-weight:700;letter-spacing:-.01em}
+html[data-theme="nightdesk"] :is(.scen .v,.stats b,.holdings .amt,.bt-grid b,.bcard .val,.bnums b,.scen-grid b,.nm2 small,.r){font-family:var(--mono);font-weight:500}
+html[data-theme="nightdesk"] .primary{color:#15171B}
+html[data-theme="nightdesk"] .chip[aria-pressed=true],html[data-theme="nightdesk"] .seg button[aria-pressed=true]{color:#15171B}
+html[data-theme="nightdesk"] .outlook{background:var(--panel);border:1px solid var(--line)}
+html[data-theme="nightdesk"] .scen{border-top-color:var(--line)}
+html[data-theme="nightdesk"] .up{color:var(--buy)} html[data-theme="nightdesk"] .down{color:var(--sell)}
+html[data-theme="nightdesk"] .pill{background:transparent!important;border:1px solid currentColor;text-transform:uppercase;font-size:11px;letter-spacing:.04em}
+html[data-theme="nightdesk"] .alertbox{background:#2A1D19;border-color:#6B3A2C}
+html[data-theme="nightdesk"] .switch .knob{background:#4A505A}
+html[data-theme="nightdesk"] .switch input:checked+.knob{background:var(--cobalt)}
+html[data-theme="nightdesk"] .switch .knob::after{background:#15171B}
+html[data-theme="nightdesk"] #riskSlider{accent-color:#E8E6E1}
+html[data-theme="nightdesk"] .gbar i{border-color:#15171B}
+html[data-theme="nightdesk"] dialog::backdrop{background:rgba(0,0,0,.6)}
+
+.style-pick{margin-top:6px}
+.amount-pick{display:flex;align-items:center;gap:10px;flex-wrap:wrap;margin:14px 0 0;font-size:15px;color:var(--muted)}
+.amount-pick select{font:600 15px var(--body);padding:8px 10px;border:1px solid var(--line);border-radius:var(--radius);background:var(--panel);color:var(--ink);min-height:44px}
 
 @media (max-width:820px){
   .controls,.result{grid-template-columns:1fr}
@@ -211,8 +384,9 @@ footer{padding:30px 0 50px;font-size:13px;color:var(--muted);max-width:70ch}
 <body>
 <div class="wrap">
   <header class="top">
-    <div class="brand">Fund<span>wise</span></div>
+    <div class="brand">IQ<span>Fund</span></div>
     <div class="asof"><label for="cur">Currency</label> <select id="cur"></select><br><span id="rateNote">Sample data — not live prices</span><br>
+      <span class="style-pick"><label for="themeSel">Style</label> <select id="themeSel"><option value="broadsheet">Broadsheet</option><option value="ledger">Ledger</option><option value="harbour">Harbour</option><option value="monograph">Monograph</option><option value="nightdesk">Night desk</option><option value="classic">Classic</option></select></span><br>
       <label class="upload">Load CSV<input type="file" id="csvFile" accept=".csv,text/csv" hidden></label> <span id="csvMsg" role="status"></span></div>
   </header>
 
@@ -223,6 +397,8 @@ footer{padding:30px 0 50px;font-size:13px;color:var(--muted);max-width:70ch}
       across <span class="slot" id="countWord">6 funds</span>
       at <span class="slot" id="riskWord">moderate</span> risk.
     </h1>
+    <div class="amount-pick"><label for="amountPreset">Or choose an amount</label>
+      <select id="amountPreset"></select></div>
 
     <div class="controls">
       <div class="ctl">
@@ -446,7 +622,13 @@ function loadFunds(text,label){
 }
 
 /* ---------- Bundle builder ---------- */
-const COLORS=["#2F4FD8","#0F766E","#B7791F","#7A3FB5","#C2410C","#0E7490","#4D7C0F","#9F1239"];
+const PALETTES={classic:["#2F4FD8","#0F766E","#B7791F","#7A3FB5","#C2410C","#0E7490","#4D7C0F","#9F1239"],
+  broadsheet:["#7A1F2B","#2D4A6B","#735612","#3F5E4B","#A6461C","#5B4A6E","#1B1A17","#6E6453"],
+  ledger:["#123A2F","#7D6128","#2F6B55","#9B2C2C","#3E4A44","#5E4B8B","#1F4E79","#6B5A2E"],
+  harbour:["#0B2545","#B8561D","#3F6E8C","#13315C","#8D5A97","#2E7D6B","#B4441C","#4A77A0"],
+  monograph:["#5B2A86","#1C1C1E","#B3541E","#4A4A50","#7C4DAA","#8A6D3B","#2F5D62","#6E6E73"],
+  nightdesk:["#3E6DB5","#9A6F1E","#C2553A","#2F7F6E","#7A5BA8","#56606C","#A04A6B","#5E7331"]};
+let COLORS=PALETTES[document.documentElement.dataset.theme]||PALETTES.classic;
 const RISK_WORDS=["very low","very low","low","low","moderate","moderate","growth","growth","high","very high"];
 function corr(a,b){
   if(a.t===b.t) return 1;
@@ -574,12 +756,12 @@ function backChart(path){
   const W=600,H=150, vs=path.map(p=>p.v), lo=Math.min(...vs,1), hi=Math.max(...vs,1), pad=(hi-lo)*.08||.01;
   const X=i=>i/(path.length-1)*W, Y=v=>4+(hi+pad-v)/(hi-lo+2*pad)*(H-8);
   const line=path.map((p,i)=>`${X(i).toFixed(1)},${Y(p.v).toFixed(1)}`).join(" ");
-  const last=vs[vs.length-1], col=last>=1?"#0F766E":"#B42318";
+  const last=vs[vs.length-1], col=last>=1?"var(--buy)":"var(--sell)";
   const marks=[6,3].map(m=>{ const d=monthsBefore(ASOF,m), i=path.findIndex(p=>p.d>=d); return i<0?"":
     `<line x1="${X(i)}" x2="${X(i)}" y1="0" y2="${H}" stroke="#8A94A8" stroke-dasharray="3 4"/><text x="${X(i)+4}" y="12" font-size="11" fill="#5B6781">${m}m</text>`; }).join("");
   return `<div class="bt-chart"><svg viewBox="0 0 ${W} ${H}" role="img" aria-label="Basket value over the past year, ${pct((last-1)*100)} overall">
     <line x1="0" x2="${W}" y1="${Y(1)}" y2="${Y(1)}" stroke="#8A94A8" stroke-dasharray="4 4"/>${marks}
-    <polyline points="${line}" fill="none" stroke="${col}" stroke-width="2.5" stroke-linejoin="round"/></svg>
+    <polyline points="${line}" fill="none" style="stroke:${col}" stroke-width="2.5" stroke-linejoin="round"/></svg>
     <div class="axis"><span>${fmtDate(path[0].d)}</span><span>${fmtDate(path[path.length-1].d)}</span></div></div>`;
 }
 function backtestHTML(picks,w,amt,cur,rate){
@@ -621,7 +803,7 @@ function setCurrency(c,convertAmount){
   if(convertAmount) $("amount").value=niceRound(amount()/old*RATE).toLocaleString(LOCALE);
   const sym=new Intl.NumberFormat(LOCALE,{style:"currency",currency:CUR}).formatToParts(0).find(x=>x.type==="currency");
   $("curSym").textContent=sym?sym.value:CUR; sizeAmount();
-  renderRateNote(); renderBundle(); renderTable();
+  renderRateNote(); renderBundle(); renderTable(); if($("amountPreset").options.length) renderPresets(); remember();
 }
 function renderRateNote(){ $("rateNote").textContent=SOURCE+(CUR===BASE?"":` · prices in ${BASE}, shown in ${CUR} at 1 ${BASE} = ${RATE.toLocaleString(LOCALE,{maximumFractionDigits:4})} ${CUR} (${rateLive?"live":"approx."})`); }
 const pct=(x,d=1)=>{ if(Math.abs(x)<0.5*Math.pow(10,-d)) x=0; return (x>=0?"+":"")+x.toFixed(d)+"%"; };
@@ -742,7 +924,32 @@ $("table").addEventListener("click",ev=>{
 });
 const dlg=$("dlg"); dlg.addEventListener("click",ev=>{if(ev.target===dlg) dlg.close();});
 $("amount").value=niceRound(10000*rateOf(CUR,"GBP")).toLocaleString(LOCALE);
+
+/* Amount presets: 50,000 to 500,000 in steps of 50,000, in the viewer's currency */
+function renderPresets(){
+  const sel=$("amountPreset"), v=amount(), opts=[];
+  for(let x=50000;x<=500000;x+=50000) opts.push(x);
+  sel.innerHTML=`<option value="">${opts.includes(v)?"Custom amount":"Custom: "+money(v)}</option>`+
+    opts.map(x=>`<option value="${x}"${x===v?" selected":""}>${money(x)}</option>`).join("");
+}
+$("amountPreset").addEventListener("change",e=>{ if(!e.target.value) return;
+  $("amount").value=(+e.target.value).toLocaleString(LOCALE); sizeAmount(); amountTouched=true; remember(); renderBundle(); renderPresets(); });
+
+/* Remember amount, fund count and risk for this browser session */
+function remember(){ try{ sessionStorage.setItem("iqfund-builder",JSON.stringify({amount:amount(),cur:CUR,count:+$("countSlider").value,risk:+$("riskSlider").value})); }catch(e){} }
+try{ const m=JSON.parse(sessionStorage.getItem("iqfund-builder")||"null");
+  if(m){ if(m.amount>0){ const a=m.cur===CUR?m.amount:niceRound(m.amount*rateOf(CUR,m.cur)); $("amount").value=a.toLocaleString(LOCALE); amountTouched=true; }
+    if(m.count>=4&&m.count<=8) $("countSlider").value=m.count; if(m.risk>=1&&m.risk<=10) $("riskSlider").value=m.risk; } }catch(e){}
+["amount","countSlider","riskSlider"].forEach(id=>$(id).addEventListener("input",()=>{ remember(); if(id==="amount") renderPresets(); }));
+$("amount").addEventListener("blur",renderPresets);
+
+/* Style switch: Broadsheet (default) or Classic, remembered on this device */
+$("themeSel").value=document.documentElement.dataset.theme;
+$("themeSel").addEventListener("change",e=>{ const t=iqApplyTheme(e.target.value);
+  try{ localStorage.setItem("iqfund-theme",t); }catch(err){} COLORS=PALETTES[t]||PALETTES.classic; renderBundle(); if(typeof renderBaskets==="function") renderBaskets(); });
+
 setCurrency(CUR,false);
+renderPresets();
 $("csvFile").addEventListener("change",ev=>{const f=ev.target.files[0]; if(!f) return;
   f.text().then(t=>{try{loadFunds(t,f.name);$("csvMsg").textContent="";}catch(err){$("csvMsg").textContent=err.message+" Check the column headers.";}});});
 fetch("funds.csv",{cache:"no-store"}).then(r=>r.ok?r.text():Promise.reject()).then(t=>{ loadFunds(t,"funds.csv"); notifyNew(); }).catch(()=>{});
@@ -793,11 +1000,11 @@ function chartSVG(pts){
   const W=600,H=170,rs=pts.map(p=>p.r); let lo=Math.min(0,...rs), hi=Math.max(0,...rs); if(hi-lo<1){hi+=.5;lo-=.5;}
   const X=i=>i/(pts.length-1)*W, Y=r=>4+(hi-r)/(hi-lo)*(H-8);
   const line=pts.map((p,i)=>`${X(i).toFixed(1)},${Y(p.r).toFixed(1)}`).join(" ");
-  const last=rs[rs.length-1], col=last>=0?"#0F766E":"#B42318";
+  const last=rs[rs.length-1], col=last>=0?"var(--buy)":"var(--sell)";
   return `<svg viewBox="0 0 ${W} ${H}" role="img" aria-label="Return since saved: ${last.toFixed(1)}% across ${pts.length} trading days">
-    <polygon points="0,${Y(0)} ${line} ${W},${Y(0)}" fill="${col}" opacity=".12"/>
+    <polygon points="0,${Y(0)} ${line} ${W},${Y(0)}" style="fill:${col}" opacity=".12"/>
     <line x1="0" x2="${W}" y1="${Y(0)}" y2="${Y(0)}" stroke="#8A94A8" stroke-dasharray="4 4"/>
-    <polyline points="${line}" fill="none" stroke="${col}" stroke-width="2.5" stroke-linejoin="round"/>
+    <polyline points="${line}" fill="none" style="stroke:${col}" stroke-width="2.5" stroke-linejoin="round"/>
   </svg><div class="axis"><span>${fmtDate(pts[0].d)}</span><span>High ${pct(Math.max(...rs))} · Low ${pct(Math.min(...rs))}</span><span>${fmtDate(pts[pts.length-1].d)}</span></div>`;
 }
 
@@ -824,7 +1031,7 @@ async function notifyNew(){
   for(const b of BASKETS){
     const al=alertsFor(b), keys=al.map(a=>a.key); b.seen=(b.seen||[]).filter(k=>keys.includes(k)); // re-arm cleared alerts
     for(const a of al) if(!b.seen.includes(a.key)){
-      if("Notification" in window&&Notification.permission==="granted") new Notification(`Fundwise · ${b.name}`,{body:a.msg});
+      if("Notification" in window&&Notification.permission==="granted") new Notification(`IQFund · ${b.name}`,{body:a.msg});
       b.seen.push(a.key); changed=true; }
   }
   if(changed) Store.save();
@@ -918,11 +1125,11 @@ function transferMsg(text,ok){ const m=$("transferMsg"); m.textContent=text; m.c
 async function exportBaskets(){
   if(!BASKETS.length){ transferMsg("No baskets to export yet.",false); return; }
   const data=JSON.stringify({app:"fundwise",version:1,exported:new Date().toISOString(),baskets:BASKETS},null,1);
-  const name=`fundwise-baskets-${new Date().toISOString().slice(0,10)}.json`;
+  const name=`iqfund-baskets-${new Date().toISOString().slice(0,10)}.json`;
   const file=new File([data],name,{type:"application/json"});
   // On phones, open the share sheet (save to Files, AirDrop, email...). Elsewhere, download.
   if(navigator.canShare&&navigator.canShare({files:[file]})&&/Mobi|iPhone|iPad|Android/i.test(navigator.userAgent)){
-    try{ await navigator.share({files:[file],title:"Fundwise baskets"}); transferMsg(`Exported ${BASKETS.length} basket${BASKETS.length>1?"s":""}.`,true); return; }
+    try{ await navigator.share({files:[file],title:"IQFund baskets"}); transferMsg(`Exported ${BASKETS.length} basket${BASKETS.length>1?"s":""}.`,true); return; }
     catch(e){ if(e.name==="AbortError") return; }
   }
   const a=document.createElement("a"); a.href=URL.createObjectURL(file); a.download=name;
@@ -936,9 +1143,9 @@ function validBasket(b){
     &&b.versions.every(v=>v&&typeof v.from==="string"&&Array.isArray(v.holdings)&&v.holdings.every(h=>h&&typeof h.t==="string"&&num(h.units)&&num(h.entry)));
 }
 async function importBaskets(file){
-  let parsed; try{ parsed=JSON.parse(await file.text()); }catch(e){ transferMsg("That file isn't a Fundwise export. Choose the .json file you exported.",false); return; }
+  let parsed; try{ parsed=JSON.parse(await file.text()); }catch(e){ transferMsg("That file isn't an IQFund export. Choose the .json file you exported.",false); return; }
   const list=Array.isArray(parsed)?parsed:parsed&&parsed.baskets;
-  if(!Array.isArray(list)){ transferMsg("That file isn't a Fundwise export. Choose the .json file you exported.",false); return; }
+  if(!Array.isArray(list)){ transferMsg("That file isn't an IQFund export. Choose the .json file you exported.",false); return; }
   let added=0, updated=0, bad=0;
   for(const raw of list){
     if(!validBasket(raw)){ bad++; continue; }
@@ -961,7 +1168,7 @@ $("importFile").addEventListener("change",ev=>{ const f=ev.target.files[0]; if(f
 $("basketList").addEventListener("click",ev=>{const c=ev.target.closest(".bcard"); if(c) openBasket(c.dataset.id);});
 function renderNotif(){ const btn=$("notifBtn");
   if(!("Notification" in window)){ btn.hidden=true; $("notifMsg").textContent="This browser can't show notifications, so alerts appear on your baskets instead."; return; }
-  if(Notification.permission==="granted"){ btn.hidden=true; $("notifMsg").textContent="Notifications on — you'll be alerted when you open Fundwise."; }
+  if(Notification.permission==="granted"){ btn.hidden=true; $("notifMsg").textContent="Notifications on — you'll be alerted when you open IQFund."; }
   else if(Notification.permission==="denied"){ btn.hidden=true; $("notifMsg").textContent="Notifications are blocked in your browser settings."; } }
 $("notifBtn").addEventListener("click",()=>Notification.requestPermission().then(()=>{renderNotif(); notifyNew();}));
 renderNotif();
