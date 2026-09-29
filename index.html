@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>IQFund — ETF screener & basket builder</title>
+<title>FndMngr — ETF screener & basket builder</title>
 <script>/* apply the saved style before anything paints, and load that style's fonts */
 var IQ_THEMES={broadsheet:"",classic:"",
   ledger:"family=Libre+Caslon+Display&family=Libre+Caslon+Text:wght@400;700&family=Public+Sans:wght@400;500;600;700",
@@ -384,7 +384,7 @@ html[data-theme="nightdesk"] dialog::backdrop{background:rgba(0,0,0,.6)}
 <body>
 <div class="wrap">
   <header class="top">
-    <div class="brand">IQ<span>Fund</span></div>
+    <div class="brand">Fnd<span>Mngr</span></div>
     <div class="asof"><label for="cur">Currency</label> <select id="cur"></select><br><span id="rateNote">Sample data — not live prices</span><br>
       <span class="style-pick"><label for="themeSel">Style</label> <select id="themeSel"><option value="broadsheet">Broadsheet</option><option value="ledger">Ledger</option><option value="harbour">Harbour</option><option value="monograph">Monograph</option><option value="nightdesk">Night desk</option><option value="classic">Classic</option></select></span><br>
       <label class="upload">Load CSV<input type="file" id="csvFile" accept=".csv,text/csv" hidden></label> <span id="csvMsg" role="status"></span></div>
@@ -1031,7 +1031,7 @@ async function notifyNew(){
   for(const b of BASKETS){
     const al=alertsFor(b), keys=al.map(a=>a.key); b.seen=(b.seen||[]).filter(k=>keys.includes(k)); // re-arm cleared alerts
     for(const a of al) if(!b.seen.includes(a.key)){
-      if("Notification" in window&&Notification.permission==="granted") new Notification(`IQFund · ${b.name}`,{body:a.msg});
+      if("Notification" in window&&Notification.permission==="granted") new Notification(`FndMngr · ${b.name}`,{body:a.msg});
       b.seen.push(a.key); changed=true; }
   }
   if(changed) Store.save();
@@ -1125,11 +1125,11 @@ function transferMsg(text,ok){ const m=$("transferMsg"); m.textContent=text; m.c
 async function exportBaskets(){
   if(!BASKETS.length){ transferMsg("No baskets to export yet.",false); return; }
   const data=JSON.stringify({app:"fundwise",version:1,exported:new Date().toISOString(),baskets:BASKETS},null,1);
-  const name=`iqfund-baskets-${new Date().toISOString().slice(0,10)}.json`;
+  const name=`fndmngr-baskets-${new Date().toISOString().slice(0,10)}.json`;
   const file=new File([data],name,{type:"application/json"});
   // On phones, open the share sheet (save to Files, AirDrop, email...). Elsewhere, download.
   if(navigator.canShare&&navigator.canShare({files:[file]})&&/Mobi|iPhone|iPad|Android/i.test(navigator.userAgent)){
-    try{ await navigator.share({files:[file],title:"IQFund baskets"}); transferMsg(`Exported ${BASKETS.length} basket${BASKETS.length>1?"s":""}.`,true); return; }
+    try{ await navigator.share({files:[file],title:"FndMngr baskets"}); transferMsg(`Exported ${BASKETS.length} basket${BASKETS.length>1?"s":""}.`,true); return; }
     catch(e){ if(e.name==="AbortError") return; }
   }
   const a=document.createElement("a"); a.href=URL.createObjectURL(file); a.download=name;
@@ -1143,9 +1143,9 @@ function validBasket(b){
     &&b.versions.every(v=>v&&typeof v.from==="string"&&Array.isArray(v.holdings)&&v.holdings.every(h=>h&&typeof h.t==="string"&&num(h.units)&&num(h.entry)));
 }
 async function importBaskets(file){
-  let parsed; try{ parsed=JSON.parse(await file.text()); }catch(e){ transferMsg("That file isn't an IQFund export. Choose the .json file you exported.",false); return; }
+  let parsed; try{ parsed=JSON.parse(await file.text()); }catch(e){ transferMsg("That file isn't a FndMngr export. Choose the .json file you exported.",false); return; }
   const list=Array.isArray(parsed)?parsed:parsed&&parsed.baskets;
-  if(!Array.isArray(list)){ transferMsg("That file isn't an IQFund export. Choose the .json file you exported.",false); return; }
+  if(!Array.isArray(list)){ transferMsg("That file isn't a FndMngr export. Choose the .json file you exported.",false); return; }
   let added=0, updated=0, bad=0;
   for(const raw of list){
     if(!validBasket(raw)){ bad++; continue; }
@@ -1168,7 +1168,7 @@ $("importFile").addEventListener("change",ev=>{ const f=ev.target.files[0]; if(f
 $("basketList").addEventListener("click",ev=>{const c=ev.target.closest(".bcard"); if(c) openBasket(c.dataset.id);});
 function renderNotif(){ const btn=$("notifBtn");
   if(!("Notification" in window)){ btn.hidden=true; $("notifMsg").textContent="This browser can't show notifications, so alerts appear on your baskets instead."; return; }
-  if(Notification.permission==="granted"){ btn.hidden=true; $("notifMsg").textContent="Notifications on — you'll be alerted when you open IQFund."; }
+  if(Notification.permission==="granted"){ btn.hidden=true; $("notifMsg").textContent="Notifications on — you'll be alerted when you open FndMngr."; }
   else if(Notification.permission==="denied"){ btn.hidden=true; $("notifMsg").textContent="Notifications are blocked in your browser settings."; } }
 $("notifBtn").addEventListener("click",()=>Notification.requestPermission().then(()=>{renderNotif(); notifyNew();}));
 renderNotif();
