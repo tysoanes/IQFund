@@ -755,7 +755,13 @@ const FUND_NOTES={3:["Simple","Broad diversification with minimal complexity."],
   7:["Diversified","Adds complementary markets and strategies."],8:["Diversified","Adds complementary markets and strategies."],
   9:["Full","Maximum portfolio granularity."],10:["Full","Maximum portfolio granularity."]};
 // Most any single ETF may hold, % of the portfolio
-function etfCap(k,risk){ return k==="thematic"?(risk<=4?5:risk<=7?10:15):({core:30,factor:20,bonds:35,gold:20,comm:10,real:30})[k]; }
+// Most any single ETF may hold, % of the portfolio (risk bands 1-4 / 5-7 / 8-10)
+function etfCap(k,risk){ const lo=risk<=4;
+  return ({core:30,factor:lo?15:20,thematic:lo?5:risk<=7?10:15,bonds:35,gold:lo?15:20,comm:lo?7.5:10,real:lo?22.5:30})[k]; }
+// Portfolio-level exposure limits
+const EM_CATS=new Set(["Emerging markets","India","China"]);
+const emCap=risk=>risk<=4?10:15, themeCap=risk=>risk<=4?5:risk<=7?10:15;
+const REAL_KEYS=["gold","comm","real"];
 const OVERLAP_LIMIT=0.6;   // two funds sharing more than this count as duplicates
 function sleevePrefs(key,style,risk){
   const def=style<=2, agg=style>=4;
@@ -816,6 +822,15 @@ function divGuardrails(t,b){
   const ok=(v,lim,bv)=>v<=lim+1e-9||v<=bv+0.005;
   return ok(t.us,0.80,b.us)&&(t.us>=0.35||t.us>=b.us-0.005)&&ok(t.tech,0.45,b.tech)&&ok(t.nonUS,0.35,b.nonUS)&&ok(t.style,0.50,b.style);
 }
+
+/* Estimated look-through exposure of the whole basket (from each equity fund's market/sector profile) */
+function lookThrough(picks,w,sleeveOf){
+  const out={US:0,Europe:0,UK:0,Japan:0,"Asia Pacific":0,Emerging:0,tech:0};
+  picks.forEach((e,i)=>{ if(!["core","factor","thematic"].includes(sleeveOf[i])) return;
+    const pr=profileOf(e), t=Object.values(pr).reduce((a,v)=>a+v,0)||1;
+    for(const d in pr){ const g=DIM_GROUP(d), v=w[i]*100*pr[d]/t; if(g in out) out[g]+=v; if(TECH_DIMS.has(d)) out.tech+=v; } });
+  return out;
+}
 function buildBundle(risk,count,lowOverlap,style,real){
   style=style||+($("styleSlider")?.value||3); real=real||+($("realSlider")?.value||3);
   count=Math.max(3,Math.min(10,Math.round(count)||5));        // the fund count is a hard constraint
@@ -839,10 +854,10 @@ function buildBundle(risk,count,lowOverlap,style,real){
   // 6. one fund per bucket, then spare slots split existing allocations (never add new risk):
   //    first where a specialist fund would break its limit, then the largest holding per fund
   const live=ORDER.filter(k=>sl[k]>0.001), slots={}; live.forEach(k=>slots[k]=1);
-  const distinct=k=>new Set(ranked[k].map(x=>x.e.cat)).size, SPECIAL=["factor","thematic"];
+  const distinct=k=>REAL_KEYS.includes(k)?ranked[k].length:new Set(ranked[k].map(x=>x.e.cat)).size, SPECIAL=["factor","thematic","gold","comm","real"];
   let used=live.length;
   while(used<count){
-    const cand=live.filter(k=>!["gold","comm","real"].includes(k)&&slots[k]<distinct(k));
+    const cand=live.filter(k=>slots[k]<distinct(k)&&(!REAL_KEYS.includes(k)||sl[k]/slots[k]>etfCap(k,risk)+1e-9));
     if(!cand.length) break;
     const over=cand.filter(k=>SPECIAL.includes(k)&&sl[k]/slots[k]>etfCap(k,risk)+1e-9)
       .sort((a,b)=>sl[b]/slots[b]/etfCap(b,risk)-sl[a]/slots[a]/etfCap(a,risk));
@@ -858,8 +873,9 @@ function buildBundle(risk,count,lowOverlap,style,real){
   const overCap=live.filter(k=>sl[k]/slots[k]>etfCap(k,risk)+0.05).map(k=>({k,per:sl[k]/slots[k],cap:etfCap(k,risk)}));
   // pick the top-scoring funds per bucket, one per category
   const chosen={}; const taken=new Set();
-  const nextFor=(k,skip)=>ranked[k].find(x=>!taken.has(x.e.cat)&&!skip.has(x.e.t));
-  live.forEach(k=>{ chosen[k]=[]; for(let i=0;i<slots[k];i++){ const x=nextFor(k,new Set()); if(!x) break; chosen[k].push(x); taken.add(x.e.cat); } });
+  const pickedSet=new Set();
+  const nextFor=k=>ranked[k].find(x=>!pickedSet.has(x.e)&&(REAL_KEYS.includes(k)||!taken.has(x.e.cat)));
+  live.forEach(k=>{ chosen[k]=[]; for(let i=0;i<slots[k];i++){ const x=nextFor(k); if(!x) break; chosen[k].push(x); pickedSet.add(x.e); taken.add(x.e.cat); } });
   // 4. minimise overlap, aiming for the most USEFUL diversification rather than the least overlap:
   //    for each near-duplicate pair, try replacements (same bucket, same weight) for either fund,
   //    reject any that break a guardrail, score the whole portfolio after each, keep the best,
@@ -873,6 +889,7 @@ function buildBundle(risk,count,lowOverlap,style,real){
       let worst=null;
       for(let i=0;i<all.length;i++) for(let j=i+1;j<all.length;j++){
         const key=[all[i].e.t,all[j].e.t].sort().join("|"); if(accepted.has(key)) continue;
+        if(all[i].k===all[j].k&&REAL_KEYS.includes(all[i].k)) continue;
         const o=overlap(all[i].e,all[j].e); if(o>OVERLAP_LIMIT&&(!worst||o>worst.o)) worst={o,a:all[i],b:all[j],key}; }
       if(!worst) break;
       const base=divStats(all); let best=null;
@@ -893,15 +910,39 @@ function buildBundle(risk,count,lowOverlap,style,real){
       } else { accepted.add(worst.key); kept.push({a:worst.a.e.t,b:worst.b.e.t,o:worst.o}); }
     }
   }
-  // weights: each bucket keeps its full allocation, split equally across its funds
-  const picks=[], w=[], sleeveOf=[];
-  ORDER.forEach(k=>{ (chosen[k]||[]).forEach(x=>{ picks.push(x.e); w.push(sl[k]/chosen[k].length/100); sleeveOf.push(k); }); });
+  // 7. exposure guardrails: catch concentration the swaps may have created. Excess only ever moves to
+  //    another fund in the SAME bucket (preferring the most different one), so risk never changes.
+  const ent=[]; ORDER.forEach(k=>(chosen[k]||[]).forEach(x=>ent.push({e:x.e,k,sc:x.sc,w:sl[k]/chosen[k].length})));
+  const guards=[], unresolved=[];
+  const capOf=x=>Math.min(etfCap(x.k,risk),x.k==="thematic"?themeCap(risk):Infinity,EM_CATS.has(x.e.cat)?emCap(risk):Infinity);
+  const shift=(src,excess,reason,exclude)=>{
+    const tg=ent.filter(t=>t.k===src[0].k&&!src.includes(t)&&!exclude(t)&&capOf(t)-t.w>1e-6)
+      .sort((a,b)=>overlap(src[0].e,a.e)-overlap(src[0].e,b.e)||b.sc-a.sc);
+    const moved=[]; let left=excess;
+    for(const t of tg){ if(left<=1e-6) break; const m=Math.min(left,capOf(t)-t.w); t.w+=m; left-=m; moved.push({t:t.e.t,amt:m}); }
+    const took=excess-left, tot=src.reduce((a,x)=>a+x.w,0);
+    src.forEach(x=>x.w-=took*x.w/tot);
+    if(took>1e-6) guards.push({funds:src.map(x=>x.e.t),reason,moved,bucket:src[0].k});
+    if(left>0.05) unresolved.push({funds:src.map(x=>x.e.t),reason,left});
+  };
+  for(let g=0;g<30;g++){
+    const em=ent.filter(x=>EM_CATS.has(x.e.cat)), emW=em.reduce((a,x)=>a+x.w,0);
+    if(emW>emCap(risk)+1e-6&&!unresolved.some(u=>u.reason==="em")){ shift(em,emW-emCap(risk),"em",t=>EM_CATS.has(t.e.cat)); continue; }
+    const over=ent.find(x=>x.w>capOf(x)+1e-6&&!unresolved.some(u=>u.funds.includes(x.e.t))&&ent.some(t=>t!==x&&t.k===x.k&&capOf(t)-t.w>1e-6&&!(EM_CATS.has(x.e.cat)&&EM_CATS.has(t.e.cat))));
+    if(!over) break;
+    shift([over],over.w-capOf(over),over.k==="thematic"?"theme":"fund",t=>EM_CATS.has(over.e.cat)&&EM_CATS.has(t.e.cat));
+  }
+  // 8. final validation: fund count, weights = 100%, bucket budgets unchanged
+  const bucketSum=k=>ent.filter(x=>x.k===k).reduce((a,x)=>a+x.w,0);
+  const valid=Math.abs(ent.reduce((a,x)=>a+x.w,0)-100)<0.01&&live.every(k=>!chosen[k]||!chosen[k].length||Math.abs(bucketSum(k)-sl[k])<0.01);
+  const picks=ent.map(x=>x.e), w=ent.map(x=>x.w/100), sleeveOf=ent.map(x=>x.k);
+  const overFinal=ent.filter(x=>x.w>capOf(x)+0.05).map(x=>({t:x.e.t,k:x.k,per:x.w,cap:capOf(x),em:EM_CATS.has(x.e.cat)&&capOf(x)===emCap(risk),alone:ranked[x.k].length<2}));
   const sw=w.reduce((a,b)=>a+b,0)||1; for(let i=0;i<w.length;i++) w[i]/=sw;
   let mu=0,v=0; picks.forEach((a,i)=>{mu+=w[i]*a.mu; picks.forEach((b,j)=>v+=w[i]*w[j]*a.vol*b.vol*corr(a,b));});
   const dd=picks.reduce((s,e,i)=>s+w[i]*e.dd,0);
   const yld=picks.reduce((s,e,i)=>s+w[i]*(e.y||0),0), er=picks.reduce((s,e,i)=>s+w[i]*(e.er||0),0);
   const buckets=ORDER.filter(k=>chosen[k]&&chosen[k].length).map(k=>({k,w:sl[k],n:chosen[k].length}));
-  return {picks,w,sleeveOf,mix,style,real,count,buckets,moves,overCap,swaps,kept,mu,vol:Math.sqrt(v),dd,yld,er,ov:portfolioOverlap(picks,w)};
+  return {picks,w,sleeveOf,mix,style,real,count,buckets,moves,overCap:overFinal,swaps,kept,guards,unresolved,valid,look:lookThrough(picks,w,sleeveOf),mu,vol:Math.sqrt(v),dd,yld,er,ov:portfolioOverlap(picks,w)};
 }
 const volLabel=v=>v<6?"Low":v<10?"Low–medium":v<14?"Medium":v<18?"Medium–high":"High";
 const growLabel=m=>m<4?"Low":m<6?"Low–medium":m<8?"Medium":m<10?"Medium–high":"High";
@@ -998,9 +1039,10 @@ function amount(){ const raw=$("amount").value.split(SEP.g).join("").replace(SEP
 const MIX_COLORS={eq:"var(--cobalt)",bonds:"var(--buy)",gold:"#B8913A",comm:"var(--sell)"};
 function bucketLabel(k,n){ return k==="core"&&n<=3?"Global equity":k==="factor"&&n===4?"Factor & growth equity":k==="real"?"Real assets":SLEEVE_NAMES[k]; }
 function renderMix(b,risk){
-  const m=b.mix, r=x=>Math.round(x), parts=[["eq","Equities",m.eq],["bonds","Bonds",m.bonds],["gold","Gold",m.gold],["comm","Commodities",m.comm]].filter(p=>p[2]>0.4);
+  const m=b.mix, r=x=>{ const v=Math.round(x*10)/10; return Number.isInteger(v)?v:v.toFixed(1); }, parts=[["eq","Equities",m.eq],["bonds","Bonds",m.bonds],["gold","Gold",m.gold],["comm","Commodities",m.comm]].filter(p=>p[2]>0.4);
   const sl=b.mix.sleeves, eqSplit=[["Core",sl.core],["Factor",sl.factor],["Thematic",sl.thematic]].filter(p=>p[1]>0.4).map(p=>`${p[0]} ${r(p[1])}%`).join(" · ");
   const sw=b.swaps.map(x=>`<p class="mix-sub">Swapped ${x.out} for ${x.in}: ${x.out} was ${r(x.o*100)}% alike with ${x.with}. The basket now spans more markets and sectors (breadth ${x.breadth[0].toFixed(1)} → ${x.breadth[1].toFixed(1)}) and fund overlap falls from ${r(x.ov[0]*100)}% to ${r(x.ov[1]*100)}%. The ${SLEEVE_NAMES[x.bucket].toLowerCase()} allocation is unchanged.</p>`).join("")
+    +b.guards.map(g=>`<p class="mix-sub">Exposure guardrail: ${g.funds.join(" + ")} ${g.funds.length>1?"were":"was"} over the ${g.reason==="em"?`${emCap(risk)}% emerging-markets limit`:g.reason==="theme"?`${themeCap(risk)}% single-theme limit`:`${etfCap(g.bucket,risk)}% single-fund limit`}, so ${g.moved.map(m=>`${r(m.amt*10)/10}% moved to ${m.t}`).join(" and ")}, staying in ${SLEEVE_NAMES[g.bucket].toLowerCase()}.</p>`).join("")
     +b.kept.map(x=>`<p class="mix-sub">Kept ${x.a} and ${x.b} together (${r(x.o*100)}% alike): no replacement improved overall diversification without breaking a guardrail.</p>`).join("");
   $("mixSummary").innerHTML=`<p class="mix-title"><b>Risk ${risk}: ${RISK_LABELS[risk-1]}</b> <span class="mix-note">${RISK_NOTES[risk-1]}</span></p>
     <p class="mix-line">${parts.map(p=>`${r(p[2])}% ${p[1]}`).join(" · ")}</p>
@@ -1008,7 +1050,8 @@ function renderMix(b,risk){
     ${m.eq>0?`<p class="mix-sub">Inside equities: ${eqSplit}</p>`:""}
     <p class="mix-sub">With ${b.count} funds: ${b.buckets.map(x=>`${r(x.w)}% ${bucketLabel(x.k,b.count).toLowerCase()}${x.n>1?` (${x.n} funds)`:""}`).join(" · ")}</p>
     ${b.moves.map(x=>`<p class="mix-sub">${SLEEVE_NAMES[x.from]} would break the ${etfCap(x.from,risk)}% per-fund limit, so ${r(x.amt)}% moves to ${SLEEVE_NAMES[x.to].toLowerCase()}. Still equities, so your risk is unchanged.</p>`).join("")}
-    ${b.overCap.length?`<p class="mix-sub">${b.overCap.map(x=>`The ${bucketLabel(x.k,b.count).toLowerCase()} fund holds ${r(x.per)}%, above the usual ${x.cap}% limit`).join("; ")}. Broad funds may go over when there are too few funds to split them; add funds to spread it.</p>`:""}
+    ${b.overCap.map(x=>`<p class="mix-sub">${x.t} holds ${r(x.per)}%, above its ${x.cap}% ${x.em?"emerging-markets":"single-fund"} limit: ${x.alone?`it's the only ${bucketLabel(x.k,b.count).toLowerCase()} fund in your list, so there's nothing to share it with. A lower Real assets setting would bring it within the limit.`:`with ${b.count} funds there's no other fund in that bucket to share it. Adding a fund would spread it.`}</p>`).join("")}
+    <p class="mix-sub">Look-through (estimated, whole basket): US ${r(b.look.US)}% · Europe ${r(b.look.Europe)}% · UK ${r(b.look.UK)}% · Japan ${r(b.look.Japan)}% · Emerging markets ${r(b.look.Emerging)}% (in dedicated EM funds: ${r(b.picks.reduce((a,e,i)=>a+(EM_CATS.has(e.cat)?b.w[i]*100:0),0))}%, limit ${emCap(risk)}%) · Technology ${r(b.look.tech)}%</p>
     <dl class="mix-stats"><div><dt>Estimated volatility</dt><dd>${volLabel(b.vol)}</dd></div><div><dt>Growth potential</dt><dd>${growLabel(b.mu)}</dd></div><div><dt>Downside protection</dt><dd>${protLabel(risk)}</dd></div></dl>${sw}`;
 }
 function renderBundle(){
