@@ -420,8 +420,8 @@ html[data-theme="nightdesk"] dialog::backdrop{background:rgba(0,0,0,.6)}
         <div class="hint"><span>Preserve</span><span>Growth</span></div>
       </div>
       <div class="ctl">
-        <label for="countSlider">Number of funds <b id="countVal">8</b></label>
-        <input type="range" id="countSlider" min="4" max="12" value="8">
+        <label for="countSlider">Number of funds <b id="countVal">5</b></label>
+        <input type="range" id="countSlider" min="3" max="10" value="5">
         <div class="hint"><span>Simpler</span><span>More spread out</span></div>
         <div class="hint count-note" id="countNote" aria-live="polite"></div>
       </div>
@@ -748,10 +748,14 @@ const RISK_NOTES=["Primarily bonds; minimal equity exposure","Bond dominated wit
 const MIX_WORDS=["capital-preservation","very cautious","cautious","cautious-balanced","balanced","balanced-growth","growth","growth-plus","aggressive","maximum-growth"];
 const STYLE_LABELS=["Defensive","Leaning defensive","Neutral","Leaning aggressive","Aggressive"];
 const REAL_LABELS=["Minimum","Low","Neutral","High","Maximum"];
-const SLEEVE_SHORT={core:"Core",factor:"Factor",thematic:"Thematic",bonds:"Bonds",gold:"Gold",comm:"Commodities"};
-const SLEEVE_NAMES={core:"Core equities",factor:"Factor equities",thematic:"Growth & thematic",bonds:"Bonds",gold:"Gold",comm:"Commodities"};
+const SLEEVE_SHORT={core:"Core",factor:"Factor",thematic:"Thematic",bonds:"Bonds",gold:"Gold",comm:"Commodities",real:"Real assets"};
+const SLEEVE_NAMES={core:"Core equities",factor:"Factor equities",thematic:"Growth & thematic",bonds:"Bonds",gold:"Gold",comm:"Commodities",real:"Real assets"};
+const FUND_NOTES={3:["Simple","Broad diversification with minimal complexity."],4:["Core","Adds investment-style diversification."],
+  5:["Balanced · Recommended","Good diversification without unnecessary complexity."],6:["Enhanced","Separates major asset classes."],
+  7:["Diversified","Adds complementary markets and strategies."],8:["Diversified","Adds complementary markets and strategies."],
+  9:["Full","Maximum portfolio granularity."],10:["Full","Maximum portfolio granularity."]};
 // Most any single ETF may hold, % of the portfolio
-function etfCap(k,risk){ return k==="thematic"?(risk<=4?5:risk<=7?10:15):({core:30,factor:20,bonds:35,gold:20,comm:10})[k]; }
+function etfCap(k,risk){ return k==="thematic"?(risk<=4?5:risk<=7?10:15):({core:30,factor:20,bonds:35,gold:20,comm:10,real:30})[k]; }
 const OVERLAP_LIMIT=0.6;   // two funds sharing more than this count as duplicates
 function sleevePrefs(key,style,risk){
   const def=style<=2, agg=style>=4;
@@ -765,10 +769,10 @@ function sleevePrefs(key,style,risk){
                 :["US growth (Nasdaq 100)","Sector: semiconductors","Artificial intelligence","Cyber security","Sector: tech","Robotics & automation","US growth"],
     bonds:risk<=3?["Bonds: short UK gilts","Bonds: short sterling corporate","Bonds: index-linked gilts","Bonds: UK gilts","Bonds: global aggregate (GBP hedged)","Bonds: ultra-short","Bonds: short","Bonds: core","Bonds: inflation"]
                  :["Bonds: UK gilts","Bonds: global aggregate (GBP hedged)","Bonds: index-linked gilts","Bonds: sterling corporate","Bonds: short UK gilts","Bonds: core","Bonds: inflation","Bonds: long"],
-    gold:["Gold"], comm:["Commodities (broad)"],
+    gold:["Gold"], comm:["Commodities (broad)"], real:["Gold","Commodities (broad)"],
   })[key];
 }
-const FOLD={comm:["gold","bonds","core"],gold:["bonds","core"],thematic:["factor","core"],factor:["core","thematic"],bonds:["gold","core"],core:["factor","thematic"]};
+const FOLD={real:["bonds","core"],comm:["gold","real","bonds","core"],gold:["comm","real","bonds","core"],thematic:["factor","core"],factor:["core","thematic"],bonds:["real","gold","core"],core:["factor","thematic"]};
 function assetMix(risk,style,real){
   let [eq,bonds,gold,comm,core,factor,them]=RISK_GRID[risk];
   // 2. equity style: tilt the thematic share inside equities; equities in total stay put
@@ -792,23 +796,44 @@ function fundScore(e,k,style,risk){
 }
 function buildBundle(risk,count,lowOverlap,style,real){
   style=style||+($("styleSlider")?.value||3); real=real||+($("realSlider")?.value||3);
-  const ORDER=["core","factor","thematic","bonds","gold","comm"];
-  // 1 + 2. allocation
-  const mix=assetMix(risk,style,real), sl={...mix.sleeves};
+  count=Math.max(3,Math.min(10,Math.round(count)||5));        // the fund count is a hard constraint
+  // 1-3. risk, equity style and real assets set the allocation (never changed below)
+  const mix=assetMix(risk,style,real), m=mix.sleeves;
+  // 4-5. how finely the fund count lets us implement it
+  // start with every bucket, then combine only while there are more buckets than funds:
+  // gold + commodities -> real assets, thematic -> factor, factor -> core
+  let sl={core:m.core,factor:m.factor,thematic:m.thematic,bonds:m.bonds,gold:m.gold,comm:m.comm};
+  const nz=()=>Object.keys(sl).filter(k=>sl[k]>=1).length;
+  const merge=(from,into,rename)=>{ const w=(sl[from]||0)+(sl[into]||0); delete sl[from]; if(rename){ delete sl[into]; sl[rename]=w; } else sl[into]=w; };
+  if(nz()>count) merge("comm","gold","real");
+  if(nz()>count) merge("thematic","factor");
+  if(nz()>count) merge("factor","core");
+  const ORDER=["core","factor","thematic","bonds","real","gold","comm"].filter(k=>k in sl);
   const usable=e=>!/leveraged|inverse|crypto: bitcoin/i.test(e.cat);
   const ranked={}; ORDER.forEach(k=>{ const prefs=sleevePrefs(k,style,risk);
     ranked[k]=DATA.filter(e=>usable(e)&&prefs.includes(e.cat)).map(e=>({e,sc:fundScore(e,k,style,risk)})).sort((a,b)=>b.sc-a.sc); });
-  // a bucket with no eligible funds, or too small to be a sensible position (<1%), hands its weight to a neighbour
-  ORDER.forEach(k=>{ if(sl[k]>0.001&&(!ranked[k].length||sl[k]<1)){ const to=FOLD[k].find(x=>ranked[x].length); if(to) sl[to]+=sl[k]; sl[k]=0; } });
-  // 3. fund slots: enough to respect each bucket's per-ETF limit, then extra slots as asked
-  const slots={}, live=ORDER.filter(k=>sl[k]>0.001);
-  live.forEach(k=>{ const byCats=new Set(ranked[k].map(x=>x.e.cat)).size; slots[k]=Math.min(byCats,Math.max(1,Math.ceil(sl[k]/etfCap(k,risk)-1e-9))); });
-  const required=live.reduce((a,k)=>a+slots[k],0);
-  for(let n=required;n<count;n++){
-    const k=live.filter(k=>k!=="gold"&&k!=="comm"&&slots[k]<new Set(ranked[k].map(x=>x.e.cat)).size)
-      .sort((a,b)=>sl[b]/(slots[b]+1)-sl[a]/(slots[a]+1))[0];
-    if(!k) break; slots[k]++;
+  // a bucket with no eligible funds, or too small to be a sensible position (<1%), joins a neighbour
+  ORDER.forEach(k=>{ if(sl[k]>0.001&&(!ranked[k].length||sl[k]<1)){ const to=FOLD[k].find(x=>x in sl&&ranked[x].length); if(to) sl[to]+=sl[k]; sl[k]=0; } });
+  // 6. one fund per bucket, then spare slots split existing allocations (never add new risk):
+  //    first where a specialist fund would break its limit, then the largest holding per fund
+  const live=ORDER.filter(k=>sl[k]>0.001), slots={}; live.forEach(k=>slots[k]=1);
+  const distinct=k=>new Set(ranked[k].map(x=>x.e.cat)).size, SPECIAL=["factor","thematic"];
+  let used=live.length;
+  while(used<count){
+    const cand=live.filter(k=>!["gold","comm","real"].includes(k)&&slots[k]<distinct(k));
+    if(!cand.length) break;
+    const over=cand.filter(k=>SPECIAL.includes(k)&&sl[k]/slots[k]>etfCap(k,risk)+1e-9)
+      .sort((a,b)=>sl[b]/slots[b]/etfCap(b,risk)-sl[a]/slots[a]/etfCap(a,risk));
+    const k=over[0]||cand.sort((a,b)=>(sl[b]/(slots[b]+1)-sl[a]/(slots[a]+1))||(SPECIAL.includes(a)-SPECIAL.includes(b)))[0];
+    slots[k]++; used++;
   }
+  // 8-9. concentration limits: specialist excess moves to broader equity funds (still equities, so
+  //      risk is unchanged); broad core/bond funds and real assets may exceed their limit when slots run out
+  const moves=[];
+  const pushDown=(from,to)=>{ if(!(sl[from]>0.001)) return; const cap=etfCap(from,risk)*slots[from];
+    if(sl[from]>cap+1e-9){ const tgt=to.find(t=>sl[t]>0.001); if(tgt){ moves.push({from,to:tgt,amt:sl[from]-cap}); sl[tgt]+=sl[from]-cap; sl[from]=cap; } } };
+  pushDown("thematic",["factor","core"]); pushDown("factor",["core"]);
+  const overCap=live.filter(k=>sl[k]/slots[k]>etfCap(k,risk)+0.05).map(k=>({k,per:sl[k]/slots[k],cap:etfCap(k,risk)}));
   // pick the top-scoring funds per bucket, one per category
   const chosen={}; const taken=new Set();
   const nextFor=(k,skip)=>ranked[k].find(x=>!taken.has(x.e.cat)&&!skip.has(x.e.t));
@@ -841,7 +866,8 @@ function buildBundle(risk,count,lowOverlap,style,real){
   let mu=0,v=0; picks.forEach((a,i)=>{mu+=w[i]*a.mu; picks.forEach((b,j)=>v+=w[i]*w[j]*a.vol*b.vol*corr(a,b));});
   const dd=picks.reduce((s,e,i)=>s+w[i]*e.dd,0);
   const yld=picks.reduce((s,e,i)=>s+w[i]*(e.y||0),0), er=picks.reduce((s,e,i)=>s+w[i]*(e.er||0),0);
-  return {picks,w,sleeveOf,mix,style,real,required,swaps,mu,vol:Math.sqrt(v),dd,yld,er,ov:portfolioOverlap(picks,w)};
+  const buckets=ORDER.filter(k=>chosen[k]&&chosen[k].length).map(k=>({k,w:sl[k],n:chosen[k].length}));
+  return {picks,w,sleeveOf,mix,style,real,count,buckets,moves,overCap,swaps,mu,vol:Math.sqrt(v),dd,yld,er,ov:portfolioOverlap(picks,w)};
 }
 const volLabel=v=>v<6?"Low":v<10?"Low–medium":v<14?"Medium":v<18?"Medium–high":"High";
 const growLabel=m=>m<4?"Low":m<6?"Low–medium":m<8?"Medium":m<10?"Medium–high":"High";
@@ -933,6 +959,7 @@ function amount(){ const raw=$("amount").value.split(SEP.g).join("").replace(SEP
 
 /* Asset mix summary: what the risk, style and real-asset settings mean in money terms */
 const MIX_COLORS={eq:"var(--cobalt)",bonds:"var(--buy)",gold:"#B8913A",comm:"var(--sell)"};
+function bucketLabel(k,n){ return k==="core"&&n<=3?"Global equity":k==="factor"&&n===4?"Factor & growth equity":k==="real"?"Real assets":SLEEVE_NAMES[k]; }
 function renderMix(b,risk){
   const m=b.mix, r=x=>Math.round(x), parts=[["eq","Equities",m.eq],["bonds","Bonds",m.bonds],["gold","Gold",m.gold],["comm","Commodities",m.comm]].filter(p=>p[2]>0.4);
   const sl=b.mix.sleeves, eqSplit=[["Core",sl.core],["Factor",sl.factor],["Thematic",sl.thematic]].filter(p=>p[1]>0.4).map(p=>`${p[0]} ${r(p[1])}%`).join(" · ");
@@ -941,6 +968,9 @@ function renderMix(b,risk){
     <p class="mix-line">${parts.map(p=>`${r(p[2])}% ${p[1]}`).join(" · ")}</p>
     <div class="mix-bar" role="img" aria-label="Asset mix: ${parts.map(p=>`${r(p[2])}% ${p[1]}`).join(", ")}">${parts.map(p=>`<div style="flex-grow:${p[2]};background:${MIX_COLORS[p[0]]}">${p[2]>=9?p[1]:""}</div>`).join("")}</div>
     ${m.eq>0?`<p class="mix-sub">Inside equities: ${eqSplit}</p>`:""}
+    <p class="mix-sub">With ${b.count} funds: ${b.buckets.map(x=>`${r(x.w)}% ${bucketLabel(x.k,b.count).toLowerCase()}${x.n>1?` (${x.n} funds)`:""}`).join(" · ")}</p>
+    ${b.moves.map(x=>`<p class="mix-sub">${SLEEVE_NAMES[x.from]} would break the ${etfCap(x.from,risk)}% per-fund limit, so ${r(x.amt)}% moves to ${SLEEVE_NAMES[x.to].toLowerCase()}. Still equities, so your risk is unchanged.</p>`).join("")}
+    ${b.overCap.length?`<p class="mix-sub">${b.overCap.map(x=>`The ${bucketLabel(x.k,b.count).toLowerCase()} fund holds ${r(x.per)}%, above the usual ${x.cap}% limit`).join("; ")}. Broad funds may go over when there are too few funds to split them; add funds to spread it.</p>`:""}
     <dl class="mix-stats"><div><dt>Estimated volatility</dt><dd>${volLabel(b.vol)}</dd></div><div><dt>Growth potential</dt><dd>${growLabel(b.mu)}</dd></div><div><dt>Downside protection</dt><dd>${protLabel(b.dd)}</dd></div></dl>${sw}`;
 }
 function renderBundle(){
@@ -949,12 +979,9 @@ function renderBundle(){
   $("riskVal").textContent=risk+" / 10"; $("countVal").textContent=count;
   $("styleVal").textContent=STYLE_LABELS[style-1]; $("realVal").textContent=REAL_LABELS[real-1];
   $("riskWord").textContent=MIX_WORDS[risk-1]; $("riskArt").textContent=/^[aeiou]/.test(MIX_WORDS[risk-1])?"an":"a"; $("countWord").textContent=count+" funds";
-  let b=buildBundle(risk,count,$("overlapToggle").checked,style,real);
-  // the per-ETF limits need a minimum number of funds; the slider can't go below it
-  const cs=$("countSlider"); cs.min=Math.min(12,Math.max(4,b.required));
-  if(count<b.required){ cs.value=b.required; b=buildBundle(risk,b.required,$("overlapToggle").checked,style,real); }
+  const b=buildBundle(risk,count,$("overlapToggle").checked,style,real);
   const nFunds=b.picks.length; $("countVal").textContent=nFunds; $("countWord").textContent=nFunds+" funds";
-  $("countNote").textContent=b.required>4?`At least ${b.required} funds for this mix, so no single ETF exceeds its limit.`:"";
+  const fn=FUND_NOTES[b.count]; $("countNote").innerHTML=`<b>${b.count} — ${fn[0]}</b><br>${fn[1]}`;
   renderMix(b,risk);
   $("allocBar").innerHTML=b.picks.map((e,i)=>`<div data-t="${e.t}" data-i="${i}" style="flex-grow:${b.w[i]};background:${COLORS[i%COLORS.length]}" title="${e.t} ${(b.w[i]*100).toFixed(0)}%">${b.w[i]>.08?e.t:""}</div>`).join("");
   $("allocBar").setAttribute("aria-label","Allocation: "+b.picks.map((e,i)=>`${e.t} ${(b.w[i]*100).toFixed(0)}%`).join(", "));
@@ -1080,7 +1107,7 @@ $("amountPreset").addEventListener("change",e=>{ if(!e.target.value) return;
 function remember(){ try{ sessionStorage.setItem("iqfund-builder",JSON.stringify({amount:amount(),cur:CUR,count:+$("countSlider").value,risk:+$("riskSlider").value,style:+$("styleSlider").value,real:+$("realSlider").value})); }catch(e){} }
 try{ const m=JSON.parse(sessionStorage.getItem("iqfund-builder")||"null");
   if(m){ if(m.amount>0){ const a=m.cur===CUR?m.amount:niceRound(m.amount*rateOf(CUR,m.cur)); $("amount").value=a.toLocaleString(LOCALE); amountTouched=true; }
-    if(m.count>=4&&m.count<=12) $("countSlider").value=m.count; if(m.risk>=1&&m.risk<=10) $("riskSlider").value=m.risk;
+    if(m.count>=3&&m.count<=10) $("countSlider").value=m.count; if(m.risk>=1&&m.risk<=10) $("riskSlider").value=m.risk;
     if(m.style>=1&&m.style<=5) $("styleSlider").value=m.style; if(m.real>=1&&m.real<=5) $("realSlider").value=m.real; } }catch(e){}
 ["amount","countSlider","riskSlider","styleSlider","realSlider"].forEach(id=>$(id).addEventListener("input",()=>{ remember(); if(id==="amount") renderPresets(); }));
 $("amount").addEventListener("blur",renderPresets);
