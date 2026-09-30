@@ -794,6 +794,28 @@ function fundScore(e,k,style,risk){
   if(k==="factor"&&style<=2) sc-=0.01*e.vol;
   return sc;
 }
+
+/* Diversification scoring used by "Minimise overlap".
+   Equity exposure is estimated from each fund's market/sector profile. */
+const DIM_GROUP=d=>d.startsWith("US_")||d==="DIV_US"||d==="MOAT"?"US":/^(UK_|DIV_UK)/.test(d)?"UK":d==="EUR"?"Europe":d==="JP"?"Japan":d==="APAC"?"Asia Pacific":/^(EM|CHINA|INDIA)$/.test(d)?"Emerging":"Other";
+const TECH_DIMS=new Set(["US_SEMI","US_TECH","INTL_SEMI","AI","CYBER","ROBOTICS","GAMING"]);
+const STYLE_DIMS=new Set(["QUALITY","VALUE","MOMENTUM","MINVOL","US_SMALL","INTL_SMALL","DIV_US","DIV_GLOBAL","DIV_ARISTOCRATS","DIV_UK","MOAT"]);
+function divStats(all){
+  const eq=all.filter(x=>["core","factor","thematic"].includes(x.k)), W=eq.reduce((a,x)=>a+x.w,0)||1, exp={};
+  eq.forEach(x=>{ const pr=profileOf(x.e), t=Object.values(pr).reduce((a,v)=>a+v,0)||1; for(const d in pr) exp[d]=(exp[d]||0)+x.w/W*pr[d]/t; });
+  const vals=Object.values(exp), effN=vals.length?1/vals.reduce((a,v)=>a+v*v,0):0;
+  const grp={}; for(const d in exp){ const g=DIM_GROUP(d); grp[g]=(grp[g]||0)+exp[d]; }
+  const sum=set=>Object.keys(exp).filter(d=>set.has(d)).reduce((a,d)=>a+exp[d],0);
+  let num=0,den=0; for(let i=0;i<all.length;i++) for(let j=i+1;j<all.length;j++){ const ww=all[i].w*all[j].w; num+=ww*overlap(all[i].e,all[j].e); den+=ww; }
+  const ov=den?num/den:0, TW=all.reduce((a,x)=>a+x.w,0)||1, quality=all.reduce((a,x)=>a+x.w*x.sc,0)/TW;
+  const nonUS=Object.entries(grp).filter(([g])=>g!=="US"&&g!=="Other").reduce((m,[,v])=>Math.max(m,v),0);
+  return {effN,ov,quality,us:grp.US||0,tech:sum(TECH_DIMS),style:sum(STYLE_DIMS),nonUS,D:effN-8*ov+1.5*quality};
+}
+// Guardrails: a replacement may not push the equities past these limits (or make an existing breach worse)
+function divGuardrails(t,b){
+  const ok=(v,lim,bv)=>v<=lim+1e-9||v<=bv+0.005;
+  return ok(t.us,0.80,b.us)&&(t.us>=0.35||t.us>=b.us-0.005)&&ok(t.tech,0.45,b.tech)&&ok(t.nonUS,0.35,b.nonUS)&&ok(t.style,0.50,b.style);
+}
 function buildBundle(risk,count,lowOverlap,style,real){
   style=style||+($("styleSlider")?.value||3); real=real||+($("realSlider")?.value||3);
   count=Math.max(3,Math.min(10,Math.round(count)||5));        // the fund count is a hard constraint
@@ -838,25 +860,37 @@ function buildBundle(risk,count,lowOverlap,style,real){
   const chosen={}; const taken=new Set();
   const nextFor=(k,skip)=>ranked[k].find(x=>!taken.has(x.e.cat)&&!skip.has(x.e.t));
   live.forEach(k=>{ chosen[k]=[]; for(let i=0;i<slots[k];i++){ const x=nextFor(k,new Set()); if(!x) break; chosen[k].push(x); taken.add(x.e.cat); } });
-  // 4. minimise overlap: swap the weaker of any near-duplicate pair within its own bucket
-  const swaps=[];
+  // 4. minimise overlap, aiming for the most USEFUL diversification rather than the least overlap:
+  //    for each near-duplicate pair, try replacements (same bucket, same weight) for either fund,
+  //    reject any that break a guardrail, score the whole portfolio after each, keep the best,
+  //    and only swap if it genuinely improves diversification. Otherwise the overlap stays.
+  const swaps=[], kept=[];
   if(lowOverlap){
-    const rejected=new Set(), accepted=new Set();
-    for(let guard=0;guard<60;guard++){
-      const all=live.flatMap(k=>chosen[k].map(x=>({...x,k})));
+    const entries=()=>live.flatMap(k=>chosen[k].map(x=>({...x,k,w:sl[k]/chosen[k].length})));
+    const accepted=new Set();
+    for(let guard=0;guard<30;guard++){
+      const all=entries();
       let worst=null;
       for(let i=0;i<all.length;i++) for(let j=i+1;j<all.length;j++){
         const key=[all[i].e.t,all[j].e.t].sort().join("|"); if(accepted.has(key)) continue;
         const o=overlap(all[i].e,all[j].e); if(o>OVERLAP_LIMIT&&(!worst||o>worst.o)) worst={o,a:all[i],b:all[j],key}; }
       if(!worst) break;
-      const weak=worst.a.sc<=worst.b.sc?worst.a:worst.b, keep=weak===worst.a?worst.b:worst.a;
-      const others=all.filter(x=>x.e!==weak.e).map(x=>x.e);
-      const rep=ranked[weak.k].find(x=>!rejected.has(x.e.t)&&x.e!==weak.e&&!others.includes(x.e)
-        &&(x.e.cat===weak.e.cat||!taken.has(x.e.cat))&&others.every(o=>overlap(o,x.e)<=OVERLAP_LIMIT));
-      if(!rep){ accepted.add(worst.key); continue; }   // nothing cleaner in this bucket: keep the pair, never move money
-      rejected.add(weak.e.t);
-      const arr=chosen[weak.k]; arr[arr.findIndex(x=>x.e===weak.e)]=rep;
-      taken.delete(weak.e.cat); taken.add(rep.e.cat); swaps.push({out:weak.e.t,in:rep.e.t,with:keep.e.t,bucket:weak.k});
+      const base=divStats(all); let best=null;
+      for(const mem of [worst.a,worst.b]){
+        const cands=ranked[mem.k].filter(x=>x.e!==mem.e&&!all.some(y=>y.e===x.e)&&(x.e.cat===mem.e.cat||!taken.has(x.e.cat))).slice(0,10);
+        for(const c of cands){
+          if(c.e.signal==="Sell"||c.sc<mem.sc-0.6) continue;               // don't trade quality for variety
+          const trial=all.map(y=>y.e===mem.e?{...c,k:mem.k,w:mem.w}:y);
+          const st=divStats(trial); if(!divGuardrails(st,base)) continue;
+          if(!best||st.D>best.st.D) best={mem,c,st,other:mem===worst.a?worst.b:worst.a};
+        }
+      }
+      if(best&&best.st.D>base.D+0.05){
+        const arr=chosen[best.mem.k]; arr[arr.findIndex(x=>x.e===best.mem.e)]=best.c;
+        taken.delete(best.mem.e.cat); taken.add(best.c.e.cat);
+        swaps.push({out:best.mem.e.t,in:best.c.e.t,with:best.other.e.t,bucket:best.mem.k,o:worst.o,
+          breadth:[base.effN,best.st.effN],ov:[base.ov,best.st.ov]});
+      } else { accepted.add(worst.key); kept.push({a:worst.a.e.t,b:worst.b.e.t,o:worst.o}); }
     }
   }
   // weights: each bucket keeps its full allocation, split equally across its funds
@@ -867,11 +901,14 @@ function buildBundle(risk,count,lowOverlap,style,real){
   const dd=picks.reduce((s,e,i)=>s+w[i]*e.dd,0);
   const yld=picks.reduce((s,e,i)=>s+w[i]*(e.y||0),0), er=picks.reduce((s,e,i)=>s+w[i]*(e.er||0),0);
   const buckets=ORDER.filter(k=>chosen[k]&&chosen[k].length).map(k=>({k,w:sl[k],n:chosen[k].length}));
-  return {picks,w,sleeveOf,mix,style,real,count,buckets,moves,overCap,swaps,mu,vol:Math.sqrt(v),dd,yld,er,ov:portfolioOverlap(picks,w)};
+  return {picks,w,sleeveOf,mix,style,real,count,buckets,moves,overCap,swaps,kept,mu,vol:Math.sqrt(v),dd,yld,er,ov:portfolioOverlap(picks,w)};
 }
 const volLabel=v=>v<6?"Low":v<10?"Low–medium":v<14?"Medium":v<18?"Medium–high":"High";
 const growLabel=m=>m<4?"Low":m<6?"Low–medium":m<8?"Medium":m<10?"Medium–high":"High";
-const protLabel=d=>d>-15?"High":d>-25?"Medium–high":d>-35?"Medium":d>-45?"Low–medium":"Low";
+// Downside protection follows the risk level (how much sits outside equities), not past drawdowns,
+// so an 80%-equity basket is never described as well protected.
+const PROTECTION=["High","High","Medium–high","Medium–high","Medium","Medium","Medium–low","Low–medium","Low","Low"];
+const protLabel=risk=>PROTECTION[risk-1];
 
 /* ---------- Rendering ---------- */
 
@@ -963,7 +1000,8 @@ function bucketLabel(k,n){ return k==="core"&&n<=3?"Global equity":k==="factor"&
 function renderMix(b,risk){
   const m=b.mix, r=x=>Math.round(x), parts=[["eq","Equities",m.eq],["bonds","Bonds",m.bonds],["gold","Gold",m.gold],["comm","Commodities",m.comm]].filter(p=>p[2]>0.4);
   const sl=b.mix.sleeves, eqSplit=[["Core",sl.core],["Factor",sl.factor],["Thematic",sl.thematic]].filter(p=>p[1]>0.4).map(p=>`${p[0]} ${r(p[1])}%`).join(" · ");
-  const sw=b.swaps.length?`<p class="mix-sub">Overlap check swapped ${b.swaps.map(x=>`${x.out} for ${x.in} (too similar to ${x.with})`).join("; ")}. The ${[...new Set(b.swaps.map(x=>SLEEVE_NAMES[x.bucket].toLowerCase()))].join(" and ")} allocation is unchanged.</p>`:"";
+  const sw=b.swaps.map(x=>`<p class="mix-sub">Swapped ${x.out} for ${x.in}: ${x.out} was ${r(x.o*100)}% alike with ${x.with}. The basket now spans more markets and sectors (breadth ${x.breadth[0].toFixed(1)} → ${x.breadth[1].toFixed(1)}) and fund overlap falls from ${r(x.ov[0]*100)}% to ${r(x.ov[1]*100)}%. The ${SLEEVE_NAMES[x.bucket].toLowerCase()} allocation is unchanged.</p>`).join("")
+    +b.kept.map(x=>`<p class="mix-sub">Kept ${x.a} and ${x.b} together (${r(x.o*100)}% alike): no replacement improved overall diversification without breaking a guardrail.</p>`).join("");
   $("mixSummary").innerHTML=`<p class="mix-title"><b>Risk ${risk}: ${RISK_LABELS[risk-1]}</b> <span class="mix-note">${RISK_NOTES[risk-1]}</span></p>
     <p class="mix-line">${parts.map(p=>`${r(p[2])}% ${p[1]}`).join(" · ")}</p>
     <div class="mix-bar" role="img" aria-label="Asset mix: ${parts.map(p=>`${r(p[2])}% ${p[1]}`).join(", ")}">${parts.map(p=>`<div style="flex-grow:${p[2]};background:${MIX_COLORS[p[0]]}">${p[2]>=9?p[1]:""}</div>`).join("")}</div>
@@ -971,7 +1009,7 @@ function renderMix(b,risk){
     <p class="mix-sub">With ${b.count} funds: ${b.buckets.map(x=>`${r(x.w)}% ${bucketLabel(x.k,b.count).toLowerCase()}${x.n>1?` (${x.n} funds)`:""}`).join(" · ")}</p>
     ${b.moves.map(x=>`<p class="mix-sub">${SLEEVE_NAMES[x.from]} would break the ${etfCap(x.from,risk)}% per-fund limit, so ${r(x.amt)}% moves to ${SLEEVE_NAMES[x.to].toLowerCase()}. Still equities, so your risk is unchanged.</p>`).join("")}
     ${b.overCap.length?`<p class="mix-sub">${b.overCap.map(x=>`The ${bucketLabel(x.k,b.count).toLowerCase()} fund holds ${r(x.per)}%, above the usual ${x.cap}% limit`).join("; ")}. Broad funds may go over when there are too few funds to split them; add funds to spread it.</p>`:""}
-    <dl class="mix-stats"><div><dt>Estimated volatility</dt><dd>${volLabel(b.vol)}</dd></div><div><dt>Growth potential</dt><dd>${growLabel(b.mu)}</dd></div><div><dt>Downside protection</dt><dd>${protLabel(b.dd)}</dd></div></dl>${sw}`;
+    <dl class="mix-stats"><div><dt>Estimated volatility</dt><dd>${volLabel(b.vol)}</dd></div><div><dt>Growth potential</dt><dd>${growLabel(b.mu)}</dd></div><div><dt>Downside protection</dt><dd>${protLabel(risk)}</dd></div></dl>${sw}`;
 }
 function renderBundle(){
   const risk=+$("riskSlider").value, count=+$("countSlider").value, amt=amount();
