@@ -371,6 +371,12 @@ html[data-theme="nightdesk"] dialog::backdrop{background:rgba(0,0,0,.6)}
 .mix-title{margin:0;font:600 20px/1.2 var(--display)}
 .checks{display:flex;flex-wrap:wrap;gap:4px 14px}.checks .ok{color:var(--buy)}.checks .warn{color:var(--sell);font-weight:600}
 .mix-warn{color:var(--sell);font-weight:600}
+.divcheck{margin-top:14px;padding:12px 14px;border:1px solid var(--line);border-left:3px solid var(--buy);border-radius:var(--radius,6px)}
+.divcheck.relaxed{border-left-color:#B8913A}.divcheck.hardbad{border-left-color:var(--sell)}
+.dc-head{margin:0 0 4px;font-weight:600;font-size:15px}.dc-ok{color:var(--buy)}.dc-flag{font-size:12px;font-weight:600;color:#8a6a1f;background:rgba(184,145,58,.15);padding:2px 8px;border-radius:99px;margin-left:4px;vertical-align:1px}
+.dc-text{margin:4px 0 0;font-size:14px;line-height:1.45}
+.dc-more{margin-top:8px}.dc-more summary{cursor:pointer;font-size:13px;font-weight:600;color:var(--cobalt)}
+.dc-label{margin:10px 0 0;font-size:12px;font-weight:600;color:var(--muted);text-transform:uppercase;letter-spacing:.04em}
 .mix-note{display:block;font:400 14px/1.4 var(--body);color:var(--muted);margin-top:2px}
 .count-note{display:block!important;color:var(--cobalt);min-height:0}
 .mix-line{margin:4px 0 10px;font-size:15px;color:var(--ink)}
@@ -761,7 +767,7 @@ const FUND_NOTES={3:["Simple","Broad diversification with minimal complexity."],
 function etfCap(k,risk){ const lo=risk<=4;
   return ({core:30,factor:lo?15:20,thematic:lo?5:risk<=7?10:15,bonds:35,gold:lo?15:20,comm:lo?7.5:10,real:lo?22.5:30})[k]; }
 // Portfolio-level exposure limits
-const EM_CATS=new Set(["Emerging markets","India","China"]);
+const EM_CATS=new Set(["Emerging markets","India","China"]), EM_DIMS=["EM","CHINA","INDIA"];
 const emCap=risk=>risk<=4?10:15, themeCap=risk=>risk<=4?5:risk<=7?10:15;
 const REAL_KEYS=["gold","comm","real"];
 
@@ -772,7 +778,8 @@ const THEME_SETS={semiconductors:["US_SEMI","INTL_SEMI"],"artificial intelligenc
 const FACTOR_SETS={quality:["QUALITY"],value:["VALUE"],momentum:["MOMENTUM"],"minimum volatility":["MINVOL"],"small-cap":["US_SMALL","INTL_SMALL"]};
 const shareIn=(e,dims)=>{ const pr=profileOf(e), t=Object.values(pr).reduce((a,v)=>a+v,0)||1; return dims.reduce((a,d)=>a+(pr[d]||0),0)/t; };
 function exposureLimits(risk){
-  const L=[{id:"em",label:"emerging-markets funds",cap:emCap(risk),share:e=>EM_CATS.has(e.cat)?1:0,group:"Emerging markets"}];
+  // look-through, not labels: EM held inside global, international and dividend funds counts too
+  const L=[{id:"em",label:"emerging-markets exposure",cap:emCap(risk),share:e=>shareIn(e,EM_DIMS),group:"Emerging markets"}];
   for(const [n,d] of Object.entries(SECTOR_SETS)) L.push({id:"sector:"+n,label:n+" sector",cap:25,share:e=>shareIn(e,d),group:"Sectors"});
   for(const [n,d] of Object.entries(THEME_SETS)) L.push({id:"theme:"+n,label:n,cap:risk>=8?15:10,share:e=>shareIn(e,d),group:"Themes"});
   for(const [n,d] of Object.entries(FACTOR_SETS)) L.push({id:"factor:"+n,label:n+" factor",cap:20,share:e=>shareIn(e,d),group:"Factors"});
@@ -801,11 +808,14 @@ function assetMix(risk,style,real){
   if(eq>0){ const m=[0.35,0.65,1,1.4,1.8][style-1], t=Math.min(0.45,(them/eq)*m)*eq, rest=eq-t;
     core=rest*core/(core+factor); factor=rest-core; them=t; }
   // real assets: Minimum 0, Low half, Neutral as grid, High +7.5, Maximum +15 points
-  const base=gold+comm, target=[0,base/2,base,base+7.5,base+15][real-1], d=target-base;
+  const base=gold+comm; let target=[0,base/2,base,base+7.5,base+15][real-1]; const d=target-base;
   const scaleEq=k=>{ const f=(eq+k)/eq; core*=f; factor*=f; them*=f; eq+=k; };
   if(d>0){ const fromB=Math.min(d,bonds); bonds-=fromB; if(d>fromB) scaleEq(-(d-fromB)); }
   else if(d<0){ const freed=-d, tot=eq+bonds||1, toB=freed*bonds/tot; bonds+=toB;
     if(eq>0) scaleEq(freed-toB); else { core+=freed-toB; eq+=freed-toB; } }
+  // bonds left below 1% can't be held as a sensible position: they join real assets here, so the
+  // target shown is exactly what gets implemented (rather than being folded away later)
+  if(bonds>0.001&&bonds<1&&d>0){ target+=bonds; bonds=0; }
   const gs=base>0?gold/base:2/3; gold=target*gs; comm=target-gold;
   return {eq,bonds,gold,comm,sleeves:{core,factor,thematic:them,bonds,gold,comm}};
 }
@@ -978,7 +988,19 @@ function buildBundle(risk,count,lowOverlap,style,real,opts){
   const dd=picks.reduce((s,e,i)=>s+w[i]*e.dd,0);
   const yld=picks.reduce((s,e,i)=>s+w[i]*(e.y||0),0), er=picks.reduce((s,e,i)=>s+w[i]*(e.er||0),0);
   const buckets=ORDER.filter(k=>chosen[k]&&chosen[k].length).map(k=>({k,w:sl[k],n:chosen[k].length}));
-  return {picks,w,sleeveOf,mix,style,real,count,buckets,moves,overCap:overFinal,swaps,kept,guards,unresolved,recommend,valid,limits:LIMITS.map(c=>({id:c.id,label:c.label,cap:c.cap,exp:expOf(c)})),look:lookThrough(picks,w,sleeveOf),mu,vol:Math.sqrt(v),dd,yld,er,ov:portfolioOverlap(picks,w)};
+  // HARD constraints: never traded away
+  const eqGot=ent.filter(x=>["core","factor","thematic"].includes(x.k)).reduce((a,x)=>a+x.w,0);
+  const hard=[{id:"weights",label:"Weights total 100%",ok:Math.abs(ent.reduce((a,x)=>a+x.w,0)-100)<0.01},
+    {id:"count",label:`${picks.length} funds as selected`,ok:picks.length===count},
+    {id:"alloc",label:"Asset allocation matches the risk level",ok:valid&&Math.abs(eqGot-mix.eq)<0.01},
+    {id:"style",label:"Core / factor / thematic split matches the equity style",ok:!moves.length}];
+  // SOFT optimisation constraints: pursued as far as the fund count allows, relaxed (and said so) when they can't all be met
+  const LG=id=>LIMITS.find(c=>c.id===id).group, grpOk=g=>!unresolved.some(u=>LG(u.id)===g);
+  const ovAvg=portfolioOverlap(picks,w).avg;
+  const soft=[{id:"geo",label:"Geographic",ok:grpOk("Emerging markets")},{id:"sector",label:"Sectors",ok:grpOk("Sectors")},
+    {id:"theme",label:"Themes",ok:grpOk("Themes")},{id:"factor",label:"Factors",ok:grpOk("Factors")},
+    {id:"fund",label:"Single-fund limits",ok:!overFinal.length},{id:"overlap",label:"Overlap",ok:ovAvg<0.35}];
+  return {picks,w,sleeveOf,mix,style,real,count,buckets,moves,overCap:overFinal,swaps,kept,guards,unresolved,recommend,valid,hard,soft,limits:LIMITS.map(c=>({id:c.id,label:c.label,cap:c.cap,exp:expOf(c)})),look:lookThrough(picks,w,sleeveOf),mu,vol:Math.sqrt(v),dd,yld,er,ov:portfolioOverlap(picks,w)};
 }
 const volLabel=v=>v<6?"Low":v<10?"Low–medium":v<14?"Medium":v<18?"Medium–high":"High";
 const growLabel=m=>m<4?"Low":m<6?"Low–medium":m<8?"Medium":m<10?"Medium–high":"High";
@@ -1073,30 +1095,58 @@ function amount(){ const raw=$("amount").value.split(SEP.g).join("").replace(SEP
 
 /* Asset mix summary: what the risk, style and real-asset settings mean in money terms */
 const MIX_COLORS={eq:"var(--cobalt)",bonds:"var(--buy)",gold:"#B8913A",comm:"var(--sell)"};
-function validationList(b,risk){
-  const grp=g=>b.limits.filter(l=>l.label&&exposureLimits(risk).find(x=>x.id===l.id).group===g).every(l=>l.exp<=l.cap+0.05);
-  return [{label:"Weights 100%",ok:Math.abs(b.w.reduce((a,c)=>a+c,0)-1)<1e-4},{label:`${b.picks.length} funds`,ok:b.picks.length===b.count},
-    {label:"Risk mix kept",ok:b.valid},{label:"Fund limits",ok:!b.overCap.length},{label:"Emerging markets",ok:grp("Emerging markets")},
-    {label:"Sectors",ok:grp("Sectors")},{label:"Themes",ok:grp("Themes")},{label:"Factors",ok:grp("Factors")},{label:`Overlap ${ovLabel(b.ov.avg).toLowerCase()}`,ok:b.ov.avg<0.35}];
+const chips=list=>`<p class="mix-sub checks">${list.map(c=>`<span class="${c.ok?"ok":"warn"}">${c.ok?"✓":"⚠"} ${c.label}</span>`).join("")}</p>`;
+const lc=x=>x.charAt(0).toUpperCase()+x.slice(1);
+// Plain-language summary of what the diversification step did
+function divPlain(b){
+  const out=[], seen=new Set(), buckets=new Set();
+  b.guards.forEach(g=>{ buckets.add(g.bucket); const kind=g.id.split(":")[0]; const key=g.id.startsWith("fund:")?"fund":g.id; if(seen.has(key)) return; seen.add(key);
+    const name=g.id.split(":")[1];
+    out.push(g.id==="em"?"Emerging-market exposure was limited to avoid excessive regional concentration."
+      :kind==="sector"?`${lc(name)} sector exposure was limited so the basket doesn't lean too heavily on one sector.`
+      :kind==="theme"?`${lc(name)} exposure was trimmed so no single theme dominates.`
+      :kind==="factor"?`The ${name} tilt was trimmed so no single investment style dominates.`
+      :"A fund was trimmed to stay within its single-fund limit."); });
+  if(buckets.size) out.push(`The allocation remained within ${[...buckets].map(k=>SLEEVE_NAMES[k]).join(" and ")}.`);
+  if(b.swaps.length) out.push(`${b.swaps.length===1?"One fund that largely duplicated another was":b.swaps.length+" funds that largely duplicated others were"} replaced to broaden diversification.`);
+  b.moves.forEach(m=>out.push(`Part of the ${SLEEVE_NAMES[m.from].toLowerCase()} slice (${Math.round(m.amt*10)/10}%) sits in ${SLEEVE_NAMES[m.to].toLowerCase()}, because ${b.count} funds can't hold it within the per-fund limit. Your overall equity level is unchanged.`));
+  return out;
+}
+function fixHint(b){
+  const eqIssue=b.unresolved.some(u=>/^(sector|theme|factor|em)/.test(u.id))||b.overCap.some(x=>["core","factor","thematic"].includes(x.k));
+  const realIssue=b.overCap.some(x=>REAL_KEYS.includes(x.k));
+  return [eqIssue&&b.style>1?"a less aggressive Equity style":"",realIssue&&b.real>1?"a lower Real assets setting":""].filter(Boolean).join(" or ")||"a different risk level";
+}
+function divCheckHTML(b,risk,r){
+  const softBad=b.soft.filter(c=>!c.ok), hardBad=b.hard.filter(c=>!c.ok), plain=divPlain(b);
+  const relaxed=softBad.length>0, styleOk=!b.moves.length;
+  const head=relaxed?`Diversification check <span class="dc-flag">partially relaxed</span>`:`Diversification check <span class="dc-ok">✓</span>`;
+  let msg="";
+  if(relaxed) msg=`<p class="dc-text"><b>Diversification constraint partially relaxed:</b> no ${b.count}-fund combination we tested satisfied every exposure limit (${softBad.map(c=>c.label.toLowerCase()).join(", ")}).${b.recommend?` Increase to ${b.recommend} funds for improved diversification.`:` Even 10 funds can't meet them all at this risk and style; ${fixHint(b)} would help.`} Your risk level${styleOk?" and style are":" is"} unaffected.</p>`;
+  const body=plain.length?plain.map(t=>`<p class="dc-text">${t}</p>`).join(""):(relaxed?"":`<p class="dc-text">No adjustments were needed: every exposure limit was met with the funds as chosen.</p>`);
+  const tech=b.moves.map(x=>`<p class="mix-sub">${SLEEVE_NAMES[x.from]} would break the ${etfCap(x.from,risk)}% per-fund limit, so ${r(x.amt)}% moves to ${SLEEVE_NAMES[x.to].toLowerCase()}. Still equities, so your risk is unchanged.</p>`).join("")
+    +b.guards.map(g=>`<p class="mix-sub">Exposure guardrail (${g.label} ≤ ${r(g.cap)}%): ${g.fund} capped, with ${g.moved.map(m=>`${r(m.amt)}% moved to ${m.t}`).join(" and ")}, staying in ${SLEEVE_NAMES[g.bucket].toLowerCase()}.</p>`).join("")
+    +b.unresolved.map(u=>`<p class="mix-sub">Limit not met: ${u.label} ${r(u.exp)}% vs ${r(u.cap)}%.</p>`).join("")
+    +b.overCap.map(x=>`<p class="mix-sub">${x.t} holds ${r(x.per)}%, above its ${x.cap}% single-fund limit${x.alone?`: it's the only ${bucketLabel(x.k,b.count).toLowerCase()} fund in your list, so there's nothing to share it with`:""}.</p>`).join("")
+    +b.swaps.map(x=>`<p class="mix-sub">Swapped ${x.out} for ${x.in}: ${x.out} was ${r(x.o*100)}% alike with ${x.with}. Breadth ${x.breadth[0].toFixed(1)} → ${x.breadth[1].toFixed(1)}, fund overlap ${r(x.ov[0]*100)}% → ${r(x.ov[1]*100)}%. The ${SLEEVE_NAMES[x.bucket].toLowerCase()} allocation is unchanged.</p>`).join("")
+    +b.kept.map(x=>`<p class="mix-sub">Kept ${x.a} and ${x.b} together (${r(x.o*100)}% alike): no replacement improved overall diversification without breaking a guardrail.</p>`).join("")
+    +`<p class="mix-sub">Look-through (estimated, whole basket: Σ fund weight × fund exposure): US ${r(b.look.US)}% · Europe ${r(b.look.Europe)}% · UK ${r(b.look.UK)}% · Japan ${r(b.look.Japan)}% · Emerging markets ${r(b.look.Emerging)}% (limit ${emCap(risk)}%${(()=>{ const ded=b.picks.reduce((a,e,i)=>a+(EM_CATS.has(e.cat)?b.w[i]*100:0),0), inside=b.look.Emerging-ded; return b.look.Emerging<0.05?"":`; ${r(ded)}% in dedicated EM funds${inside>0.05?`, ${r(inside)}% inside broader funds`:""}`; })()}) · Technology ${r(b.look.tech)}%</p>`;
+  return `<div class="divcheck${relaxed?" relaxed":""}${hardBad.length?" hardbad":""}"><p class="dc-head">${head}</p>${msg}${body}
+    <details class="dc-more"><summary>${plain.length||relaxed?"See adjustment":"Why?"}</summary>
+      <p class="dc-label">Always enforced</p>${chips(b.hard)}
+      <p class="dc-label">Diversification limits (relaxed only when they can't all be met)</p>${chips(b.soft)}
+      ${tech}</details></div>`;
 }
 function bucketLabel(k,n){ return k==="core"&&n<=3?"Global equity":k==="factor"&&n===4?"Factor & growth equity":k==="real"?"Real assets":SLEEVE_NAMES[k]; }
 function renderMix(b,risk){
   const m=b.mix, r=x=>{ const v=Math.round(x*10)/10; return Number.isInteger(v)?v:v.toFixed(1); }, parts=[["eq","Equities",m.eq],["bonds","Bonds",m.bonds],["gold","Gold",m.gold],["comm","Commodities",m.comm]].filter(p=>p[2]>0.4);
   const sl=b.mix.sleeves, eqSplit=[["Core",sl.core],["Factor",sl.factor],["Thematic",sl.thematic]].filter(p=>p[1]>0.4).map(p=>`${p[0]} ${r(p[1])}%`).join(" · ");
-  const sw=b.swaps.map(x=>`<p class="mix-sub">Swapped ${x.out} for ${x.in}: ${x.out} was ${r(x.o*100)}% alike with ${x.with}. The basket now spans more markets and sectors (breadth ${x.breadth[0].toFixed(1)} → ${x.breadth[1].toFixed(1)}) and fund overlap falls from ${r(x.ov[0]*100)}% to ${r(x.ov[1]*100)}%. The ${SLEEVE_NAMES[x.bucket].toLowerCase()} allocation is unchanged.</p>`).join("")
-    +b.guards.map(g=>`<p class="mix-sub">Exposure guardrail (${g.label} ≤ ${r(g.cap)}%): ${g.fund} capped, with ${g.moved.map(m=>`${r(m.amt)}% moved to ${m.t}`).join(" and ")}, staying in ${SLEEVE_NAMES[g.bucket].toLowerCase()}.</p>`).join("")
-    +(b.unresolved.length||b.overCap.length?`<p class="mix-sub mix-warn">${b.count} funds can't fully meet every diversification limit${b.unresolved.length?` (${b.unresolved.map(u=>`${u.label} ${r(u.exp)}% vs ${r(u.cap)}%`).join("; ")})`:""}.${b.recommend?` Increase to ${b.recommend} funds for a more evenly diversified portfolio.`:" A lower Real assets or Equity style setting would help."}</p>`:"")
-    +b.kept.map(x=>`<p class="mix-sub">Kept ${x.a} and ${x.b} together (${r(x.o*100)}% alike): no replacement improved overall diversification without breaking a guardrail.</p>`).join("");
   $("mixSummary").innerHTML=`<p class="mix-title"><b>Risk ${risk}: ${RISK_LABELS[risk-1]}</b> <span class="mix-note">${RISK_NOTES[risk-1]}</span></p>
     <p class="mix-line">${parts.map(p=>`${r(p[2])}% ${p[1]}`).join(" · ")}</p>
     <div class="mix-bar" role="img" aria-label="Asset mix: ${parts.map(p=>`${r(p[2])}% ${p[1]}`).join(", ")}">${parts.map(p=>`<div style="flex-grow:${p[2]};background:${MIX_COLORS[p[0]]}">${p[2]>=9?p[1]:""}</div>`).join("")}</div>
     ${m.eq>0?`<p class="mix-sub">Inside equities: ${eqSplit}</p>`:""}
     <p class="mix-sub">With ${b.count} funds: ${b.buckets.map(x=>`${r(x.w)}% ${bucketLabel(x.k,b.count).toLowerCase()}${x.n>1?` (${x.n} funds)`:""}`).join(" · ")}</p>
-    ${b.moves.map(x=>`<p class="mix-sub">${SLEEVE_NAMES[x.from]} would break the ${etfCap(x.from,risk)}% per-fund limit, so ${r(x.amt)}% moves to ${SLEEVE_NAMES[x.to].toLowerCase()}. Still equities, so your risk is unchanged.</p>`).join("")}
-    ${b.overCap.map(x=>`<p class="mix-sub">${x.t} holds ${r(x.per)}%, above its ${x.cap}% single-fund limit${x.alone?`: it's the only ${bucketLabel(x.k,b.count).toLowerCase()} fund in your list, so there's nothing to share it with`:""}.</p>`).join("")}
-    <p class="mix-sub">Look-through (estimated, whole basket): US ${r(b.look.US)}% · Europe ${r(b.look.Europe)}% · UK ${r(b.look.UK)}% · Japan ${r(b.look.Japan)}% · Emerging markets ${r(b.look.Emerging)}% (in dedicated EM funds: ${r(b.picks.reduce((a,e,i)=>a+(EM_CATS.has(e.cat)?b.w[i]*100:0),0))}%, limit ${emCap(risk)}%) · Technology ${r(b.look.tech)}%</p>
-    <p class="mix-sub checks">${validationList(b,risk).map(c=>`<span class="${c.ok?"ok":"warn"}">${c.ok?"✓":"⚠"} ${c.label}</span>`).join("")}</p>
-    <dl class="mix-stats"><div><dt>Estimated volatility</dt><dd>${volLabel(b.vol)}</dd></div><div><dt>Growth potential</dt><dd>${growLabel(b.mu)}</dd></div><div><dt>Downside protection</dt><dd>${protLabel(risk)}</dd></div></dl>${sw}`;
+    <dl class="mix-stats"><div><dt>Estimated volatility</dt><dd>${volLabel(b.vol)}</dd></div><div><dt>Growth potential</dt><dd>${growLabel(b.mu)}</dd></div><div><dt>Downside protection</dt><dd>${protLabel(risk)}</dd></div></dl>${divCheckHTML(b,risk,r)}`;
 }
 function renderBundle(){
   const risk=+$("riskSlider").value, count=+$("countSlider").value, amt=amount();
