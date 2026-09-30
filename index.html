@@ -366,6 +366,16 @@ html[data-theme="nightdesk"] #riskSlider{accent-color:#E8E6E1}
 html[data-theme="nightdesk"] .gbar i{border-color:#15171B}
 html[data-theme="nightdesk"] dialog::backdrop{background:rgba(0,0,0,.6)}
 
+
+.mix-summary{border-top:1px solid var(--line);padding-top:16px}
+.mix-title{margin:0;font:600 20px/1.2 var(--display)}
+.mix-line{margin:4px 0 10px;font-size:15px;color:var(--ink)}
+.mix-bar{display:flex;height:30px;border-radius:var(--radius,6px);overflow:hidden}
+.mix-bar div{transition:flex-grow .45s ease;display:flex;align-items:center;justify-content:center;color:#fff;font:600 12px var(--body);white-space:nowrap;overflow:hidden;min-width:0}
+.mix-sub{margin:8px 0 0;font-size:13px;color:var(--muted)}
+.mix-stats{display:flex;flex-wrap:wrap;gap:8px 28px;margin:12px 0 0}
+.mix-stats div{margin:0}.mix-stats dt{font-size:12px;color:var(--muted)}.mix-stats dd{margin:0;font-weight:600;font-size:15px}
+@media (prefers-reduced-motion:reduce){.mix-bar div{transition:none}}
 .style-pick{margin-top:6px}
 .amount-pick{display:flex;align-items:center;gap:10px;flex-wrap:wrap;margin:14px 0 0;font-size:15px;color:var(--muted)}
 .amount-pick select{font:600 15px var(--body);padding:8px 10px;border:1px solid var(--line);border-radius:var(--radius);background:var(--panel);color:var(--ink);min-height:44px}
@@ -395,23 +405,34 @@ html[data-theme="nightdesk"] dialog::backdrop{background:rgba(0,0,0,.6)}
       I want to invest
       <span class="slot"><span id="curSym">$</span><input type="text" id="amount" inputmode="numeric" value="10,000" aria-label="Amount to invest"></span>
       across <span class="slot" id="countWord">6 funds</span>
-      at <span class="slot" id="riskWord">moderate</span> risk.
+      with a <span class="slot" id="riskWord">balanced</span> mix.
     </h1>
     <div class="amount-pick"><label for="amountPreset">Or choose an amount</label>
       <select id="amountPreset"></select></div>
 
     <div class="controls">
       <div class="ctl">
-        <label for="riskSlider">Risk appetite <b id="riskVal">5 / 10</b></label>
-        <input type="range" id="riskSlider" min="1" max="10" value="5">
+        <label for="riskSlider">Portfolio risk <b id="riskVal">6 / 10</b></label>
+        <input type="range" id="riskSlider" min="1" max="10" value="6">
         <div class="risk-track" aria-hidden="true"></div>
-        <div class="hint"><span>Protect what I have</span><span>Chase growth</span></div>
+        <div class="hint"><span>Preserve</span><span>Growth</span></div>
       </div>
       <div class="ctl">
         <label for="countSlider">Number of funds <b id="countVal">6</b></label>
         <input type="range" id="countSlider" min="4" max="8" value="6">
         <div class="hint"><span>Simpler</span><span>More spread out</span></div>
       </div>
+      <div class="ctl">
+        <label for="styleSlider">Equity style <b id="styleVal">Neutral</b></label>
+        <input type="range" id="styleSlider" min="1" max="5" value="3">
+        <div class="hint"><span>Defensive</span><span>Aggressive</span></div>
+      </div>
+      <div class="ctl">
+        <label for="realSlider">Real assets <b id="realVal">Normal</b></label>
+        <input type="range" id="realSlider" min="1" max="3" value="2">
+        <div class="hint"><span>Low</span><span>High</span></div>
+      </div>
+      <div class="mix-summary ctl-wide" id="mixSummary" aria-live="polite"></div>
       <div class="ctl ctl-wide">
         <label class="switch" for="overlapToggle"><input type="checkbox" id="overlapToggle" role="switch" checked><span class="knob" aria-hidden="true"></span>Minimise overlap between funds</label>
         <div class="hint" style="display:block">Avoids pairs that hold many of the same companies, like a global tracker plus an S&amp;P 500 fund.</div>
@@ -629,7 +650,6 @@ const PALETTES={classic:["#2F4FD8","#0F766E","#B7791F","#7A3FB5","#C2410C","#0E7
   monograph:["#5B2A86","#1C1C1E","#B3541E","#4A4A50","#7C4DAA","#8A6D3B","#2F5D62","#6E6E73"],
   nightdesk:["#3E6DB5","#9A6F1E","#C2553A","#2F7F6E","#7A5BA8","#56606C","#A04A6B","#5E7331"]};
 let COLORS=PALETTES[document.documentElement.dataset.theme]||PALETTES.classic;
-const RISK_WORDS=["very low","very low","low","low","moderate","moderate","growth","growth","high","very high"];
 function corr(a,b){
   if(a.t===b.t) return 1;
   if(a.cat===b.cat) return .9;
@@ -702,30 +722,98 @@ function portfolioOverlap(picks,w){
 }
 const ovLabel=x=>x<0.15?"Low":x<0.35?"Moderate":"High";
 
-function buildBundle(risk,count,lowOverlap){
-  const targetVol=2+(risk-1)*(30-2)/9, t=(risk-1)/9;
-  const scored=DATA.map(e=>({e,s:-1.4*Math.abs(e.vol-targetVol)/Math.max(targetVol,6)+e.score*0.1+e.mu*0.04*t
-    +(e.cls==="gold"&&risk>=3&&risk<=7?0.3:0)})).sort((a,b)=>b.s-a.s);
-  const picks=[], cats=new Set(), tick=new Set(["VOO"]); // VOO duplicates SPY
-  // With "minimise overlap" on, skip funds sharing too much with ones already picked;
-  // loosen the limit step by step only if the basket can't otherwise be filled.
-  for(const limit of lowOverlap?[0.25,0.4,0.6,1.01]:[1.01]){
-    for(const {e} of scored){ if(picks.length>=count) break;
-      if(picks.includes(e)||cats.has(e.cat)||tick.has(e.t)||/leveraged|inverse/i.test(e.cat)) continue; /* never bundle daily-reset leveraged funds */
-      if(picks.some(p=>overlap(p,e)>limit)) continue;
-      picks.push(e); cats.add(e.cat); }
-    if(picks.length>=count) break;
+/* ---------- Allocation engine ----------
+   1. Portfolio risk (1-10) sets the asset mix: equities / bonds / gold / commodities.
+   2. It also splits equities into three sleeves: core (broad world trackers),
+      factor (quality, value, small-cap tilts) and thematic (tech, chips, AI...).
+   3. Equity style moves money between the thematic sleeve and core+factor,
+      without changing how much is in equities overall.
+   4. Real assets (Low / Normal / High) moves 10 points to or from gold and
+      commodities, taken from bonds first so the equity share stays put.
+   5. Each sleeve gets fund slots, then the best-fitting funds fill them. */
+const RISK_MIX={1:[20,65,10,5],2:[30,55,10,5],3:[40,45,10,5],4:[50,35,10,5],5:[60,25,10,5],
+  6:[65,20,10,5],7:[72,13,10,5],8:[80,8,8,4],9:[90,3,5,2],10:[100,0,0,0]};          // equities, bonds, gold, commodities (%)
+const EQ_SPLIT={1:[14,6,0],2:[20,9,1],3:[25,13,2],4:[30,16,4],5:[32,22,6],6:[30,25,10],
+  7:[32,27,13],8:[37,27,16],9:[42,28,20],10:[45,30,25]};                             // core, factor, thematic (% of portfolio)
+const RISK_LABELS=["Preserve","Cautious","Conservative","Moderate","Balanced","Balanced growth","Growth","Strong growth","Aggressive growth","Max growth"];
+const MIX_WORDS=["capital-preserving","cautious","conservative","moderate","balanced","balanced-growth","growth","strong-growth","aggressive-growth","maximum-growth"];
+const STYLE_LABELS=["Defensive","Leaning defensive","Neutral","Leaning aggressive","Aggressive"];
+const REAL_LABELS=["Low","Normal","High"];
+const SLEEVE_SHORT={core:"Core",factor:"Factor",thematic:"Thematic",bonds:"Bonds",gold:"Gold",comm:"Commodities"};
+const SLEEVE_NAMES={core:"Core equities",factor:"Factor equities",thematic:"Growth & thematic",bonds:"Bonds",gold:"Gold",comm:"Commodities"};
+// Which fund categories can fill each sleeve, in order of preference.
+function sleevePrefs(key,style,risk){
+  const def=style<=2, agg=style>=4;
+  return ({
+    core:["Developed world","Global stocks","Emerging markets","UK large cap (FTSE 100)","Europe","Japan","US total market","US large cap","International"],
+    factor:def?["Global quality factor","Global min volatility","Global value factor","US quality factor","Global dividend income","Global small value","US defensive","US dividend"]
+          :agg?["Global small value","Global momentum factor","US quality factor","Global small cap","Global quality factor","Global value factor","US small cap","US defensive"]
+              :["Global quality factor","Global value factor","Global small value","US quality factor","Global momentum factor","Global min volatility","US defensive","US dividend"],
+    thematic:def?["US growth (Nasdaq 100)","Sector: tech","Healthcare innovation","Cyber security","Defence","US growth"]
+            :agg?["Sector: semiconductors","Artificial intelligence","US growth (Nasdaq 100)","Cyber security","Robotics & automation","Uranium & nuclear","Sector: tech","US growth","Thematic growth"]
+                :["US growth (Nasdaq 100)","Sector: semiconductors","Artificial intelligence","Cyber security","Sector: tech","Robotics & automation","US growth"],
+    bonds:risk<=3?["Bonds: short UK gilts","Bonds: short sterling corporate","Bonds: index-linked gilts","Bonds: UK gilts","Bonds: global aggregate (GBP hedged)","Bonds: ultra-short","Bonds: short","Bonds: core","Bonds: inflation"]
+                 :["Bonds: UK gilts","Bonds: global aggregate (GBP hedged)","Bonds: index-linked gilts","Bonds: sterling corporate","Bonds: short UK gilts","Bonds: core","Bonds: inflation","Bonds: long"],
+    gold:["Gold"], comm:["Commodities (broad)"],
+  })[key];
+}
+const FOLD={comm:["gold","bonds","core"],gold:["bonds","core"],thematic:["factor","core"],factor:["core","thematic"],bonds:["gold","core"],core:["factor","thematic"]};
+function assetMix(risk,style,real){
+  let [eq,bonds,gold,comm]=RISK_MIX[risk], [core,factor,them]=EQ_SPLIT[risk];
+  // equity style: shrink or grow the thematic sleeve inside equities
+  const m=[0.35,0.65,1,1.4,1.8][style-1], t=Math.min(0.45,(them/eq)*m)*eq, rest=eq-t;
+  core=rest*core/(core+factor); factor=rest-core; them=t;
+  // real assets: +/-10 points, from/to bonds first, then equities
+  const ra=gold+comm, target=Math.max(0,ra+[-10,0,10][real-1]); let d=target-ra;
+  if(d>0){ const fromB=Math.min(d,bonds); bonds-=fromB; const fromE=d-fromB;
+    if(fromE>0){ const k=(eq-fromE)/eq; core*=k; factor*=k; them*=k; eq-=fromE; } }
+  else bonds-=d;
+  const gs=gold+comm>0?gold/(gold+comm):2/3; gold=target*gs; comm=target-gold;
+  return {eq,bonds,gold,comm,sleeves:{core,factor,thematic:them,bonds,gold,comm}};
+}
+function buildBundle(risk,count,lowOverlap,style,real){
+  style=style||+($("styleSlider")?.value||3); real=real||+($("realSlider")?.value||2);
+  const mix=assetMix(risk,style,real), sl={...mix.sleeves};
+  const usable=e=>!/leveraged|inverse|crypto: bitcoin/i.test(e.cat);
+  const pool={}; Object.keys(sl).forEach(k=>{ const prefs=sleevePrefs(k,style,risk); pool[k]=DATA.filter(e=>usable(e)&&prefs.includes(e.cat)); });
+  // an empty sleeve (no matching funds in the data) hands its weight on
+  const fold=k=>{ const to=FOLD[k].find(x=>sl[x]>0&&pool[x].length)||FOLD[k].find(x=>pool[x].length); if(to){ sl[to]+=sl[k]; } sl[k]=0; };
+  Object.keys(sl).forEach(k=>{ if(sl[k]>0&&!pool[k].length) fold(k); });
+  // too few fund slots: fold the smallest sleeves into their neighbours
+  let live=()=>Object.keys(sl).filter(k=>sl[k]>0.001);
+  while(live().length>count){ const k=live().sort((a,b)=>sl[a]-sl[b])[0]; fold(k); }
+  // spare slots go to the sleeves carrying the most money per fund (gold/commodities keep one)
+  const slots={}; live().forEach(k=>slots[k]=1);
+  for(let n=live().length;n<count;n++){
+    const k=live().filter(k=>k!=="gold"&&k!=="comm"&&slots[k]<pool[k].length).sort((a,b)=>sl[b]/(slots[b]+1)-sl[a]/(slots[a]+1))[0];
+    if(!k) break; slots[k]++;
   }
-  // weights: low risk -> inverse volatility, high risk -> expected return
-  const inv=picks.map(e=>1/e.vol), ret=picks.map(e=>Math.max(e.mu,1));
-  const si=inv.reduce((a,b)=>a+b), sr=ret.reduce((a,b)=>a+b);
-  let w=picks.map((e,i)=>(1-t)*inv[i]/si+t*ret[i]/sr);
-  w=w.map(x=>Math.min(x,.35)); const sw=w.reduce((a,b)=>a+b); w=w.map(x=>x/sw);
+  const picks=[], w=[], sleeveOf=[], cats=new Set();
+  for(const k of ["core","factor","thematic","bonds","gold","comm"]){
+    if(!slots[k]) continue; const prefs=sleevePrefs(k,style,risk); const chosen=[];
+    for(let i=0;i<slots[k];i++){
+      let best=null,bs=-1e9;
+      for(const e of pool[k]){ if(picks.includes(e)||chosen.includes(e)||cats.has(e.cat)) continue;
+        let sc=1-prefs.indexOf(e.cat)*0.12+0.12*e.score-(e.signal==="Sell"?0.4:0)-(e.er||0)*0.3;
+        if(k==="thematic") sc+=(style-3)*0.015*e.mu;
+        if(k==="factor"&&style<=2) sc-=0.01*e.vol;
+        if(lowOverlap){ // core and satellites overlap by design, so that pairing only counts lightly
+          const pen=[...picks.map((p,j)=>overlap(p,e)*(sleeveOf[j]==="core"&&k!=="core"?0.2:1)),...chosen.map(p=>overlap(p,e))];
+          if(pen.length) sc-=1.2*Math.max(...pen); }
+        if(sc>bs){bs=sc;best=e;} }
+      if(!best) break; chosen.push(best); cats.add(best.cat);
+    }
+    chosen.forEach(e=>{ picks.push(e); w.push(sl[k]/chosen.length/100); sleeveOf.push(k); });
+  }
+  const sw=w.reduce((a,b)=>a+b,0)||1; for(let i=0;i<w.length;i++) w[i]/=sw;
   let mu=0,v=0; picks.forEach((a,i)=>{mu+=w[i]*a.mu; picks.forEach((b,j)=>v+=w[i]*w[j]*a.vol*b.vol*corr(a,b));});
   const dd=picks.reduce((s,e,i)=>s+w[i]*e.dd,0);
-  const yld=picks.reduce((s,e,i)=>s+w[i]*e.y,0), er=picks.reduce((s,e,i)=>s+w[i]*e.er,0);
-  return {picks,w,mu,vol:Math.sqrt(v),dd,yld,er,ov:portfolioOverlap(picks,w)};
+  const yld=picks.reduce((s,e,i)=>s+w[i]*(e.y||0),0), er=picks.reduce((s,e,i)=>s+w[i]*(e.er||0),0);
+  return {picks,w,sleeveOf,mix,style,real,mu,vol:Math.sqrt(v),dd,yld,er,ov:portfolioOverlap(picks,w)};
 }
+const volLabel=v=>v<6?"Low":v<10?"Low–medium":v<14?"Medium":v<18?"Medium–high":"High";
+const growLabel=m=>m<4?"Low":m<6?"Low–medium":m<8?"Medium":m<10?"Medium–high":"High";
+const protLabel=d=>d>-15?"High":d>-25?"Medium–high":d>-35?"Medium":d>-45?"Low–medium":"Low";
 
 /* ---------- Rendering ---------- */
 
@@ -810,16 +898,31 @@ const pct=(x,d=1)=>{ if(Math.abs(x)<0.5*Math.pow(10,-d)) x=0; return (x>=0?"+":"
 const esc=s=>String(s).replace(/[&<>"]/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]));
 function amount(){ const raw=$("amount").value.split(SEP.g).join("").replace(SEP.d,".").replace(/[^0-9.]/g,""); return Math.max(0,parseFloat(raw)||0); }
 
+
+/* Asset mix summary: what the risk, style and real-asset settings mean in money terms */
+const MIX_COLORS={eq:"var(--cobalt)",bonds:"var(--buy)",gold:"#B8913A",comm:"var(--sell)"};
+function renderMix(b,risk){
+  const m=b.mix, r=x=>Math.round(x), parts=[["eq","Equities",m.eq],["bonds","Bonds",m.bonds],["gold","Gold",m.gold],["comm","Commodities",m.comm]].filter(p=>p[2]>0.4);
+  const sl=b.mix.sleeves, eqSplit=[["Core",sl.core],["Factor",sl.factor],["Thematic",sl.thematic]].filter(p=>p[1]>0.4).map(p=>`${p[0]} ${r(p[1])}%`).join(" · ");
+  $("mixSummary").innerHTML=`<p class="mix-title"><b>Risk ${risk}: ${RISK_LABELS[risk-1]}</b></p>
+    <p class="mix-line">${parts.map(p=>`${r(p[2])}% ${p[1]}`).join(" · ")}</p>
+    <div class="mix-bar" role="img" aria-label="Asset mix: ${parts.map(p=>`${r(p[2])}% ${p[1]}`).join(", ")}">${parts.map(p=>`<div style="flex-grow:${p[2]};background:${MIX_COLORS[p[0]]}">${p[2]>=9?p[1]:""}</div>`).join("")}</div>
+    ${m.eq>0?`<p class="mix-sub">Inside equities: ${eqSplit}</p>`:""}
+    <dl class="mix-stats"><div><dt>Estimated volatility</dt><dd>${volLabel(b.vol)}</dd></div><div><dt>Growth potential</dt><dd>${growLabel(b.mu)}</dd></div><div><dt>Downside protection</dt><dd>${protLabel(b.dd)}</dd></div></dl>`;
+}
 function renderBundle(){
   const risk=+$("riskSlider").value, count=+$("countSlider").value, amt=amount();
+  const style=+$("styleSlider").value, real=+$("realSlider").value;
   $("riskVal").textContent=risk+" / 10"; $("countVal").textContent=count;
-  $("riskWord").textContent=RISK_WORDS[risk-1]; $("countWord").textContent=count+" funds";
-  const b=buildBundle(risk,count,$("overlapToggle").checked);
+  $("styleVal").textContent=STYLE_LABELS[style-1]; $("realVal").textContent=REAL_LABELS[real-1];
+  $("riskWord").textContent=MIX_WORDS[risk-1]; $("countWord").textContent=count+" funds";
+  const b=buildBundle(risk,count,$("overlapToggle").checked,style,real);
+  renderMix(b,risk);
   $("allocBar").innerHTML=b.picks.map((e,i)=>`<div data-t="${e.t}" data-i="${i}" style="flex-grow:${b.w[i]};background:${COLORS[i]}" title="${e.t} ${(b.w[i]*100).toFixed(0)}%">${b.w[i]>.08?e.t:""}</div>`).join("");
   $("allocBar").setAttribute("aria-label","Allocation: "+b.picks.map((e,i)=>`${e.t} ${(b.w[i]*100).toFixed(0)}%`).join(", "));
   $("holdings").innerHTML=b.picks.map((e,i)=>{const $a=amt*b.w[i], sh=Math.floor($a/conv(e.p));
     return `<li><button class="hold-btn" data-t="${e.t}" data-i="${i}" aria-label="${e.t}, ${e.signal}, ${(b.w[i]*100).toFixed(1)}% of basket. Show reasoning"><span class="sw" style="background:${COLORS[i]}"></span><span class="tk">${e.t} <span class="pill ${e.signal}" style="min-width:0;padding:1px 6px;font-size:10px;vertical-align:middle">${e.signal}</span></span>
-    <span class="nm">${(b.w[i]*100).toFixed(1)}% · ${esc(e.n)}</span>
+    <span class="nm">${(b.w[i]*100).toFixed(1)}% · ${SLEEVE_SHORT[b.sleeveOf[i]]||""} · ${esc(e.n)}</span>
     <span class="amt">${usd($a)}<small>${sh>0?sh+" share"+(sh>1?"s":"")+" @ "+priceFmt(conv(e.p)):"fractional"}</small></span><span class="chev" aria-hidden="true">›</span></button></li>`;}).join("");
   LAST_BUNDLE={b,amt};
   const sc=[["Good year",b.mu+b.vol,"Roughly 1 year in 6 does at least this well"],
@@ -896,7 +999,7 @@ function openDetail(t,note,amtOverride,back){ BACK=back||null;
 
 /* ---------- Wire up ---------- */
 [...new Set(DATA.map(e=>e.cat))].sort().forEach(c=>$("cat").insertAdjacentHTML("beforeend",`<option>${esc(c)}</option>`));
-["riskSlider","countSlider"].forEach(id=>$(id).addEventListener("input",renderBundle));
+["riskSlider","countSlider","styleSlider","realSlider"].forEach(id=>$(id).addEventListener("input",renderBundle));
 try{ if(localStorage.getItem("fundwise-overlap")==="off") $("overlapToggle").checked=false; }catch(e){}
 $("overlapToggle").addEventListener("change",()=>{ try{ localStorage.setItem("fundwise-overlap",$("overlapToggle").checked?"on":"off"); }catch(e){} renderBundle(); });
 let amountTouched=false;
@@ -936,11 +1039,12 @@ $("amountPreset").addEventListener("change",e=>{ if(!e.target.value) return;
   $("amount").value=(+e.target.value).toLocaleString(LOCALE); sizeAmount(); amountTouched=true; remember(); renderBundle(); renderPresets(); });
 
 /* Remember amount, fund count and risk for this browser session */
-function remember(){ try{ sessionStorage.setItem("iqfund-builder",JSON.stringify({amount:amount(),cur:CUR,count:+$("countSlider").value,risk:+$("riskSlider").value})); }catch(e){} }
+function remember(){ try{ sessionStorage.setItem("iqfund-builder",JSON.stringify({amount:amount(),cur:CUR,count:+$("countSlider").value,risk:+$("riskSlider").value,style:+$("styleSlider").value,real:+$("realSlider").value})); }catch(e){} }
 try{ const m=JSON.parse(sessionStorage.getItem("iqfund-builder")||"null");
   if(m){ if(m.amount>0){ const a=m.cur===CUR?m.amount:niceRound(m.amount*rateOf(CUR,m.cur)); $("amount").value=a.toLocaleString(LOCALE); amountTouched=true; }
-    if(m.count>=4&&m.count<=8) $("countSlider").value=m.count; if(m.risk>=1&&m.risk<=10) $("riskSlider").value=m.risk; } }catch(e){}
-["amount","countSlider","riskSlider"].forEach(id=>$(id).addEventListener("input",()=>{ remember(); if(id==="amount") renderPresets(); }));
+    if(m.count>=4&&m.count<=8) $("countSlider").value=m.count; if(m.risk>=1&&m.risk<=10) $("riskSlider").value=m.risk;
+    if(m.style>=1&&m.style<=5) $("styleSlider").value=m.style; if(m.real>=1&&m.real<=3) $("realSlider").value=m.real; } }catch(e){}
+["amount","countSlider","riskSlider","styleSlider","realSlider"].forEach(id=>$(id).addEventListener("input",()=>{ remember(); if(id==="amount") renderPresets(); }));
 $("amount").addEventListener("blur",renderPresets);
 
 /* Style switch: Broadsheet (default) or Classic, remembered on this device */
@@ -1041,10 +1145,11 @@ async function notifyNew(){
 async function saveBasket(){
   const risk=+$("riskSlider").value, count=+$("countSlider").value, amt=amount();
   if(!amt){ $("saveMsg").textContent="Enter an amount first."; return; }
-  const b=buildBundle(risk,count,$("overlapToggle").checked), usd=amt/RATE;   // amount in the base currency
+  const style=+$("styleSlider").value, real=+$("realSlider").value;
+  const b=buildBundle(risk,count,$("overlapToggle").checked,style,real), usd=amt/RATE;   // amount in the base currency
   const holdings=b.picks.map((e,i)=>({t:e.t,n:e.n,units:usd*b.w[i]/e.p,entry:e.p,since:ASOF}));
   const name=$("basketName").value.trim()||`Basket ${BASKETS.length+1}`;
-  BASKETS.push({id:Date.now().toString(36),name,created:ASOF,cur:CUR,base:BASE,fx:RATE,invested:amt,usdInvested:usd,risk,
+  BASKETS.push({id:Date.now().toString(36),name,created:ASOF,cur:CUR,base:BASE,fx:RATE,invested:amt,usdInvested:usd,risk,style,real,
     versions:[{from:ASOF,holdings}],log:[{d:ASOF,x:`Saved with ${holdings.map(h=>h.t).join(", ")}`}],seen:[]});
   if(LIVE) BASKETS[BASKETS.length-1].seen=alertsFor(BASKETS[BASKETS.length-1]).map(a=>a.key); // don't notify about alerts you saved with
   const ok=await Store.save(); $("basketName").value="";
@@ -1084,7 +1189,7 @@ function openBasket(id){
     return `<tr><td><button data-fund="${h.t}">${h.t}</button></td><td class="r">${(v/s.usdNow*100).toFixed(1)}%</td>
       <td class="r">${moneyIn(h.entry*rateOf(b.cur,b.base||"USD"),b.cur)} → ${moneyIn(p*rateOf(b.cur,b.base||"USD"),b.cur)}</td><td class="r ${r>=0?"pos":"neg"}">${pct(r*100)}</td></tr>`;}).join("");
   $("dlgBody").innerHTML=`
-  <div class="dlg-h"><div><h3 id="dTitle">${esc(b.name)}</h3><p>Saved ${fmtDate(b.created)} · ${RISK_WORDS[b.risk-1]} risk · prices as of ${fmtDate(ASOF)}</p></div>
+  <div class="dlg-h"><div><h3 id="dTitle">${esc(b.name)}</h3><p>Saved ${fmtDate(b.created)} · risk ${b.risk} (${RISK_LABELS[b.risk-1].toLowerCase()})${b.style?`, ${STYLE_LABELS[b.style-1].toLowerCase()} equities`:""} · prices as of ${fmtDate(ASOF)}</p></div>
   <button class="close" onclick="dlg.close()">Close</button></div>
   <div class="bnums">
     <div><small>Value now</small><b>${moneyIn(s.localNow,b.cur)}</b></div>
