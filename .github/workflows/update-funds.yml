@@ -11,7 +11,7 @@ permissions:
 jobs:
   update:
     runs-on: ubuntu-latest
-    timeout-minutes: 20       # never let a stuck run go on for hours
+    timeout-minutes: 25       # never let a stuck run go on for hours
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-python@v5
@@ -23,6 +23,6 @@ jobs:
         run: |
           git config user.name "fund-data-bot"
           git config user.email "actions@users.noreply.github.com"
-          git add funds.csv history.csv info_cache.json
+          git add funds.csv history.csv info_cache.json risk.json
           git diff --cached --quiet || git commit -m "Update fund data $(date -u +%F)"
           git push
