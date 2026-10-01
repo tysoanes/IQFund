@@ -277,17 +277,23 @@ def update_history(hist):
     print(f"history.csv now holds {len(rows)} prices.")
 
 
-def build_risk(hist, rows, as_of):
+def weekly_returns(adj):
+    wk = adj.resample("W-FRI").last().dropna()
+    return wk.pct_change().dropna().clip(-0.6, 0.6)   # guard against stray data glitches
+
+
+def build_risk(hist, rows, as_of, stand_ins=None):
     """Weekly total returns per fund for risk.json. Gaps before a fund launched are
-    filled with the average of its category (else its asset class, else all funds),
-    so every basket can be measured over the same window."""
+    filled first from its US equivalent (tickers.csv US_equivalent column), then
+    with the average of its category, else its asset class, else all funds, so
+    every basket can be measured over the same window."""
+    stand_ins = stand_ins or {}
     meta = {r["symbol"]: ((r.get("category") or "").strip(), (r.get("class") or "eq").strip()) for r in rows}
     weekly = {}
     for s, h in hist.items():
-        wk = h["Adj Close"].resample("W-FRI").last().dropna()
-        r = wk.pct_change().dropna()
+        r = weekly_returns(h["Adj Close"])
         if len(r) >= 8:
-            weekly[s] = r.clip(-0.6, 0.6)            # guard against stray data glitches
+            weekly[s] = r
     if not weekly:
         return None
     rets = pd.DataFrame(weekly).sort_index()
@@ -306,6 +312,13 @@ def build_risk(hist, rows, as_of):
     for s in rets:
         col = rets[s].copy()
         cat, cls = meta.get(s, ("", "eq"))
+        proxy = None
+        if s in stand_ins and col.isna().any():
+            sym, series = stand_ins[s]
+            filled = col.fillna(series.reindex(rets.index))
+            if filled.notna().sum() > col.notna().sum():
+                proxy = {"t": sym, "from": series.first_valid_index().date().isoformat()}
+                col = filled
         for peers in (groups.get(("cat", cat), []), groups.get(("cls", cls), []), list(rets.columns)):
             peers = [p for p in peers if p != s]
             if peers and col.isna().any():
@@ -313,9 +326,33 @@ def build_risk(hist, rows, as_of):
         col = col.fillna(0.0)
         out[s] = {"from": real_from[s].date().isoformat() if real_from[s] is not None else None,
                   "r": [int(round(v * 10000)) for v in col]}   # in 0.01% steps, to keep the file small
+        if proxy:
+            out[s]["proxy"] = proxy
     return {"as_of": as_of, "freq": "weekly", "unit": 0.0001, "basis": "total return in GBP",
             # weeks are labelled by their Friday; the current, unfinished week gets its last trading day
             "dates": [min(d.date().isoformat(), as_of) for d in rets.index], "funds": out}
+
+
+def stand_ins_for(hist, rows, fx):
+    """US-listed equivalents for funds that launched after the risk window starts.
+    Their returns (converted to pounds) stand in before the London fund existed."""
+    if not hist or "USD" not in fx:
+        return {}
+    first = min(h.index[0] for h in hist.values())
+    late = {r["symbol"]: (r.get("us_equivalent") or "").strip().upper() for r in rows
+            if r["symbol"] in hist and hist[r["symbol"]].index[0] > first + pd.Timedelta(days=60)}
+    late = {s: u for s, u in late.items() if u and u.replace(".", "").replace("-", "").isalnum()}
+    if not late:
+        return {}
+    print(f"Stand-ins: fetching {len(set(late.values()))} US equivalents for late-launched funds", flush=True)
+    raw = download(sorted(set(late.values())))
+    out = {}
+    for s, u in late.items():
+        if u in raw:
+            conv = to_pounds(raw[u], "USD", fx)
+            if conv is not None:
+                out[s] = (u, weekly_returns(conv["Adj Close"]))
+    return out
 
 
 def fmt(v, d=2):
@@ -373,7 +410,7 @@ def main():
             written += 1
     print(f"Wrote {written} funds to {OUT_FILE} (prices in {BASE}).")
     update_history(hist)
-    risk = build_risk(hist, rows, as_of)
+    risk = build_risk(hist, rows, as_of, stand_ins_for(hist, rows, fx))
     if risk:
         with open(RISK_FILE, "w", encoding="utf-8") as f:
             json.dump(risk, f, separators=(",", ":"))

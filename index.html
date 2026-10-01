@@ -100,6 +100,15 @@ input[type=range]{width:100%;accent-color:var(--cobalt);height:32px;margin:4px 0
 .up{color:#7CD6C8}.down{color:#F2A197}
 .stats{display:flex;gap:18px;margin-top:14px;font-size:13px;color:#A9B3C7;flex-wrap:wrap}
 .stats b{display:block;color:#fff;font:700 17px var(--display)}
+.ol-head{margin:14px 0 2px;font-size:11px;font-weight:700;letter-spacing:.08em;text-transform:uppercase;opacity:.7}
+.ol-head:first-child{margin-top:0}
+.stress-more{font-size:13px;padding:2px 0 8px}.stress-more summary{cursor:pointer;opacity:.85;font-weight:600}
+.stress-more ul{list-style:none;margin:6px 0 0;padding:0}.stress-more li{display:flex;justify-content:space-between;gap:10px;padding:3px 0}
+.stats small{display:block;font-size:11px;opacity:.8}
+.ol-illus{margin:12px 0 0;font-size:13px;line-height:1.5;opacity:.9}
+.riskcheck{margin-top:12px;padding:10px 12px;border:1px solid var(--line);border-left:3px solid var(--buy);border-radius:var(--radius,6px);font-size:14px}
+.riskcheck.above{border-left-color:var(--sell)}.riskcheck.below{border-left-color:var(--cobalt)}
+.riskcheck b{display:block;font-size:15px;margin-bottom:2px}.riskcheck p{margin:2px 0 0;font-size:13px;color:var(--muted)}
 
 /* Screener */
 .screener{padding:44px 0 20px;border-top:1px solid var(--line);margin-top:36px}
@@ -458,10 +467,11 @@ html[data-theme="nightdesk"] dialog::backdrop{background:rgba(0,0,0,.6)}
         <p class="overlap-note" id="overlapNote"></p>
       </div>
       <aside class="outlook" aria-live="polite">
-        <h3>One-year outlook</h3>
-        <p class="sub">Based on past returns and volatility, adjusted for today's valuations.</p>
+        <h3>Outlook &amp; risk</h3>
+        <p class="sub" id="outlookSub">Illustrations based on this mix's history and long-run assumptions, not forecasts.</p>
         <div id="outlook"></div>
         <div class="stats" id="pstats"></div>
+        <p class="ol-illus" id="illus"></p>
       </aside>
     </div>
     <section class="backtest" id="backtest" aria-labelledby="btTitle" hidden>
@@ -560,7 +570,10 @@ const ETFS = [
 
 /* ---------- Analysis ---------- */
 const clamp=(x,a,b)=>Math.max(a,Math.min(b,x));
-const LONG_RUN={eq:8,reit:7,bond:3.5,hy:5,gold:4.5};
+const LONG_RUN={eq:8,reit:7,bond:3.5,hy:5,gold:4.5};   // used only to rank funds when building baskets
+// Base-case assumptions per asset class (% a year, in pounds): long-run, deliberately modest.
+// Bonds use today's yield when the data has it. Review these about once a quarter.
+const BASE_RETURN={eq:7,reit:6.5,bond:4,hy:5.5,gold:4}, BASE_REVIEWED="Oct 2026";
 
 const DEF_VOL={eq:18,reit:21,bond:6,hy:8,gold:15}, DEF_DD={eq:-35,reit:-45,bond:-18,hy:-25,gold:-25};
 function analyze(e){
@@ -590,9 +603,15 @@ function analyze(e){
     !hasRange?"No 52-week range in the data.":`Sits at ${Math.round(range*100)}% of its 52-week range (${range>0.85?"near the high":range<0.25?"near the low":"mid-range"}).`,
     e.rsi==null?"No RSI in the data.":`RSI ${e.rsi}: ${e.rsi>70?"overbought — short-term pullback risk":e.rsi<30?"oversold — often a bounce zone":"neutral"}.`];
 
-  // expected 1-yr return: blend history with long-run class average, tilt by valuation
-  const mu=clamp((e.r5==null?LONG_RUN[e.cls]:0.5*e.r5+0.5*LONG_RUN[e.cls])+clamp(gap*15,-3,3),-10,25);
-  return {...e,gap,trend,range,score,signal,reasons,mu,
+  // muSel: the history-tilted estimate used only to RANK funds when building baskets (unchanged)
+  const muSel=clamp((e.r5==null?LONG_RUN[e.cls]:0.5*e.r5+0.5*LONG_RUN[e.cls])+clamp(gap*15,-3,3),-10,25);
+  // mu: the BASE CASE shown to users. Long-run assumption for the asset class (bonds: today's yield),
+  // a valuation tilt of at most ±3 points, and recent performance capped at ±2 points so momentum
+  // isn't counted twice (it already helps pick the funds).
+  const BR=BASE_RETURN[e.cls]??BASE_RETURN.eq, isBond=e.cls==="bond"||e.cls==="hy";
+  const anchor=isBond&&e.hasVal?e.val:BR, momentum=e.r5==null?0:clamp(0.2*(e.r5-BR),-2,2);
+  const mu=clamp(anchor+(isBond?0:clamp(gap*15,-3,3))+momentum,-10,25);
+  return {...e,gap,trend,range,score,signal,reasons,mu,muSel,momentum,
     up:mu+e.vol, down:mu-e.vol, bad:mu-2*e.vol};
 }
 let ASOF=new Date().toISOString().slice(0,10), LIVE=false, LAST_BUNDLE=null, DATA=ETFS.map(analyze), SOURCE="Sample data — not live prices";
@@ -823,7 +842,7 @@ function assetMix(risk,style,real){
 function fundScore(e,k,style,risk){
   const prefs=sleevePrefs(k,style,risk);
   let sc=1-prefs.indexOf(e.cat)*0.12+0.12*e.score-(e.signal==="Sell"?0.4:0)-(e.er||0)*0.3;
-  if(k==="thematic") sc+=(style-3)*0.015*e.mu;
+  if(k==="thematic") sc+=(style-3)*0.015*e.muSel;
   if(k==="factor"&&style<=2) sc-=0.01*e.vol;
   return sc;
 }
@@ -1014,7 +1033,7 @@ const volLabel=v=>v<5?"Low":v<9?"Low–medium":v<13?"Medium":v<17?"Medium–high
    Without risk.json (sample data, an uploaded CSV) the older estimates are used and labelled so. */
 let RISKDATA=null;
 function loadRisk(j){ if(!j||!Array.isArray(j.dates)||!j.funds) return; const u=j.unit||1e-4, f={};
-  for(const t in j.funds) f[t]={r:Float64Array.from(j.funds[t].r,x=>x*u),from:j.funds[t].from};
+  for(const t in j.funds) f[t]={r:Float64Array.from(j.funds[t].r,x=>x*u),from:j.funds[t].from,proxy:j.funds[t].proxy||null};
   RISKDATA={dates:j.dates,funds:f,asOf:j.as_of}; }
 function annVol(a){ const n=a.length; if(n<8) return null; let m=0; for(const x of a) m+=x; m/=n; let v=0; for(const x of a) v+=(x-m)*(x-m); return Math.sqrt(v/(n-1)*52)*100; }
 function measureRisk(picks,w){
@@ -1027,9 +1046,49 @@ function measureRisk(picks,w){
   let nav=1,peak=1,pk=-1,worst={dd:0,from:-1,to:-1};
   for(let t=0;t<n;t++){ nav*=1+port[t]; if(nav>peak){ peak=nav; pk=t; } const dd=nav/peak-1; if(dd<worst.dd) worst={dd,from:pk,to:t}; }
   const start=D[0], peakDate=worst.from<0?start:D[worst.from], troughDate=worst.to<0?null:D[worst.to];
-  const stand=picks.map((e,i)=>({t:e.t,from:S[i].from})).filter(x=>x.from&&x.from>start);
-  return {vol,v3,v6,dd:worst.dd*100,peakDate,troughDate,start,weeks:n,
+  const stand=picks.map((e,i)=>({t:e.t,from:S[i].from,proxy:S[i].proxy})).filter(x=>x.from&&x.from>start);
+  // rolling 12-month (52-week) outcomes, in log terms: their SPREAD is used, centred on the base case
+  let q=null; if(n>=104){ const c=new Float64Array(n+1); for(let t=0;t<n;t++) c[t+1]=c[t]+Math.log(1+port[t]);
+    const r=[]; for(let t=52;t<=n;t++) r.push(c[t]-c[t-52]); r.sort((a,b)=>a-b);
+    const at=p=>{ const k=(r.length-1)*p, i=Math.floor(k); return r[i]+(r[Math.min(i+1,r.length-1)]-r[i])*(k-i); };
+    q={p20:at(0.2),p50:at(0.5),p80:at(0.8),windows:r.length}; }
+  return {vol,v3,v6,vAll:annVol(port),q,dd:worst.dd*100,peakDate,troughDate,start,weeks:n,
     ddStand:troughDate?stand.filter(x=>x.from>peakDate):[], volStand:stand.filter(x=>x.from>D[Math.max(0,n-156)])};
+}
+/* Stress tests: illustrative shocks by fund type, applied to today's weights (not forecasts) */
+const STRESS=[
+  {name:"Recession & credit crunch",like:"2008-style",s:{equity:-30,em:-35,defensive:-22,smallvalue:-38,tech:-35,energy:-30,miners:-35,crypto:-60,govbond:8,linkers:2,corp:-5,shortbond:2,hy:-20,reit:-35,gold:8,silver:-10,comm:-30}},
+  {name:"Inflation & interest-rate shock",like:"2022-style",s:{equity:-15,em:-18,defensive:-10,smallvalue:-12,tech:-30,energy:10,miners:-10,crypto:-60,govbond:-15,linkers:-15,corp:-14,shortbond:-3,hy:-10,reit:-25,gold:5,silver:0,comm:20}},
+  {name:"Geopolitical & energy shock",like:"",s:{equity:-18,em:-25,defensive:-12,smallvalue:-20,tech:-22,energy:10,miners:-5,crypto:-30,govbond:4,linkers:3,corp:-3,shortbond:1,hy:-8,reit:-15,gold:15,silver:5,comm:15}}];
+function shockClass(e){ const c=e.cat||"";
+  if(/^Crypto/i.test(c)) return "crypto"; if(e.cls==="hy") return "hy"; if(e.cls==="reit"||/property|real estate/i.test(c)) return "reit";
+  if(e.cls==="bond") return /inflation|index-linked/i.test(c)?"linkers":/short|ultra/i.test(c)?"shortbond":/corporate/i.test(c)?"corp":"govbond";
+  if(c==="Gold") return "gold"; if(c==="Silver") return "silver"; if(/commodit/i.test(c)) return "comm";
+  if(/miners/i.test(c)) return "miners"; if(EM_CATS.has(c)) return "em"; if(/energy|uranium/i.test(c)) return "energy";
+  if(/semiconductor|tech|nasdaq|growth|artificial|robotics|cyber|gaming|innovation/i.test(c)) return "tech";
+  if(/quality|min vol|defensive|dividend|moat|health/i.test(c)) return "defensive";
+  if(/small|value|mid cap/i.test(c)) return "smallvalue";
+  return "equity"; }
+function stressTests(picks,w){ const sw=w.reduce((a,b)=>a+b,0)||1;
+  return STRESS.map(sc=>({...sc,loss:picks.reduce((a,e,i)=>a+w[i]/sw*(sc.s[shockClass(e)]??sc.s.equity),0)})); }
+
+/* Risk consistency: compare this basket with FndMngr's own neutral basket at the same risk level
+   (Neutral style, Neutral real assets, 6 funds), measured the same way. It informs; it never changes the basket. */
+let RISK_REF=null;
+function riskRef(){
+  if(!RISKDATA) return null;
+  if(RISK_REF&&RISK_REF.data===DATA&&RISK_REF.rd===RISKDATA) return RISK_REF;
+  const ref={data:DATA,rd:RISKDATA};
+  for(let r=1;r<=10;r++){ const b=buildBundle(r,6,true,3,3,{probe:true}), m=measureRisk(b.picks,b.w);
+    ref[r]=m?{vol:m.vol,stress:Math.min(...stressTests(b.picks,b.w).map(x=>x.loss))}:null; }
+  return RISK_REF=ref;
+}
+function riskCheck(b,risk){
+  const ref=riskRef(); if(!ref||!ref[risk]||!b.risk) return null;
+  const lo=ref[risk].vol*0.8, hi=ref[risk].vol*1.25, v=b.risk.vol, worst=Math.min(...b.stress.map(x=>x.loss));
+  const stressHigh=worst<ref[risk].stress*1.25-0.5;
+  const status=v>hi||stressHigh?"above":v<lo?"below":"ok";
+  return {status,v,lo,hi,stressHigh,worst,refStress:ref[risk].stress};
 }
 const monthYear=d=>new Date(d+"T12:00:00").toLocaleDateString(LOCALE,{month:"short",year:"numeric"});
 const growLabel=m=>m<4?"Low":m<6?"Low–medium":m<8?"Medium":m<10?"Medium–high":"High";
@@ -1146,6 +1205,15 @@ function fixHint(b){
   const realIssue=b.overCap.some(x=>REAL_KEYS.includes(x.k));
   return [eqIssue&&b.style>1?"a less aggressive Equity style":"",realIssue&&b.real>1?"a lower Real assets setting":""].filter(Boolean).join(" or ")||"a different risk level";
 }
+function riskCheckHTML(b,risk){
+  const c=riskCheck(b,risk); if(!c) return "";
+  const f=x=>x.toFixed(1)+"%", range=`typical for Risk ${risk}: ${f(c.lo)}–${f(c.hi)}`;
+  if(c.status==="ok") return `<div class="riskcheck"><b>Risk check ✓ In line with Risk ${risk}</b><p>Historical volatility ${f(c.v)} (${range}).</p></div>`;
+  if(c.status==="below") return `<div class="riskcheck below"><b>Lower volatility than typical for Risk ${risk}</b><p>Historical volatility ${f(c.v)} (${range}). The diversifiers and funds in this mix have historically damped its swings. That isn't wrong, but past calm isn't a promise.</p></div>`;
+  const why=c.v>c.hi?(b.style>=4?"Your more aggressive equity style and the funds selected have pushed historical volatility up.":"The funds selected have pushed historical volatility up.")
+    :`Its loss in the worst stress test (${f(c.worst)}) is well beyond what's usual for this risk level (${f(c.refStress)}).`;
+  return `<div class="riskcheck above"><b>Risk check ⚠ Higher risk than typical for Risk ${risk}</b><p>Historical volatility ${f(c.v)} (${range}). ${why}</p></div>`;
+}
 function divCheckHTML(b,risk,r){
   const softBad=b.soft.filter(c=>!c.ok), hardBad=b.hard.filter(c=>!c.ok), plain=divPlain(b);
   const relaxed=softBad.length>0, styleOk=!b.moves.length;
@@ -1175,7 +1243,7 @@ function renderMix(b,risk){
     <div class="mix-bar" role="img" aria-label="Asset mix: ${parts.map(p=>`${r(p[2])}% ${p[1]}`).join(", ")}">${parts.map(p=>`<div style="flex-grow:${p[2]};background:${MIX_COLORS[p[0]]}">${p[2]>=9?p[1]:""}</div>`).join("")}</div>
     ${m.eq>0?`<p class="mix-sub">Inside equities: ${eqSplit}</p>`:""}
     <p class="mix-sub">With ${b.count} funds: ${b.buckets.map(x=>`${r(x.w)}% ${bucketLabel(x.k,b.count).toLowerCase()}${x.n>1?` (${x.n} funds)`:""}`).join(" · ")}</p>
-    <dl class="mix-stats"><div><dt>Estimated volatility</dt><dd>${volLabel(b.risk?b.risk.vol:b.vol)}</dd></div><div><dt>Growth potential</dt><dd>${growLabel(b.mu)}</dd></div><div><dt>Downside protection</dt><dd>${protLabel(risk)}</dd></div></dl>${divCheckHTML(b,risk,r)}`;
+    <dl class="mix-stats"><div><dt>Estimated volatility</dt><dd>${volLabel(b.risk?b.risk.vol:b.vol)}</dd></div><div><dt>Growth potential</dt><dd>${growLabel(b.mu)}</dd></div><div><dt>Downside protection</dt><dd>${protLabel(risk)}</dd></div></dl>${riskCheckHTML(b,risk)}${divCheckHTML(b,risk,r)}`;
 }
 function renderBundle(){
   const risk=+$("riskSlider").value, count=+$("countSlider").value, amt=amount();
@@ -1185,6 +1253,7 @@ function renderBundle(){
   $("riskWord").textContent=MIX_WORDS[risk-1]; $("riskArt").textContent=/^[aeiou]/.test(MIX_WORDS[risk-1])?"an":"a"; $("countWord").textContent=count+" funds";
   const b=buildBundle(risk,count,$("overlapToggle").checked,style,real);
   b.risk=measureRisk(b.picks,b.w);          // outlook engine: measured, not used for picking funds
+  b.stress=stressTests(b.picks,b.w);
   const vol=b.risk?b.risk.vol:b.vol;
   const nFunds=b.picks.length; $("countVal").textContent=nFunds; $("countWord").textContent=nFunds+" funds";
   const fn=FUND_NOTES[b.count]; $("countNote").innerHTML=`<b>${b.count} — ${fn[0]}</b><br>${fn[1]}`;
@@ -1196,15 +1265,33 @@ function renderBundle(){
     <span class="nm">${(b.w[i]*100).toFixed(1)}% · ${SLEEVE_SHORT[b.sleeveOf[i]]||""} · ${esc(e.n)}</span>
     <span class="amt">${usd($a)}<small>${sh>0?sh+" share"+(sh>1?"s":"")+" @ "+priceFmt(conv(e.p)):"fractional"}</small></span><span class="chev" aria-hidden="true">›</span></button></li>`;}).join("");
   LAST_BUNDLE={b,amt};
-  const R=b.risk, standTxt=l=>l.length?` ${l.map(x=>x.t).join(", ")} ${l.length>1?"weren't":"wasn't"} trading for all of it, so similar funds stand in before ${l.length>1?"their":"its"} launch.`:"";
-  const sc=[["Good year",b.mu+vol,"Roughly 1 year in 6 does at least this well"],
-            ["Expected",b.mu,"Middle-of-the-road outcome"],
-            ["Bad year",b.mu-vol,"Roughly 1 year in 6 does this badly or worse"],
-            R?[`Worst drop since ${monthYear(R.start)}`,R.dd,`This basket's own biggest fall (${monthYear(R.peakDate)} to ${monthYear(R.troughDate)}), at today's weights, dividends included.${standTxt(R.ddStand)}`]
-             :["Worst past drop (rough)",b.dd,"Each fund's own worst drop, weighted. An upper-end guess: the funds didn't all fall at the same time"]];
-  $("outlook").innerHTML=sc.map(([l,r,d])=>`<div class="scen"><span>${l}</span><span class="v ${r>=0?"up":"down"}">${usd(amt*(1+r/100))} <small style="font-size:13px">${pct(r)}</small></span><span class="d">${d}</span></div>`).join("");
-  const y5=amt*Math.pow(1+b.mu/100,5);
-  $("pstats").innerHTML=`<span><b>${usd(y5)}</b>5-yr expected</span><span title="${R?`Measured from this basket's weekly returns: 70% last 3 years (${R.v3.toFixed(1)}%) + 30% last 6 months (${R.v6!=null?R.v6.toFixed(1)+"%":"n/a"})`:"Estimated from each fund's volatility and typical correlations"}"><b>${vol.toFixed(1)}%</b>Volatility${R?"":" (est.)"}</span><span><b>${b.yld.toFixed(1)}%</b>Dividend yield</span><span><b>${b.er.toFixed(2)}%</b>Avg fee</span><span><b>${ovLabel(b.ov.avg)}</b>Fund overlap</span>`;
+  const R=b.risk, base=b.mu, money0=v=>usd(amt*(1+v/100));
+  const standTxt=l=>l.length?" "+l.map(x=>x.proxy?`${x.t} launched ${monthYear(x.from)}; before that its US equivalent ${x.proxy.t} stands in${x.proxy.from>R.start?` (and similar funds before ${monthYear(x.proxy.from)})`:""}.`
+    :`${x.t} launched ${monthYear(x.from)}; similar funds stand in before that.`).join(" "):"";
+  let strong,weak,sD,wD;
+  if(R&&R.q){ const lb=Math.log(1+base/100);
+    strong=(Math.exp(lb+R.q.p80-R.q.p50)-1)*100; weak=(Math.exp(lb+R.q.p20-R.q.p50)-1)*100;
+    sD=`Base case plus the gap between a typical 12-month period and the best 1 in 5 for this mix since ${monthYear(R.start)}.`;
+    wD=`Base case minus the gap between a typical 12-month period and the worst 1 in 5 for this mix since ${monthYear(R.start)}.`; }
+  else { strong=base+0.84*vol; weak=base-0.84*vol;
+    sD="Rough estimate: base case plus 0.84 × volatility (about 1 year in 5, if returns were normally distributed)."; wD="Rough estimate: base case minus 0.84 × volatility."; }
+  const worstS=b.stress.reduce((m,x)=>x.loss<m.loss?x:m);
+  const row=(l,v,d)=>`<div class="scen"><span>${l}</span><span class="v ${v>=0?"up":"down"}">${money0(v)} <small style="font-size:13px">${pct(v)}</small></span><span class="d">${d}</span></div>`;
+  $("outlook").innerHTML=`<p class="ol-head">One-year scenarios</p>`
+    +row("Strong year",strong,sD)
+    +row("Base case",base,`FndMngr central estimate, not a guaranteed return: long-run assumptions for each asset class (bonds at today's yield where known), a valuation tilt, and recent performance capped at ±2 points. Assumptions reviewed ${BASE_REVIEWED}.`)
+    +row("Weak year",weak,wD)
+    +`<p class="ol-head">Risk &amp; stress</p>`
+    +(R?row("Historical max drawdown",R.dd,`Worst peak-to-trough fall of today's mix since ${monthYear(R.start)} (${monthYear(R.peakDate)} to ${monthYear(R.troughDate)}), dividends included, measured weekly.${standTxt(R.ddStand)}`)
+       :row("Worst past drop (rough)",b.dd,"Each fund's own worst drop, weighted. An upper-end guess: the funds didn't all fall at the same time."))
+    +row("Severe stress test",worstS.loss,`${worstS.name}${worstS.like?` (${worstS.like})`:""}: the worst of three illustrative shocks applied to today's weights.`)
+    +`<details class="stress-more"><summary>All three stress tests</summary><ul>${b.stress.map(x=>`<li><span>${x.name}${x.like?` · ${x.like}`:""}</span><span>${money0(x.loss)} (${pct(x.loss)})</span></li>`).join("")}</ul></details>`;
+  const yCov=b.picks.reduce((a,e,i)=>a+(e.y!=null?b.w[i]:0),0);
+  $("pstats").innerHTML=`<span title="${R?`Measured from this mix's weekly returns: 70% last 3 years (${R.v3.toFixed(1)}%) + 30% last 6 months (${R.v6!=null?R.v6.toFixed(1)+"%":"n/a"})`:"Estimated from each fund's volatility and typical correlations"}"><b>${vol.toFixed(1)}%</b>${R?"Historical volatility":"Volatility (est.)"}${R?`<small>${R.vAll.toFixed(1)}% since ${new Date(R.start).getFullYear()}</small>`:""}</span>`
+    +`<span><b>${b.er.toFixed(2)}%</b>Avg fee</span>`
+    +`<span title="${yCov<0.8?"Yield data is missing for some of these funds":""}"><b>${yCov>=0.8?b.yld.toFixed(1)+"%":"n/a"}</b>Dividend yield</span>`
+    +`<span><b>${ovLabel(b.ov.avg)}</b>Fund overlap</span>`;
+  $("illus").innerHTML=`<b>5-year illustration</b> of ${money(amt)} at a steady 2%, 5% or 8% a year: ${[2,5,8].map(g=>usd(amt*Math.pow(1+g/100,5))).join(" · ")}. Fixed rates to show compounding, not a forecast.`;
   const top=b.ov.top;
   const bt=backtestHTML(b.picks,b.w,amt);
   $("backtest").hidden=!bt;
