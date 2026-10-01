@@ -130,7 +130,10 @@ details.scen .full{padding:0 0 10px;line-height:1.5}
 .hz{display:flex;flex-wrap:wrap;gap:12px 28px}.hz>div{display:flex;flex-direction:column;gap:4px;min-width:220px}
 .hz label{font-size:14px;font-weight:600}.hz select{font:inherit;font-size:14px;padding:6px 8px;border:1px solid var(--line);border-radius:var(--radius,6px);background:var(--panel,#fff);color:var(--ink)}
 .hz-note{margin-top:12px;padding:10px 12px;border:1px solid var(--line);border-left:3px solid #B8913A;border-radius:var(--radius,6px);font-size:14px;line-height:1.45}
-.hz-note b{display:block;margin-bottom:2px}.hz-note small{display:block;margin-top:4px;font-size:12px;color:var(--muted)}
+.hz-note b{display:block;margin-bottom:2px}.hz-note p{margin:6px 0 0}.hz-note p b,.hz-note .ov-line b{display:inline;margin:0}
+.hz-note.ov-on{border-left-color:var(--cobalt)}.ov-line{font-size:13px}.ov-tol{padding:6px 8px;background:rgba(184,145,58,.12);border-radius:4px}
+.ov-more{margin-top:6px;font-size:13px}.ov-more summary{cursor:pointer;font-weight:600;color:var(--cobalt)}
+.ov-btn{margin-top:8px;background:none;border:0;padding:0;font:600 13px var(--body);color:var(--cobalt);text-decoration:underline;text-underline-offset:3px;cursor:pointer}.hz-note small{display:block;margin-top:4px;font-size:12px;color:var(--muted)}
 .riskcheck{margin-top:12px;padding:10px 12px;border:1px solid var(--line);border-left:3px solid var(--buy);border-radius:var(--radius,6px);font-size:14px}
 .riskcheck.above{border-left-color:var(--sell)}.riskcheck.below{border-left-color:var(--cobalt)}
 .riskcheck b{display:block;font-size:15px;margin-bottom:2px}.riskcheck p{margin:2px 0 0;font-size:13px;color:var(--muted)}
@@ -851,7 +854,25 @@ function exposureLimits(risk){
   return L;
 }
 const OVERLAP_LIMIT=0.6;   // two funds sharing more than this count as duplicates
-function sleevePrefs(key,style,risk){
+/* Horizon overlay: when money must be there by a near date, the answers become HARD limits on the mix
+   and on which funds are eligible. Shown to the user, never silent, and they can switch it off. */
+const OVERLAYS={
+  pres1:{id:"pres1",name:"Capital preservation",when:"within 1 year",eq:10,cashMin:65,gold:5,comm:0,strict:true},
+  pres2:{id:"pres2",name:"Capital preservation",when:"in 1–2 years",eq:15,cashMin:50,gold:5,comm:0,strict:true},
+  prot5:{id:"prot5",name:"Capital protection",when:"in 3–5 years",eq:40,cashMin:10,gold:7.5,comm:2.5,strict:false}};
+let OVERLAY_OFF=false;
+function horizonOverlay(ignoreOff){
+  if(OVERLAY_OFF&&!ignoreOff) return null;
+  const h=+($("horizonSel")?.value||0), need=$("needSel")?.value||"";
+  if(need!=="yes") return null;
+  return h===1?OVERLAYS.pres1:h===2?OVERLAYS.pres2:h===5?OVERLAYS.prot5:null;
+}
+function sleevePrefs(key,style,risk,ov){
+  if(ov){   // eligible funds under the overlay: short-dated bonds; for near dates, broad or quality shares only
+    if(key==="bonds") return ["Bonds: short UK gilts","Bonds: short sterling corporate"].concat(ov.strict?[]:["Bonds: UK gilts","Bonds: global aggregate (GBP hedged)"]);
+    if(ov.strict&&key==="core") return ["Developed world","Global stocks","UK large cap (FTSE 100)"];
+    if(ov.strict&&key==="factor") return ["Global quality factor","Global min volatility","US quality factor"];
+  }
   const def=style<=2, agg=style>=4;
   return ({
     core:["Developed world","Global stocks","Emerging markets","UK large cap (FTSE 100)","Europe","Japan","US total market","US large cap","International"],
@@ -868,9 +889,9 @@ function sleevePrefs(key,style,risk){
   })[key];
 }
 const FOLD={cash:["bonds","core"],real:["bonds","core"],comm:["gold","real","bonds","core"],gold:["comm","real","bonds","core"],thematic:["factor","core"],factor:["core","thematic"],bonds:["real","gold","core"],core:["factor","thematic"]};
-function assetMix(risk,style,real){
+function assetMix(risk,style,real,ov){
   let [eq,bonds,gold,comm,core,factor,them]=RISK_GRID[risk];
-  const cash=Math.min(CASH_GRID[risk]||0,bonds); bonds-=cash;   // cash stays fixed below; real assets never touch it
+  let cash=Math.min(CASH_GRID[risk]||0,bonds); bonds-=cash;   // cash stays fixed below; real assets never touch it
   // 2. equity style: tilt the thematic share inside equities; equities in total stay put
   if(eq>0){ const m=[0.35,0.65,1,1.4,1.8][style-1], t=Math.min(0.45,(them/eq)*m)*eq, rest=eq-t;
     core=rest*core/(core+factor); factor=rest-core; them=t; }
@@ -884,10 +905,16 @@ function assetMix(risk,style,real){
   // target shown is exactly what gets implemented (rather than being folded away later)
   if(bonds>0.001&&bonds<1&&d>0){ target+=bonds; bonds=0; }
   const gs=base>0?gold/base:2/3; gold=target*gs; comm=target-gold;
+  if(ov){   // horizon overlay: caps only ever reduce risk; whatever is freed goes to cash, then short bonds
+    if(eq>ov.eq||(ov.strict&&them>0)){ const eqT=Math.min(eq,ov.eq), f=eq>0?eqT/eq:0;
+      if(ov.strict){ core=(core+them)*f; them=0; } else { core*=f; them*=f; } factor*=f; eq=eqT; }
+    gold=Math.min(gold,ov.gold); comm=Math.min(comm,ov.comm); cash=Math.max(cash,ov.cashMin);
+    bonds=100-eq-cash-gold-comm; if(bonds<0){ cash+=bonds; bonds=0; }
+  }
   return {eq,bonds,cash,gold,comm,sleeves:{core,factor,thematic:them,bonds,cash,gold,comm}};
 }
-function fundScore(e,k,style,risk){
-  const prefs=sleevePrefs(k,style,risk);
+function fundScore(e,k,style,risk,ov){
+  const prefs=sleevePrefs(k,style,risk,ov);
   let sc=1-prefs.indexOf(e.cat)*0.12+0.12*e.score-(e.signal==="Sell"?0.4:0)-(e.er||0)*0.3;
   if(k==="thematic") sc+=(style-3)*0.015*e.muSel;
   if(k==="factor"&&style<=2) sc-=0.01*e.vol;
@@ -928,7 +955,7 @@ function buildBundle(risk,count,lowOverlap,style,real,opts){
   style=style||+($("styleSlider")?.value||3); real=real||+($("realSlider")?.value||3);
   count=Math.max(3,Math.min(10,Math.round(count)||5));        // the fund count is a hard constraint
   // 1-3. risk, equity style and real assets set the allocation (never changed below)
-  const mix=assetMix(risk,style,real), m=mix.sleeves;
+  const OV=opts&&opts.overlay||null, mix=assetMix(risk,style,real,OV), m=mix.sleeves;
   // 4-5. how finely the fund count lets us implement it
   // start with every bucket, then combine only while there are more buckets than funds:
   // gold + commodities -> real assets, thematic -> factor, factor -> core
@@ -941,8 +968,8 @@ function buildBundle(risk,count,lowOverlap,style,real,opts){
   if(nz()>count) merge("cash","bonds");     // last resort: cash held in the shortest bond fund
   const ORDER=["core","factor","thematic","cash","bonds","real","gold","comm"].filter(k=>k in sl);
   const usable=e=>!/leveraged|inverse|crypto: bitcoin/i.test(e.cat);
-  const ranked={}; ORDER.forEach(k=>{ const prefs=sleevePrefs(k,style,risk);
-    ranked[k]=DATA.filter(e=>usable(e)&&prefs.includes(e.cat)).map(e=>({e,sc:fundScore(e,k,style,risk)})).sort((a,b)=>b.sc-a.sc); });
+  const ranked={}; ORDER.forEach(k=>{ const prefs=sleevePrefs(k,style,risk,OV);
+    ranked[k]=DATA.filter(e=>usable(e)&&prefs.includes(e.cat)).map(e=>({e,sc:fundScore(e,k,style,risk,OV)})).sort((a,b)=>b.sc-a.sc); });
   // a bucket with no eligible funds, or too small to be a sensible position (<1%), joins a neighbour
   ORDER.forEach(k=>{ if(sl[k]>0.001&&(!ranked[k].length||sl[k]<1)){ const to=FOLD[k].find(x=>x in sl&&ranked[x].length); if(to) sl[to]+=sl[k]; sl[k]=0; } });
   // 6. one fund per bucket, then spare slots split existing allocations (never add new risk):
@@ -951,7 +978,8 @@ function buildBundle(risk,count,lowOverlap,style,real,opts){
   const distinct=k=>REAL_KEYS.includes(k)?ranked[k].length:new Set(ranked[k].map(x=>x.e.cat)).size, SPECIAL=["factor","thematic","gold","comm","real"];
   let used=live.length;
   while(used<count){
-    const cand=live.filter(k=>slots[k]<distinct(k)&&(!REAL_KEYS.includes(k)&&k!=="cash"||sl[k]/slots[k]>etfCap(k,risk)+1e-9));   // a 2nd cash fund adds little
+    let cand=live.filter(k=>slots[k]<distinct(k)&&(!REAL_KEYS.includes(k)&&k!=="cash"||sl[k]/slots[k]>etfCap(k,risk)+1e-9));   // a 2nd cash fund adds little
+    if(!cand.length) cand=live.filter(k=>slots[k]<distinct(k));   // ...but the fund count is a hard constraint
     if(!cand.length) break;
     const over=cand.filter(k=>SPECIAL.includes(k)&&sl[k]/slots[k]>etfCap(k,risk)+1e-9)
       .sort((a,b)=>sl[b]/slots[b]/etfCap(b,risk)-sl[a]/slots[a]/etfCap(a,risk));
@@ -1049,7 +1077,7 @@ function buildBundle(risk,count,lowOverlap,style,real,opts){
   // can't meet every limit with this many funds? find the smallest count that can, and say so
   let recommend=null;
   if((unresolved.length||overFinal.length)&&!(opts&&opts.probe)){
-    for(let n=count+1;n<=10;n++){ const t=buildBundle(risk,n,lowOverlap,style,real,{probe:true}); if(!t.unresolved.length&&!t.overCap.length){ recommend=n; break; } }
+    for(let n=count+1;n<=10;n++){ const t=buildBundle(risk,n,lowOverlap,style,real,{probe:true,overlay:OV}); if(!t.unresolved.length&&!t.overCap.length){ recommend=n; break; } }
   }
   const sw=w.reduce((a,b)=>a+b,0)||1; for(let i=0;i<w.length;i++) w[i]/=sw;
   let mu=0,v=0; picks.forEach((a,i)=>{mu+=w[i]*a.mu; picks.forEach((b,j)=>v+=w[i]*w[j]*a.vol*b.vol*corr(a,b));});
@@ -1068,7 +1096,7 @@ function buildBundle(risk,count,lowOverlap,style,real,opts){
   const soft=[{id:"geo",label:"Geographic",ok:grpOk("Emerging markets")},{id:"sector",label:"Sectors",ok:grpOk("Sectors")},
     {id:"theme",label:"Themes",ok:grpOk("Themes")},{id:"factor",label:"Factors",ok:grpOk("Factors")},
     {id:"fund",label:"Single-fund limits",ok:!overFinal.length},{id:"overlap",label:"Overlap",ok:ovAvg<0.35}];
-  return {picks,w,sleeveOf,mix,style,real,count,buckets,moves,overCap:overFinal,swaps,kept,guards,unresolved,recommend,valid,hard,soft,limits:LIMITS.map(c=>({id:c.id,label:c.label,cap:c.cap,exp:expOf(c)})),look:lookThrough(picks,w,sleeveOf),mu,vol:Math.sqrt(v),dd,yld,er,ov:portfolioOverlap(picks,w)};
+  return {overlay:OV,picks,w,sleeveOf,mix,style,real,count,buckets,moves,overCap:overFinal,swaps,kept,guards,unresolved,recommend,valid,hard,soft,limits:LIMITS.map(c=>({id:c.id,label:c.label,cap:c.cap,exp:expOf(c)})),look:lookThrough(picks,w,sleeveOf),mu,vol:Math.sqrt(v),dd,yld,er,ov:portfolioOverlap(picks,w)};
 }
 // Objective volatility labels: they describe the number, whatever the risk level selected
 const volLabel=v=>v<5?"Low":v<9?"Low–medium":v<13?"Medium":v<17?"Medium–high":v<22?"High":"Very high";
@@ -1141,6 +1169,7 @@ function riskRef(){
   return RISK_REF=ref;
 }
 function riskCheck(b,risk){
+  if(b.overlay) return null;   // the overlay panel explains the effective risk instead
   const ref=riskRef(); if(!ref||!ref[risk]||!b.risk) return null;
   const lo=ref[risk].vol*0.8, hi=ref[risk].vol*1.25, v=b.risk.vol, worst=Math.min(...b.stress.map(x=>x.loss));
   const TOL=1.0;   // percentage points: small misses of the typical range aren't worth a message
@@ -1302,13 +1331,31 @@ document.addEventListener("DOMContentLoaded",()=>{
   btn.addEventListener("click",()=>{ const d=[...box.querySelectorAll("details")], open=!d.every(x=>x.open); d.forEach(x=>x.open=open); syncOlToggle(); });
   box.addEventListener("toggle",syncOlToggle,true);
 });
+/* Overlay panel: what the horizon answers changed, and what a repeat of the worst fall would mean for the goal */
+function overlayPanel(b,risk,sc,dd){
+  const ov=b.overlay, m=b.mix, w=b.mixWithout, r=x=>Math.round(x*10)/10, amt=amount();
+  const mixTxt=x=>`${r(x.eq)}% equities · ${r(x.cash||0)}% cash · ${r(x.bonds)}% bonds · ${r(x.gold+x.comm)}% gold & commodities`;
+  const short=dd!=null?amt*(-dd/100):null;
+  return `<div class="hz-note ov-on"><b>${ov.name} overlay applied</b>
+    <p class="ov-line">Risk preference: <b>${RISK_LABELS[risk-1]} (Risk ${risk})</b> · Horizon constraint: <b>${ov.name}</b> (needed ${ov.when}, most or all of it)</p>
+    ${w?`<p class="ov-line">Without the overlay: ${mixTxt(w)}<br>With it: <b>${mixTxt(m)}</b></p>`:""}
+    ${short!=null?`<p class="ov-tol"><b>Could you tolerate this?</b> A fall like this mix's worst since ${monthYear(b.risk.start)} (−${Math.abs(dd).toFixed(1)}%) would turn ${usd(amt)} into ${usd(amt-short)}, about <b>${usd(short)} short</b> of the amount you need.</p>`:""}
+    <details class="ov-more"${document.querySelector(".ov-more[open]")?" open":""}><summary>Why? What the overlay changed</summary>
+    <p>Market exposure reduced and cash raised: equities capped at ${ov.eq}%, cash at least ${ov.cashMin}%, ${ov.strict?"bonds limited to short-dated gilts and sterling corporate bonds, no thematic, emerging-market or commodity funds":"bonds tilted to shorter dates"}, gold up to ${ov.gold}%. Your Risk ${risk} preference is unchanged; Equity style and Real assets apply only within these limits.</p>
+    <p>Where a sum is needed on a set date, savings or bonds that mature on that date match it exactly; FndMngr builds fund baskets, which never mature.</p></details>
+    <small>General information, not personal advice.</small>
+    <button type="button" class="ov-btn" data-ov="off">Show my Risk ${risk} mix without the overlay</button></div>`;
+}
+document.addEventListener("click",ev=>{ const btn=ev.target.closest(".ov-btn"); if(!btn) return;
+  OVERLAY_OFF=btn.dataset.ov==="off"; remember(); renderBundle(); });
 /* Horizon check: general information only. It never changes the basket. */
 function horizonNote(b,risk){
   const h=+($("horizonSel")?.value||0), need=$("needSel")?.value||""; if(!h) return "";
   const pctTxt=x=>(x>=0?"+":"−")+Math.abs(x).toFixed(1)+"%", cash=b.mix.cash||0;
   const sc=oneYearScenarios(b.mu,b.risk,b.risk?b.risk.vol:b.vol), dd=b.risk?b.risk.dd:null;
   const foot="<small>General information, not personal advice.</small>";
-  if(h<=2&&need==="yes") return `<div class="hz-note"><b>Money needed within about 2 years</b>Money with a near, fixed date usually sits mostly in cash or cash-like savings, because investments that fall may not recover in time. This mix holds ${Math.round(cash)}% in cash; its weak year is ${pctTxt(sc.weak)}${dd!=null?` and its worst historical fall ${pctTxt(dd)}`:""}. Where a sum is needed on a set date, savings or bonds that mature on that date match it exactly; FndMngr builds fund baskets, which never mature.${foot}</div>`;
+  if(b.overlay) return overlayPanel(b,risk,sc,dd);
+  if(h<=2&&need==="yes") return `<div class="hz-note"><b>Money needed within about 2 years</b>Money with a near, fixed date usually sits mostly in cash or cash-like savings, because investments that fall may not recover in time. This mix holds ${Math.round(cash)}% in cash; its weak year is ${pctTxt(sc.weak)}${dd!=null?` and its worst historical fall ${pctTxt(dd)}`:""}. Where a sum is needed on a set date, savings or bonds that mature on that date match it exactly; FndMngr builds fund baskets, which never mature.${foot}${OVERLAY_OFF?`<button type="button" class="ov-btn" data-ov="on">Apply the capital preservation overlay</button>`:""}</div>`;
   if(h<=2&&risk>3) return `<div class="hz-note"><b>A short horizon for Risk ${risk}</b>Over 1–2 years, a mix like this has a real chance of being worth less than it started (its weak year is ${pctTxt(sc.weak)}). Risk 1–3 hold more cash and short-dated bonds.${foot}</div>`;
   if(h===5&&risk>=8) return `<div class="hz-note"><b>3–5 years at Risk ${risk}</b>Mixes this equity-heavy have historically needed several years to recover from their worst falls${dd!=null?` (this one: ${pctTxt(dd)})`:""}, which leaves limited time on a 3–5 year horizon.${foot}</div>`;
   if(h===5&&need==="yes"&&risk>=6) return `<div class="hz-note"><b>Needed in 3–5 years</b>If most of this must be there in 3–5 years, a fall like this mix's worst${dd!=null?` (${pctTxt(dd)})`:""} could still be unrecovered by then.${foot}</div>`;
@@ -1326,9 +1373,9 @@ function breadthOf(b){ const x={};
   const ss=Object.values(x).reduce((a,v)=>a+v*v,0); return ss?1/ss:0; }
 let SWEET_CACHE={key:null,rows:null};
 function sweetRows(risk,style,real,ov){
-  const key=[risk,style,real,ov].join("|");
+  const OV=horizonOverlay(), key=[risk,style,real,ov,OV?OV.id:""].join("|");
   if(SWEET_CACHE.key===key&&SWEET_CACHE.data===DATA) return SWEET_CACHE.rows;
-  const rows=[]; for(let n=3;n<=10;n++){ const b=buildBundle(risk,n,ov,style,real,{probe:true});
+  const rows=[]; for(let n=3;n<=10;n++){ const b=buildBundle(risk,n,ov,style,real,{probe:true,overlay:OV});
     rows.push({n,b,eff:breadthOf(b),ov:b.ov.avg,maxW:Math.max(...b.w),minW:Math.min(...b.w),er:b.er,ok:!b.unresolved.length&&!b.overCap.length}); }
   SWEET_CACHE={key,data:DATA,rows}; return rows;
 }
@@ -1398,7 +1445,7 @@ function bucketLabel(k,n){ return k==="core"&&n<=3?"Global equity":k==="factor"&
 function renderMix(b,risk){
   const m=b.mix, r=x=>{ const v=Math.round(x*10)/10; return Number.isInteger(v)?v:v.toFixed(1); }, parts=[["eq","Equities",m.eq],["cash","Cash",m.cash||0],["bonds","Bonds",m.bonds],["gold","Gold",m.gold],["comm","Commodities",m.comm]].filter(p=>p[2]>0.4);
   const sl=b.mix.sleeves, eqSplit=[["Core",sl.core],["Factor",sl.factor],["Thematic",sl.thematic]].filter(p=>p[1]>0.4).map(p=>`${p[0]} ${r(p[1])}%`).join(" · ");
-  $("mixSummary").innerHTML=`<p class="mix-title"><b>Risk ${risk}: ${RISK_LABELS[risk-1]}</b> <span class="mix-note">${RISK_NOTES[risk-1]}</span></p>${horizonNote(b,risk)}
+  $("mixSummary").innerHTML=`<p class="mix-title"><b>Risk ${risk}: ${RISK_LABELS[risk-1]}</b> <span class="mix-note">${b.overlay?`${b.overlay.name} overlay: cash and short-dated bonds first, with a small ${b.overlay.strict?"broad ":""}equity holding`:RISK_NOTES[risk-1]}</span></p>${horizonNote(b,risk)}
     <p class="mix-line">${parts.map(p=>`${r(p[2])}% ${p[1]}`).join(" · ")}</p>
     <div class="mix-bar" role="img" aria-label="Asset mix: ${parts.map(p=>`${r(p[2])}% ${p[1]}`).join(", ")}">${parts.map(p=>`<div style="flex-grow:${p[2]};background:${MIX_COLORS[p[0]]}">${p[2]>=9?p[1]:""}</div>`).join("")}</div>
     ${m.eq>0?`<p class="mix-sub">Inside equities: ${eqSplit}</p>`:""}
@@ -1411,7 +1458,8 @@ function renderBundle(){
   $("riskVal").textContent=risk+" / 10"; $("countVal").textContent=count;
   $("styleVal").textContent=STYLE_LABELS[style-1]; $("realVal").textContent=REAL_LABELS[real-1];
   $("riskWord").textContent=MIX_WORDS[risk-1]; $("riskArt").textContent=/^[aeiou]/.test(MIX_WORDS[risk-1])?"an":"a"; $("countWord").textContent=count+" funds";
-  const b=buildBundle(risk,count,$("overlapToggle").checked,style,real);
+  const b=buildBundle(risk,count,$("overlapToggle").checked,style,real,{overlay:horizonOverlay()});
+  b.mixWithout=b.overlay?assetMix(risk,style,real):null;
   b.risk=measureRisk(b.picks,b.w);          // outlook engine: measured, not used for picking funds
   b.stress=stressTests(b.picks,b.w);
   const vol=b.risk?b.risk.vol:b.vol;
@@ -1442,7 +1490,7 @@ function renderBundle(){
     +row("base","Base case",base,"Central estimate, not a guarantee",`FndMngr central estimate, not a guaranteed return: long-run assumptions for shares (${BASE_RETURN.eq}%), gold and commodities (${BASE_RETURN.gold}%), a valuation tilt, and recent performance capped at ±2 points. ${bondNote(b)} Assumptions reviewed ${BASE_REVIEWED}.`)
     +row("weak","Weak year",weak,"About 1 year in 7",wD)
     +`<p class="ol-head">Risk &amp; stress</p>`
-    +(R?row("dd","Historical max drawdown",R.dd,`Worst fall since ${monthYear(R.start)}: ${monthYear(R.peakDate)} to ${monthYear(R.troughDate)}`,`Worst peak-to-trough fall of today's mix since ${monthYear(R.start)} (${monthYear(R.peakDate)} to ${monthYear(R.troughDate)}), dividends included, measured weekly.${standTxt(R.ddStand)}`)
+    +(R?row("dd","Historical max drawdown",R.dd,$("needSel").value==="yes"?`If repeated: ${usd(amt*-R.dd/100)} short of the ${usd(amt)} you need`:`Worst fall since ${monthYear(R.start)}: ${monthYear(R.peakDate)} to ${monthYear(R.troughDate)}`,`Worst peak-to-trough fall of today's mix since ${monthYear(R.start)} (${monthYear(R.peakDate)} to ${monthYear(R.troughDate)}), dividends included, measured weekly.${standTxt(R.ddStand)}`)
        :row("dd","Worst past drop (rough)",b.dd,"Rough, upper-end estimate","Each fund's own worst drop, weighted. An upper-end guess: the funds didn't all fall at the same time."))
     +row("stress","Severe stress test",worstS.loss,`${worstS.name}${worstS.like?` (${worstS.like})`:""}`,`The worst of three illustrative shocks applied to today's weights. What drives each:${stressTable}`);
   syncOlToggle();
@@ -1560,13 +1608,13 @@ $("amountPreset").addEventListener("change",e=>{ if(!e.target.value) return;
   $("amount").value=(+e.target.value).toLocaleString(LOCALE); sizeAmount(); amountTouched=true; remember(); renderBundle(); renderPresets(); });
 
 /* Remember amount, fund count and risk for this browser session */
-function remember(){ try{ sessionStorage.setItem("iqfund-builder",JSON.stringify({amount:amount(),cur:CUR,count:+$("countSlider").value,risk:+$("riskSlider").value,style:+$("styleSlider").value,real:+$("realSlider").value,horizon:$("horizonSel").value,need:$("needSel").value})); }catch(e){} }
+function remember(){ try{ sessionStorage.setItem("iqfund-builder",JSON.stringify({amount:amount(),cur:CUR,count:+$("countSlider").value,risk:+$("riskSlider").value,style:+$("styleSlider").value,real:+$("realSlider").value,horizon:$("horizonSel").value,need:$("needSel").value,overlayOff:OVERLAY_OFF})); }catch(e){} }
 try{ const m=JSON.parse(sessionStorage.getItem("iqfund-builder")||"null");
   if(m){ if(m.amount>0){ const a=m.cur===CUR?m.amount:niceRound(m.amount*rateOf(CUR,m.cur)); $("amount").value=a.toLocaleString(LOCALE); amountTouched=true; }
     if(m.count>=3&&m.count<=10) $("countSlider").value=m.count; if(m.risk>=1&&m.risk<=10) $("riskSlider").value=m.risk;
     if(m.style>=1&&m.style<=5) $("styleSlider").value=m.style; if(m.real>=1&&m.real<=5) $("realSlider").value=m.real;
-    if(m.horizon!=null) $("horizonSel").value=m.horizon; if(m.need!=null) $("needSel").value=m.need; } }catch(e){}
-["horizonSel","needSel"].forEach(id=>$(id).addEventListener("change",()=>{ remember(); renderBundle(); }));
+    if(m.horizon!=null) $("horizonSel").value=m.horizon; if(m.need!=null) $("needSel").value=m.need; OVERLAY_OFF=!!m.overlayOff; } }catch(e){}
+["horizonSel","needSel"].forEach(id=>$(id).addEventListener("change",()=>{ OVERLAY_OFF=false; remember(); renderBundle(); }));   // new answers: overlay back on
 ["amount","countSlider","riskSlider","styleSlider","realSlider"].forEach(id=>$(id).addEventListener("input",()=>{ remember(); if(id==="amount") renderPresets(); }));
 $("amount").addEventListener("blur",renderPresets);
 
@@ -1669,7 +1717,7 @@ async function saveBasket(){
   const risk=+$("riskSlider").value, count=+$("countSlider").value, amt=amount();
   if(!amt){ $("saveMsg").textContent="Enter an amount first."; return; }
   const style=+$("styleSlider").value, real=+$("realSlider").value;
-  const b=buildBundle(risk,count,$("overlapToggle").checked,style,real), usd=amt/RATE;   // amount in the base currency
+  const b=buildBundle(risk,count,$("overlapToggle").checked,style,real,{overlay:horizonOverlay()}), usd=amt/RATE;   // amount in the base currency
   const holdings=b.picks.map((e,i)=>({t:e.t,n:e.n,units:usd*b.w[i]/e.p,entry:e.p,since:ASOF}));
   const name=$("basketName").value.trim()||`Basket ${BASKETS.length+1}`;
   BASKETS.push({id:Date.now().toString(36),name,created:ASOF,cur:CUR,base:BASE,fx:RATE,invested:amt,usdInvested:usd,risk,style,real,
