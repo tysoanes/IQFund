@@ -39,6 +39,7 @@ import os
 import sys
 import threading
 import time
+import urllib.request
 
 import pandas as pd
 import yfinance as yf
@@ -60,6 +61,12 @@ CURRENCY_BUDGET = 240            # seconds to spend finding quote currencies
 INFO_BUDGET = 240                # seconds to spend refreshing fund details
 BATCH = 50                       # tickers per price download
 FX = {"USD": "GBP=X", "EUR": "EURGBP=X"}   # Yahoo: pounds per 1 USD / 1 EUR
+# Today's bond yields, used for the site's bond base case (a bond's best 1-year guide is its yield):
+# Bank of England daily gilt par yields and Bank Rate; US Treasury yields from Yahoo.
+BOE_SERIES = {"g5": "IUDSNPY", "g10": "IUDMNPY", "g20": "IUDLNPY", "bank": "IUDBEDR"}
+US_YIELDS = {"us5": "^FVX", "us10": "^TNX", "us30": "^TYX"}
+BOE_URL = ("https://www.bankofengland.co.uk/boeapps/database/_iadb-fromshowcolumns.asp?csv.x=yes"
+           "&Datefrom={start}&Dateto=now&SeriesCodes={codes}&CSVF=TN&UsingCodes=Y&VPD=Y&VFD=N")
 
 
 def yahoo(sym):
@@ -234,9 +241,64 @@ def metrics(h):
         "return_5y": (float(adj.iloc[-1] / adj.iloc[0]) ** (1 / years) - 1) * 100 if years > 4.5 else None,
         "volatility": float(rets.iloc[-756:].std() * math.sqrt(252) * 100),
         "max_drawdown": float(((adj / peak) - 1).min() * 100),
+        "dist_yield": trailing_yield(close, adj),
         # total return (incl. dividends, in pounds) had you bought 3, 6 or 12 months ago
         **{f"return_{k}": back_return(adj, months) for k, months in (("3m", 3), ("6m", 6), ("1y", 12))},
     }
+
+
+def trailing_yield(close, adj):
+    """Dividends paid over the last 12 months as % of today's price, worked out from the gap between
+    total return (Adj Close) and price return (Close). Accumulating funds pay nothing, so show ~0."""
+    start = close.index[-1] - pd.DateOffset(months=12)
+    if close.index[0] > start:
+        return None
+    c0, a0 = close.asof(start), adj.asof(start)
+    if not c0 or not a0:
+        return None
+    y = ((adj.iloc[-1] / a0) / (close.iloc[-1] / c0) - 1) * 100
+    return float(max(y, 0.0)) if -0.5 < y < 15 else None   # outside this range it's a data glitch
+
+
+def market_yields(cache):
+    """Gilt yields and Bank Rate (Bank of England) plus US Treasury yields (Yahoo), in %.
+    Falls back to the last good values in info_cache.json if a source is unavailable."""
+    out = {}
+    try:
+        start = (dt.date.today() - dt.timedelta(days=45)).strftime("%d/%b/%Y")
+        url = BOE_URL.format(start=start, codes=",".join(BOE_SERIES.values()))
+        req = urllib.request.Request(url, headers={"User-Agent": "Mozilla/5.0 (fund-data-bot)"})
+        with urllib.request.urlopen(req, timeout=CALL_TIMEOUT) as r:
+            rows = list(csv.reader(r.read().decode("utf-8", "replace").splitlines()))
+        head = [h.strip().upper() for h in rows[0]]
+        for key, code in BOE_SERIES.items():
+            if code in head:
+                i = head.index(code)
+                vals = [(row[0], row[i]) for row in rows[1:] if len(row) > i and row[i].strip() not in ("", "n/a")]
+                if vals:
+                    out[key] = float(vals[-1][1])
+                    d = dt.datetime.strptime(vals[-1][0].strip(), "%d %b %Y").date().isoformat()
+                    if key != "bank":                       # gilt yields date the curve; Bank Rate lags
+                        out["uk_as_of"] = max(out.get("uk_as_of", ""), d)
+    except Exception as e:
+        print(f"  Bank of England yields unavailable: {e}", flush=True)
+    try:
+        raw = download(list(US_YIELDS.values()), period="3mo")
+        for key, sym in US_YIELDS.items():
+            if sym in raw:
+                v = float(raw[sym]["Close"].iloc[-1])
+                out[key] = v / 10 if v > 25 else v      # some feeds quote yield x10
+    except Exception as e:
+        print(f"  US Treasury yields unavailable: {e}", flush=True)
+    good = {k: v for k, v in out.items() if isinstance(v, str) or 0 <= v < 20}
+    old = cache.get("_yields", {})
+    merged = {**old, **good}
+    if merged:
+        if good:
+            merged["fetched"] = dt.date.today().isoformat()
+        cache["_yields"] = merged
+    print(f"Bond yields: {', '.join(f'{k} {v}' for k, v in merged.items())}", flush=True)
+    return merged
 
 
 def back_return(adj, months):
@@ -405,13 +467,16 @@ def main():
                 fmt(m["return_3m"], 2), fmt(m["return_6m"], 2), fmt(m["return_1y"], 2),
                 fmt(m["return_5y"], 1), fmt(m["volatility"], 1), fmt(m["max_drawdown"], 1),
                 fmt(info.get("pe"), 1), r.get("pe_10y_avg", ""),
-                fmt(info.get("yield")), fmt(m["rsi"], 0), BASE, info.get("currency", ""), as_of,
+                fmt(info.get("yield") if info.get("yield") is not None else m["dist_yield"]), fmt(m["rsi"], 0), BASE, info.get("currency", ""), as_of,
             ])
             written += 1
     print(f"Wrote {written} funds to {OUT_FILE} (prices in {BASE}).")
     update_history(hist)
     risk = build_risk(hist, rows, as_of, stand_ins_for(hist, rows, fx))
     if risk:
+        risk["yields"] = market_yields(cache)
+        with open(INFO_CACHE, "w", encoding="utf-8") as f:   # keep the last good yields
+            json.dump(cache, f, indent=1, sort_keys=True)
         with open(RISK_FILE, "w", encoding="utf-8") as f:
             json.dump(risk, f, separators=(",", ":"))
         print(f"{RISK_FILE}: {len(risk['funds'])} funds, {len(risk['dates'])} weeks from {risk['dates'][0]}.")

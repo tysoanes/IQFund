@@ -585,6 +585,15 @@ const LONG_RUN={eq:8,reit:7,bond:3.5,hy:5,gold:4.5};   // used only to rank fund
 // Base-case assumptions per asset class (% a year, in pounds): long-run, deliberately modest.
 // Bonds use today's yield when the data has it. Review these about once a quarter.
 const BASE_RETURN={eq:7,reit:6.5,bond:4,hy:5.5,gold:4}, BASE_REVIEWED="Oct 2026";
+// Bond base case = today's yield for the matching part of the curve, plus a spread for credit
+// (net of expected default losses). Yields arrive daily in risk.json (Bank of England gilts and
+// Bank Rate, US Treasuries). [curve point, spread in % points]
+let YIELDS=null;
+const BOND_CURVE={"Bonds: UK gilts":["g10",0],"Bonds: short UK gilts":["g5",0],"Bonds: index-linked gilts":["g20",0],
+  "Bonds: sterling corporate":["g10",1.0],"Bonds: short sterling corporate":["g5",0.8],"Bonds: ultra-short":["bank",0.2],
+  "Bonds: cash / overnight":["bank",0],"Bonds: global aggregate (GBP hedged)":["g10",-0.2],"Bonds: long US Treasury":["us30",0],
+  "Bonds: short US Treasury":["us5",0],"Bonds: US corporate":["us10",1.0],"Bonds: high yield (GBP hedged)":["g5",2.0],"Bonds: emerging markets":["us10",1.5]};
+function bondYield(e){ const m=BOND_CURVE[e.cat]; if(!m||!YIELDS||YIELDS[m[0]]==null) return null; return YIELDS[m[0]]+m[1]; }
 
 const DEF_VOL={eq:18,reit:21,bond:6,hy:8,gold:15}, DEF_DD={eq:-35,reit:-45,bond:-18,hy:-25,gold:-25};
 function analyze(e){
@@ -619,10 +628,11 @@ function analyze(e){
   // mu: the BASE CASE shown to users. Long-run assumption for the asset class (bonds: today's yield),
   // a valuation tilt of at most ±3 points, and recent performance capped at ±2 points so momentum
   // isn't counted twice (it already helps pick the funds).
-  const BR=BASE_RETURN[e.cls]??BASE_RETURN.eq, isBond=e.cls==="bond"||e.cls==="hy";
-  const anchor=isBond&&e.hasVal?e.val:BR, momentum=e.r5==null?0:clamp(0.2*(e.r5-BR),-2,2);
+  const BR=BASE_RETURN[e.cls]??BASE_RETURN.eq, isBond=e.cls==="bond"||e.cls==="hy", by=isBond?bondYield(e):null;
+  // bonds: today's yield is the anchor and replaces momentum (past bond returns say little about the next year)
+  const anchor=by!=null?by:isBond&&e.hasVal?e.val:BR, momentum=by!=null||e.r5==null?0:clamp(0.2*(e.r5-BR),-2,2);
   const mu=clamp(anchor+(isBond?0:clamp(gap*15,-3,3))+momentum,-10,25);
-  return {...e,gap,trend,range,score,signal,reasons,mu,muSel,momentum,
+  return {...e,gap,trend,range,score,signal,reasons,mu,muSel,momentum,baseYield:by,
     up:mu+e.vol, down:mu-e.vol, bad:mu-2*e.vol};
 }
 let ASOF=new Date().toISOString().slice(0,10), LIVE=false, LAST_BUNDLE=null, DATA=ETFS.map(analyze), SOURCE="Sample data — not live prices";
@@ -1045,7 +1055,8 @@ const volLabel=v=>v<5?"Low":v<9?"Low–medium":v<13?"Medium":v<17?"Medium–high
 let RISKDATA=null;
 function loadRisk(j){ if(!j||!Array.isArray(j.dates)||!j.funds) return; const u=j.unit||1e-4, f={};
   for(const t in j.funds) f[t]={r:Float64Array.from(j.funds[t].r,x=>x*u),from:j.funds[t].from,proxy:j.funds[t].proxy||null};
-  RISKDATA={dates:j.dates,funds:f,asOf:j.as_of}; }
+  RISKDATA={dates:j.dates,funds:f,asOf:j.as_of};
+  if(j.yields&&Object.keys(j.yields).some(k=>typeof j.yields[k]==="number")){ YIELDS=j.yields; DATA=DATA.map(analyze); if(typeof renderTable==="function") renderTable(); } }
 function annVol(a){ const n=a.length; if(n<8) return null; let m=0; for(const x of a) m+=x; m/=n; let v=0; for(const x of a) v+=(x-m)*(x-m); return Math.sqrt(v/(n-1)*52)*100; }
 function measureRisk(picks,w){
   if(!RISKDATA) return null; const S=picks.map(e=>RISKDATA.funds[e.t]); if(!S.length||S.some(x=>!x)) return null;
@@ -1223,6 +1234,12 @@ function fixHint(b){
   const realIssue=b.overCap.some(x=>REAL_KEYS.includes(x.k));
   return [eqIssue&&b.style>1?"a less aggressive Equity style":"",realIssue&&b.real>1?"a lower Real assets setting":""].filter(Boolean).join(" or ")||"a different risk level";
 }
+function bondNote(b){
+  const bonds=b.picks.filter(e=>e.cls==="bond"||e.cls==="hy"); if(!bonds.length) return "";
+  const live=bonds.filter(e=>e.baseYield!=null);
+  if(!live.length) return `Bonds at a ${BASE_RETURN.bond}% long-run assumption (today's yields not loaded).`;
+  return `Bonds at today's yields: ${live.map(e=>`${e.t} ${e.baseYield.toFixed(1)}%`).join(", ")}${YIELDS.uk_as_of?` (gilt yields from the Bank of England, ${new Date(YIELDS.uk_as_of+"T12:00:00").toLocaleDateString(LOCALE,{day:"numeric",month:"short",year:"numeric"})})`:""}.`;
+}
 function oneYearScenarios(base,R,vol){
   let strong,weak,sD,wD;
   // Strong: best 1 in 5 twelve-month periods. Weak: worst ~1 in 7 (15th percentile), but never milder than
@@ -1329,7 +1346,7 @@ function renderBundle(){
       <p class="st-note">Shocks assumed: ${STRESS_NOTE}. Illustrative, not forecasts.</p>`;
   $("outlook").innerHTML=`<p class="ol-head">One-year scenarios</p>`
     +row("strong","Strong year",strong,"Best 1 in 5 years for this mix, historically",sD)
-    +row("base","Base case",base,"Central estimate, not a guarantee",`FndMngr central estimate, not a guaranteed return: long-run assumptions for each asset class (bonds at today's yield where known), a valuation tilt, and recent performance capped at ±2 points. Assumptions reviewed ${BASE_REVIEWED}.`)
+    +row("base","Base case",base,"Central estimate, not a guarantee",`FndMngr central estimate, not a guaranteed return: long-run assumptions for shares (${BASE_RETURN.eq}%), gold and commodities (${BASE_RETURN.gold}%), a valuation tilt, and recent performance capped at ±2 points. ${bondNote(b)} Assumptions reviewed ${BASE_REVIEWED}.`)
     +row("weak","Weak year",weak,"About 1 year in 7",wD)
     +`<p class="ol-head">Risk &amp; stress</p>`
     +(R?row("dd","Historical max drawdown",R.dd,`Worst fall since ${monthYear(R.start)}: ${monthYear(R.peakDate)} to ${monthYear(R.troughDate)}`,`Worst peak-to-trough fall of today's mix since ${monthYear(R.start)} (${monthYear(R.peakDate)} to ${monthYear(R.troughDate)}), dividends included, measured weekly.${standTxt(R.ddStand)}`)
