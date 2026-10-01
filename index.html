@@ -117,6 +117,20 @@ details.scen .full{padding:0 0 10px;line-height:1.5}
 .st-note{font-size:11px;opacity:.75;margin:8px 0 0;line-height:1.45}
 .stats small{display:block;font-size:11px;opacity:.8}
 .ol-illus{margin:12px 0 0;font-size:13px;line-height:1.5;opacity:.9}
+.sweet{margin-top:10px}.sweet-chips{display:grid;grid-template-columns:repeat(8,minmax(0,1fr));gap:4px;max-width:100%}
+.sweet-chips button{font:600 13px var(--body);padding:6px 0;border:1px solid var(--line);border-radius:var(--radius,6px);background:transparent;color:var(--ink);cursor:pointer;position:relative}
+.sweet-chips button.cur{background:var(--ink);color:var(--paper,#fff);border-color:var(--ink)}
+.sweet-chips button.best{border:2px solid var(--buy)}.sweet-chips button.best::after{content:"★";position:absolute;top:-9px;right:-4px;font-size:11px;color:var(--buy)}
+.sweet-chips button.small{opacity:.45}.sweet-chips button.warn{text-decoration:underline dotted var(--sell);text-underline-offset:3px}
+.sweet-chips i{display:block;height:4px;margin:4px 6px 0;border-radius:2px;background:var(--buy);opacity:.75}
+.sweet-text{margin:8px 0 0;font-size:13px;line-height:1.45;color:var(--muted)}.sweet-text b{color:var(--ink)}
+.sweet-text summary{cursor:pointer;list-style:none}.sweet-text summary::-webkit-details-marker{display:none}
+.sweet-text .why{margin-left:6px;font-size:11px;font-weight:600;text-decoration:underline;text-underline-offset:2px;opacity:.75}
+.sweet-text[open] .why{display:none}.sweet-text p{margin:4px 0 0}
+.hz{display:flex;flex-wrap:wrap;gap:12px 28px}.hz>div{display:flex;flex-direction:column;gap:4px;min-width:220px}
+.hz label{font-size:14px;font-weight:600}.hz select{font:inherit;font-size:14px;padding:6px 8px;border:1px solid var(--line);border-radius:var(--radius,6px);background:var(--panel,#fff);color:var(--ink)}
+.hz-note{margin-top:12px;padding:10px 12px;border:1px solid var(--line);border-left:3px solid #B8913A;border-radius:var(--radius,6px);font-size:14px;line-height:1.45}
+.hz-note b{display:block;margin-bottom:2px}.hz-note small{display:block;margin-top:4px;font-size:12px;color:var(--muted)}
 .riskcheck{margin-top:12px;padding:10px 12px;border:1px solid var(--line);border-left:3px solid var(--buy);border-radius:var(--radius,6px);font-size:14px}
 .riskcheck.above{border-left-color:var(--sell)}.riskcheck.below{border-left-color:var(--cobalt)}
 .riskcheck b{display:block;font-size:15px;margin-bottom:2px}.riskcheck p{margin:2px 0 0;font-size:13px;color:var(--muted)}
@@ -453,6 +467,7 @@ html[data-theme="nightdesk"] dialog::backdrop{background:rgba(0,0,0,.6)}
         <input type="range" id="countSlider" min="3" max="10" value="5">
         <div class="hint"><span>Simpler</span><span>More spread out</span></div>
         <div class="hint count-note" id="countNote" aria-live="polite"></div>
+        <div class="sweet" id="sweet" aria-live="polite"></div>
       </div>
       <div class="ctl">
         <label for="styleSlider">Equity style <b id="styleVal">Neutral</b></label>
@@ -463,6 +478,12 @@ html[data-theme="nightdesk"] dialog::backdrop{background:rgba(0,0,0,.6)}
         <label for="realSlider">Real assets <b id="realVal">Neutral</b></label>
         <input type="range" id="realSlider" min="1" max="5" value="3">
         <div class="hint"><span>None</span><span>Maximum</span></div>
+      </div>
+      <div class="ctl ctl-wide hz">
+        <div><label for="horizonSel">When might you need this money?</label>
+          <select id="horizonSel"><option value="">Not sure</option><option value="1">Within 1 year</option><option value="2">In 1–2 years</option><option value="5">In 3–5 years</option><option value="10">In 5–10 years</option><option value="11">In 10+ years</option></select></div>
+        <div><label for="needSel">Must all of it be there then?</label>
+          <select id="needSel"><option value="">Not sure</option><option value="yes">Yes, most or all of it</option><option value="no">No, it could stay invested</option></select></div>
       </div>
       <div class="mix-summary ctl-wide" id="mixSummary" aria-live="polite"></div>
       <div class="ctl ctl-wide">
@@ -791,22 +812,25 @@ const ovLabel=x=>x<0.15?"Low":x<0.35?"Moderate":"High";
 const RISK_GRID={1:[20,65,10,5,17,3,0],2:[30,55,10,5,24,6,0],3:[40,45,10,5,30,9,1],4:[50,35,10,5,34,14,2],5:[60,25,10,5,36,20,4],
   6:[65,20,10,5,37,22,6],7:[72,13,10,5,38,26,8],8:[80,8,8,4,40,28,12],9:[90,3,5,2,42,30,18],10:[100,0,0,0,45,30,25]};
 const RISK_LABELS=["Capital Preservation","Very Cautious","Cautious","Cautious Balanced","Balanced","Balanced Growth","Growth","Growth+","Aggressive","Maximum Growth"];
-const RISK_NOTES=["Primarily bonds; minimal equity exposure","Bond dominated with some global equities","Meaningful equity exposure but defence dominates",
+const RISK_NOTES=["Cash and short-dated bonds first; minimal equity exposure","Bond dominated with some global equities","Meaningful equity exposure but defence dominates",
   "Near-even growth/defensive split","60/40-style portfolio with real assets","Growth tilted but meaningful downside protection",
   "Equity led with moderate protection","High equity exposure and more thematic risk","Almost entirely equities","100% equities with substantial thematic exposure"];
 const MIX_WORDS=["capital-preservation","very cautious","cautious","cautious-balanced","balanced","balanced-growth","growth","growth-plus","aggressive","maximum-growth"];
 const STYLE_LABELS=["Defensive","Leaning defensive","Neutral","Leaning aggressive","Aggressive"];
 const REAL_LABELS=["Minimum","Low","Neutral","High","Maximum"];
-const SLEEVE_SHORT={core:"Core",factor:"Factor",thematic:"Thematic",bonds:"Bonds",gold:"Gold",comm:"Commodities",real:"Real assets"};
-const SLEEVE_NAMES={core:"Core equities",factor:"Factor equities",thematic:"Growth & thematic",bonds:"Bonds",gold:"Gold",comm:"Commodities",real:"Real assets"};
+const SLEEVE_SHORT={core:"Core",factor:"Factor",thematic:"Thematic",bonds:"Bonds",cash:"Cash",gold:"Gold",comm:"Commodities",real:"Real assets"};
+const SLEEVE_NAMES={core:"Core equities",factor:"Factor equities",thematic:"Growth & thematic",bonds:"Bonds",cash:"Cash",gold:"Gold",comm:"Commodities",real:"Real assets"};
 const FUND_NOTES={3:["Simple","Broad diversification with minimal complexity."],4:["Core","Adds investment-style diversification."],
-  5:["Balanced · Recommended","Good diversification without unnecessary complexity."],6:["Enhanced","Separates major asset classes."],
+  5:["Balanced","Good diversification without unnecessary complexity."],6:["Enhanced","Separates major asset classes."],
   7:["Diversified","Adds complementary markets and strategies."],8:["Diversified","Adds complementary markets and strategies."],
   9:["Full","Maximum portfolio granularity."],10:["Full","Maximum portfolio granularity."]};
 // Most any single ETF may hold, % of the portfolio
 // Most any single ETF may hold, % of the portfolio (risk bands 1-4 / 5-7 / 8-10)
 function etfCap(k,risk){ const lo=risk<=4;
-  return ({core:30,factor:lo?15:20,thematic:lo?5:risk<=7?10:15,bonds:35,gold:lo?15:20,comm:lo?7.5:10,real:lo?22.5:30})[k]; }
+  return ({core:30,factor:lo?15:20,thematic:lo?5:risk<=7?10:15,bonds:35,cash:50,gold:lo?15:20,comm:lo?7.5:10,real:lo?22.5:30})[k]; }
+// Cash / money-market share of the portfolio at the cautious end, carved out of the grid's bonds:
+// cash doesn't fall when interest rates rise; even short bond funds can.
+const CASH_GRID={1:30,2:15,3:5};
 // Portfolio-level exposure limits
 const EM_CATS=new Set(["Emerging markets","India","China"]), EM_DIMS=["EM","CHINA","INDIA"];
 const emCap=risk=>risk<=4?10:15, themeCap=risk=>risk<=4?5:risk<=7?10:15;
@@ -837,14 +861,16 @@ function sleevePrefs(key,style,risk){
     thematic:def?["US growth (Nasdaq 100)","Sector: tech","Healthcare innovation","Cyber security","Defence","US growth"]
             :agg?["Sector: semiconductors","Artificial intelligence","US growth (Nasdaq 100)","Cyber security","Robotics & automation","Uranium & nuclear","Sector: tech","US growth","Thematic growth"]
                 :["US growth (Nasdaq 100)","Sector: semiconductors","Artificial intelligence","Cyber security","Sector: tech","Robotics & automation","US growth"],
-    bonds:risk<=3?["Bonds: short UK gilts","Bonds: short sterling corporate","Bonds: index-linked gilts","Bonds: UK gilts","Bonds: global aggregate (GBP hedged)","Bonds: ultra-short","Bonds: short","Bonds: core","Bonds: inflation"]
+    bonds:risk<=3?["Bonds: short UK gilts","Bonds: short sterling corporate","Bonds: index-linked gilts","Bonds: UK gilts","Bonds: global aggregate (GBP hedged)","Bonds: short","Bonds: core","Bonds: inflation"]
                  :["Bonds: UK gilts","Bonds: global aggregate (GBP hedged)","Bonds: index-linked gilts","Bonds: sterling corporate","Bonds: short UK gilts","Bonds: core","Bonds: inflation","Bonds: long"],
+    cash:["Bonds: cash / overnight","Bonds: ultra-short"],
     gold:["Gold"], comm:["Commodities (broad)"], real:["Gold","Commodities (broad)"],
   })[key];
 }
-const FOLD={real:["bonds","core"],comm:["gold","real","bonds","core"],gold:["comm","real","bonds","core"],thematic:["factor","core"],factor:["core","thematic"],bonds:["real","gold","core"],core:["factor","thematic"]};
+const FOLD={cash:["bonds","core"],real:["bonds","core"],comm:["gold","real","bonds","core"],gold:["comm","real","bonds","core"],thematic:["factor","core"],factor:["core","thematic"],bonds:["real","gold","core"],core:["factor","thematic"]};
 function assetMix(risk,style,real){
   let [eq,bonds,gold,comm,core,factor,them]=RISK_GRID[risk];
+  const cash=Math.min(CASH_GRID[risk]||0,bonds); bonds-=cash;   // cash stays fixed below; real assets never touch it
   // 2. equity style: tilt the thematic share inside equities; equities in total stay put
   if(eq>0){ const m=[0.35,0.65,1,1.4,1.8][style-1], t=Math.min(0.45,(them/eq)*m)*eq, rest=eq-t;
     core=rest*core/(core+factor); factor=rest-core; them=t; }
@@ -858,7 +884,7 @@ function assetMix(risk,style,real){
   // target shown is exactly what gets implemented (rather than being folded away later)
   if(bonds>0.001&&bonds<1&&d>0){ target+=bonds; bonds=0; }
   const gs=base>0?gold/base:2/3; gold=target*gs; comm=target-gold;
-  return {eq,bonds,gold,comm,sleeves:{core,factor,thematic:them,bonds,gold,comm}};
+  return {eq,bonds,cash,gold,comm,sleeves:{core,factor,thematic:them,bonds,cash,gold,comm}};
 }
 function fundScore(e,k,style,risk){
   const prefs=sleevePrefs(k,style,risk);
@@ -906,13 +932,14 @@ function buildBundle(risk,count,lowOverlap,style,real,opts){
   // 4-5. how finely the fund count lets us implement it
   // start with every bucket, then combine only while there are more buckets than funds:
   // gold + commodities -> real assets, thematic -> factor, factor -> core
-  let sl={core:m.core,factor:m.factor,thematic:m.thematic,bonds:m.bonds,gold:m.gold,comm:m.comm};
+  let sl={core:m.core,factor:m.factor,thematic:m.thematic,bonds:m.bonds,cash:m.cash,gold:m.gold,comm:m.comm};
   const nz=()=>Object.keys(sl).filter(k=>sl[k]>=1).length;
   const merge=(from,into,rename)=>{ const w=(sl[from]||0)+(sl[into]||0); delete sl[from]; if(rename){ delete sl[into]; sl[rename]=w; } else sl[into]=w; };
   if(nz()>count) merge("comm","gold","real");
   if(nz()>count) merge("thematic","factor");
   if(nz()>count) merge("factor","core");
-  const ORDER=["core","factor","thematic","bonds","real","gold","comm"].filter(k=>k in sl);
+  if(nz()>count) merge("cash","bonds");     // last resort: cash held in the shortest bond fund
+  const ORDER=["core","factor","thematic","cash","bonds","real","gold","comm"].filter(k=>k in sl);
   const usable=e=>!/leveraged|inverse|crypto: bitcoin/i.test(e.cat);
   const ranked={}; ORDER.forEach(k=>{ const prefs=sleevePrefs(k,style,risk);
     ranked[k]=DATA.filter(e=>usable(e)&&prefs.includes(e.cat)).map(e=>({e,sc:fundScore(e,k,style,risk)})).sort((a,b)=>b.sc-a.sc); });
@@ -924,7 +951,7 @@ function buildBundle(risk,count,lowOverlap,style,real,opts){
   const distinct=k=>REAL_KEYS.includes(k)?ranked[k].length:new Set(ranked[k].map(x=>x.e.cat)).size, SPECIAL=["factor","thematic","gold","comm","real"];
   let used=live.length;
   while(used<count){
-    const cand=live.filter(k=>slots[k]<distinct(k)&&(!REAL_KEYS.includes(k)||sl[k]/slots[k]>etfCap(k,risk)+1e-9));
+    const cand=live.filter(k=>slots[k]<distinct(k)&&(!REAL_KEYS.includes(k)&&k!=="cash"||sl[k]/slots[k]>etfCap(k,risk)+1e-9));   // a 2nd cash fund adds little
     if(!cand.length) break;
     const over=cand.filter(k=>SPECIAL.includes(k)&&sl[k]/slots[k]>etfCap(k,risk)+1e-9)
       .sort((a,b)=>sl[b]/slots[b]/etfCap(b,risk)-sl[a]/slots[a]/etfCap(a,risk));
@@ -1082,8 +1109,10 @@ const STRESS=[
   {name:"Recession & credit crunch",like:"2008-style",s:{equity:-30,em:-35,defensive:-22,smallvalue:-38,tech:-35,energy:-30,miners:-35,crypto:-60,govbond:8,linkers:2,corp:-5,shortbond:2,hy:-20,reit:-35,gold:8,silver:-10,comm:-30}},
   {name:"Inflation & interest-rate shock",like:"2022-style",s:{equity:-15,em:-18,defensive:-10,smallvalue:-12,tech:-30,energy:10,miners:-10,crypto:-60,govbond:-15,linkers:-15,corp:-14,shortbond:-3,hy:-10,reit:-25,gold:5,silver:0,comm:20}},
   {name:"Geopolitical & energy shock",like:"",s:{equity:-18,em:-25,defensive:-12,smallvalue:-20,tech:-22,energy:10,miners:-5,crypto:-30,govbond:4,linkers:3,corp:-3,shortbond:1,hy:-8,reit:-15,gold:15,silver:5,comm:15}}];
+STRESS.forEach(sc=>{ sc.s.cash=0; });   // cash / money-market: no price shock in any scenario
 function shockClass(e){ const c=e.cat||"";
   if(/^Crypto/i.test(c)) return "crypto"; if(e.cls==="hy") return "hy"; if(e.cls==="reit"||/property|real estate/i.test(c)) return "reit";
+  if(/cash|ultra-short/i.test(c)) return "cash";
   if(e.cls==="bond") return /inflation|index-linked/i.test(c)?"linkers":/short|ultra/i.test(c)?"shortbond":/corporate/i.test(c)?"corp":"govbond";
   if(c==="Gold") return "gold"; if(c==="Silver") return "silver"; if(/commodit/i.test(c)) return "comm";
   if(/miners/i.test(c)) return "miners"; if(EM_CATS.has(c)) return "em"; if(/energy|uranium/i.test(c)) return "energy";
@@ -1092,7 +1121,7 @@ function shockClass(e){ const c=e.cat||"";
   if(/small|value|mid cap/i.test(c)) return "smallvalue";
   return "equity"; }
 const STRESS_GROUP={equity:"Shares",defensive:"Shares",tech:"Tech & growth",energy:"Shares",miners:"Shares",crypto:"Crypto",em:"Emerging markets",smallvalue:"Small & value",
-  govbond:"Bonds",linkers:"Bonds",corp:"Bonds",shortbond:"Bonds",hy:"Bonds",reit:"Property",gold:"Gold & silver",silver:"Gold & silver",comm:"Commodities"};
+  cash:"Cash",govbond:"Bonds",linkers:"Bonds",corp:"Bonds",shortbond:"Bonds",hy:"Bonds",reit:"Property",gold:"Gold & silver",silver:"Gold & silver",comm:"Commodities"};
 function stressTests(picks,w){ const sw=w.reduce((a,b)=>a+b,0)||1;
   return STRESS.map(sc=>{ const parts={}; let loss=0;
     picks.forEach((e,i)=>{ const k=shockClass(e), c=w[i]/sw*(sc.s[k]??sc.s.equity), g=STRESS_GROUP[k]||"Shares"; parts[g]=(parts[g]||0)+c; loss+=c; });
@@ -1211,7 +1240,7 @@ function amount(){ const raw=$("amount").value.split(SEP.g).join("").replace(SEP
 
 
 /* Asset mix summary: what the risk, style and real-asset settings mean in money terms */
-const MIX_COLORS={eq:"var(--cobalt)",bonds:"var(--buy)",gold:"#B8913A",comm:"var(--sell)"};
+const MIX_COLORS={eq:"var(--cobalt)",bonds:"var(--buy)",cash:"#8A96A3",gold:"#B8913A",comm:"var(--sell)"};
 const chips=list=>`<p class="mix-sub checks">${list.map(c=>`<span class="${c.ok?"ok":"warn"}">${c.ok?"✓":"⚠"} ${c.label}</span>`).join("")}</p>`;
 const lc=x=>x.charAt(0).toUpperCase()+x.slice(1);
 // Plain-language summary of what the diversification step did
@@ -1273,6 +1302,69 @@ document.addEventListener("DOMContentLoaded",()=>{
   btn.addEventListener("click",()=>{ const d=[...box.querySelectorAll("details")], open=!d.every(x=>x.open); d.forEach(x=>x.open=open); syncOlToggle(); });
   box.addEventListener("toggle",syncOlToggle,true);
 });
+/* Horizon check: general information only. It never changes the basket. */
+function horizonNote(b,risk){
+  const h=+($("horizonSel")?.value||0), need=$("needSel")?.value||""; if(!h) return "";
+  const pctTxt=x=>(x>=0?"+":"−")+Math.abs(x).toFixed(1)+"%", cash=b.mix.cash||0;
+  const sc=oneYearScenarios(b.mu,b.risk,b.risk?b.risk.vol:b.vol), dd=b.risk?b.risk.dd:null;
+  const foot="<small>General information, not personal advice.</small>";
+  if(h<=2&&need==="yes") return `<div class="hz-note"><b>Money needed within about 2 years</b>Money with a near, fixed date usually sits mostly in cash or cash-like savings, because investments that fall may not recover in time. This mix holds ${Math.round(cash)}% in cash; its weak year is ${pctTxt(sc.weak)}${dd!=null?` and its worst historical fall ${pctTxt(dd)}`:""}. Where a sum is needed on a set date, savings or bonds that mature on that date match it exactly; FndMngr builds fund baskets, which never mature.${foot}</div>`;
+  if(h<=2&&risk>3) return `<div class="hz-note"><b>A short horizon for Risk ${risk}</b>Over 1–2 years, a mix like this has a real chance of being worth less than it started (its weak year is ${pctTxt(sc.weak)}). Risk 1–3 hold more cash and short-dated bonds.${foot}</div>`;
+  if(h===5&&risk>=8) return `<div class="hz-note"><b>3–5 years at Risk ${risk}</b>Mixes this equity-heavy have historically needed several years to recover from their worst falls${dd!=null?` (this one: ${pctTxt(dd)})`:""}, which leaves limited time on a 3–5 year horizon.${foot}</div>`;
+  if(h===5&&need==="yes"&&risk>=6) return `<div class="hz-note"><b>Needed in 3–5 years</b>If most of this must be there in 3–5 years, a fall like this mix's worst${dd!=null?` (${pctTxt(dd)})`:""} could still be unrecovered by then.${foot}</div>`;
+  if(h>=10&&risk<=2&&need!=="yes") return `<div class="hz-note"><b>A long horizon at Risk ${risk}</b>Over 5+ years, mostly cash and bonds have often only just kept pace with inflation. That's a trade-off for stability, not a mistake.${foot}</div>`;
+  return "";
+}
+/* Fund-count sweet spot. Risk, style and real assets stay fixed, so the asset mix is the same at every
+   count; what changes is breadth (look-through spread of the whole basket), overlap, the largest and
+   smallest holdings, fees and whether every diversification limit is met. The sweet spot is the fewest
+   funds that reach about 90% of the breadth available, preferring counts that meet every limit and
+   never suggesting positions below MIN_POSITION. Information only: the user's choice is never changed. */
+const MIN_POSITION=1000;
+function breadthOf(b){ const x={};
+  b.picks.forEach((e,i)=>{ const pr=profileOf(e), t=Object.values(pr).reduce((a,v)=>a+v,0)||1; for(const d in pr) x[d]=(x[d]||0)+b.w[i]*pr[d]/t; });
+  const ss=Object.values(x).reduce((a,v)=>a+v*v,0); return ss?1/ss:0; }
+let SWEET_CACHE={key:null,rows:null};
+function sweetRows(risk,style,real,ov){
+  const key=[risk,style,real,ov].join("|");
+  if(SWEET_CACHE.key===key&&SWEET_CACHE.data===DATA) return SWEET_CACHE.rows;
+  const rows=[]; for(let n=3;n<=10;n++){ const b=buildBundle(risk,n,ov,style,real,{probe:true});
+    rows.push({n,b,eff:breadthOf(b),ov:b.ov.avg,maxW:Math.max(...b.w),minW:Math.min(...b.w),er:b.er,ok:!b.unresolved.length&&!b.overCap.length}); }
+  SWEET_CACHE={key,data:DATA,rows}; return rows;
+}
+function sweetSpot(rows,amt,cur){
+  const sizeOK=r=>amt*r.minW>=MIN_POSITION*rateOf(cur)||r.n===3;    // MIN_POSITION is in the data's base currency
+  let pool=rows.filter(sizeOK); if(!pool.length) pool=[rows[0]];
+  const limitPool=pool.filter(r=>r.ok), use=limitPool.length?limitPool:pool;
+  const max=Math.max(...use.map(r=>r.eff)), best=use.find(r=>r.eff>=0.9*max)||use[use.length-1];
+  return {best,max,sizeOK,limitsReachable:limitPool.length>0};
+}
+function renderSweet(){
+  const el=$("sweet"); if(!el) return;
+  const risk=+$("riskSlider").value, style=+$("styleSlider").value, real=+$("realSlider").value, ov=$("overlapToggle").checked, cur=+$("countSlider").value, amt=amount();
+  const rows=sweetRows(risk,style,real,ov), {best,max,sizeOK,limitsReachable}=sweetSpot(rows,amt,CUR), top=Math.max(...rows.map(r=>r.eff));
+  const chip=r=>`<button type="button" data-n="${r.n}" class="${r.n===cur?"cur":""} ${r.n===best.n?"best":""} ${sizeOK(r)?"":"small"} ${r.ok?"":"warn"}"
+     aria-label="${r.n} funds${r.n===best.n?", sweet spot":""}${r.ok?"":", not every diversification limit met"}${sizeOK(r)?"":", some holdings under "+usd(MIN_POSITION*rateOf(CUR))}" aria-pressed="${r.n===cur}">${r.n}<i style="width:${Math.round(r.eff/top*100)}%"></i></button>`;
+  const c=rows.find(r=>r.n===cur), pctB=r=>Math.round(r.eff/best.eff*100);
+  const anyOK=rows.some(r=>r.ok), sgn=x=>(x>0?"+":"−")+Math.abs(x)+"%";
+  const head=`<b>Sweet spot for these settings: ${best.n} funds.</b>`; let msg="";
+  msg+=best.ok?"Every diversification limit met, ":!anyOK?"No fund count meets every diversification limit at these settings, "
+    :`With ${usd(amt)}, the counts that meet every limit would mean holdings under ${usd(MIN_POSITION*rateOf(CUR))}, `;
+  msg+=`largest holding ${Math.round(best.maxW*100)}%, smallest ${usd(amt*best.minW)}.`;
+  if(c&&c.n!==best.n){ const d=pctB(c)-100;
+    if(!sizeOK(c)) msg+=` At ${c.n} funds the smallest holding would be ${usd(amt*c.minW)}, under ${usd(MIN_POSITION*rateOf(CUR))}, where dealing costs start to bite.`;
+    else if(d<=-3) msg+=` Your ${c.n}: less spread than ${best.n} (${sgn(d)} breadth)${c.n>best.n?": the extra funds repeat exposures you already have":""}${c.ok||!best.ok?"":", and not every limit met"}.`;
+    else if(d<3) msg+=` Your ${c.n}: about the same spread as ${best.n}${c.n>best.n?", so the extra funds add little":""}${c.ok||!best.ok?"":", but not every limit met"}.`;
+    else msg+=` Your ${c.n}: a little more spread (${sgn(d)} breadth)${c.ok||!best.ok?"":", but not every limit met"}.`;
+  }
+  el.innerHTML=`<div class="sweet-chips" role="group" aria-label="Number of funds compared">${rows.map(chip).join("")}</div>
+    <details class="sweet-text"${el.querySelector("details[open]")?" open":""}><summary>${head}<span class="why" aria-hidden="true">Why?</span></summary>
+      <p>${msg} <span style="opacity:.8">Bars show breadth: how widely the basket spreads across markets, sectors and asset types. ★ = sweet spot; dotted = not every limit met.</span></p></details>`;
+}
+let sweetTimer=null;
+function scheduleSweet(){ clearTimeout(sweetTimer); sweetTimer=setTimeout(()=>{ try{ renderSweet(); }catch(e){ console.error(e); } },120); }
+document.addEventListener("click",ev=>{ const btn=ev.target.closest("#sweet button[data-n]"); if(!btn) return;
+  const sl=$("countSlider"); sl.value=btn.dataset.n; sl.dispatchEvent(new Event("input",{bubbles:true})); });
 function riskCheckHTML(b,risk){
   const c=riskCheck(b,risk); if(!c) return "";
   const f=x=>x.toFixed(1)+"%", range=`typical for Risk ${risk}: ${f(c.lo)}–${f(c.hi)}`;
@@ -1304,9 +1396,9 @@ function divCheckHTML(b,risk,r){
 }
 function bucketLabel(k,n){ return k==="core"&&n<=3?"Global equity":k==="factor"&&n===4?"Factor & growth equity":k==="real"?"Real assets":SLEEVE_NAMES[k]; }
 function renderMix(b,risk){
-  const m=b.mix, r=x=>{ const v=Math.round(x*10)/10; return Number.isInteger(v)?v:v.toFixed(1); }, parts=[["eq","Equities",m.eq],["bonds","Bonds",m.bonds],["gold","Gold",m.gold],["comm","Commodities",m.comm]].filter(p=>p[2]>0.4);
+  const m=b.mix, r=x=>{ const v=Math.round(x*10)/10; return Number.isInteger(v)?v:v.toFixed(1); }, parts=[["eq","Equities",m.eq],["cash","Cash",m.cash||0],["bonds","Bonds",m.bonds],["gold","Gold",m.gold],["comm","Commodities",m.comm]].filter(p=>p[2]>0.4);
   const sl=b.mix.sleeves, eqSplit=[["Core",sl.core],["Factor",sl.factor],["Thematic",sl.thematic]].filter(p=>p[1]>0.4).map(p=>`${p[0]} ${r(p[1])}%`).join(" · ");
-  $("mixSummary").innerHTML=`<p class="mix-title"><b>Risk ${risk}: ${RISK_LABELS[risk-1]}</b> <span class="mix-note">${RISK_NOTES[risk-1]}</span></p>
+  $("mixSummary").innerHTML=`<p class="mix-title"><b>Risk ${risk}: ${RISK_LABELS[risk-1]}</b> <span class="mix-note">${RISK_NOTES[risk-1]}</span></p>${horizonNote(b,risk)}
     <p class="mix-line">${parts.map(p=>`${r(p[2])}% ${p[1]}`).join(" · ")}</p>
     <div class="mix-bar" role="img" aria-label="Asset mix: ${parts.map(p=>`${r(p[2])}% ${p[1]}`).join(", ")}">${parts.map(p=>`<div style="flex-grow:${p[2]};background:${MIX_COLORS[p[0]]}">${p[2]>=9?p[1]:""}</div>`).join("")}</div>
     ${m.eq>0?`<p class="mix-sub">Inside equities: ${eqSplit}</p>`:""}
@@ -1325,6 +1417,7 @@ function renderBundle(){
   const vol=b.risk?b.risk.vol:b.vol;
   const nFunds=b.picks.length; $("countVal").textContent=nFunds; $("countWord").textContent=nFunds+" funds";
   const fn=FUND_NOTES[b.count]; $("countNote").innerHTML=`<b>${b.count} — ${fn[0]}</b><br>${fn[1]}`;
+  scheduleSweet();
   renderMix(b,risk);
   $("allocBar").innerHTML=b.picks.map((e,i)=>`<div data-t="${e.t}" data-i="${i}" style="flex-grow:${b.w[i]};background:${COLORS[i%COLORS.length]}" title="${e.t} ${(b.w[i]*100).toFixed(0)}%">${b.w[i]>.08?e.t:""}</div>`).join("");
   $("allocBar").setAttribute("aria-label","Allocation: "+b.picks.map((e,i)=>`${e.t} ${(b.w[i]*100).toFixed(0)}%`).join(", "));
@@ -1467,11 +1560,13 @@ $("amountPreset").addEventListener("change",e=>{ if(!e.target.value) return;
   $("amount").value=(+e.target.value).toLocaleString(LOCALE); sizeAmount(); amountTouched=true; remember(); renderBundle(); renderPresets(); });
 
 /* Remember amount, fund count and risk for this browser session */
-function remember(){ try{ sessionStorage.setItem("iqfund-builder",JSON.stringify({amount:amount(),cur:CUR,count:+$("countSlider").value,risk:+$("riskSlider").value,style:+$("styleSlider").value,real:+$("realSlider").value})); }catch(e){} }
+function remember(){ try{ sessionStorage.setItem("iqfund-builder",JSON.stringify({amount:amount(),cur:CUR,count:+$("countSlider").value,risk:+$("riskSlider").value,style:+$("styleSlider").value,real:+$("realSlider").value,horizon:$("horizonSel").value,need:$("needSel").value})); }catch(e){} }
 try{ const m=JSON.parse(sessionStorage.getItem("iqfund-builder")||"null");
   if(m){ if(m.amount>0){ const a=m.cur===CUR?m.amount:niceRound(m.amount*rateOf(CUR,m.cur)); $("amount").value=a.toLocaleString(LOCALE); amountTouched=true; }
     if(m.count>=3&&m.count<=10) $("countSlider").value=m.count; if(m.risk>=1&&m.risk<=10) $("riskSlider").value=m.risk;
-    if(m.style>=1&&m.style<=5) $("styleSlider").value=m.style; if(m.real>=1&&m.real<=5) $("realSlider").value=m.real; } }catch(e){}
+    if(m.style>=1&&m.style<=5) $("styleSlider").value=m.style; if(m.real>=1&&m.real<=5) $("realSlider").value=m.real;
+    if(m.horizon!=null) $("horizonSel").value=m.horizon; if(m.need!=null) $("needSel").value=m.need; } }catch(e){}
+["horizonSel","needSel"].forEach(id=>$(id).addEventListener("change",()=>{ remember(); renderBundle(); }));
 ["amount","countSlider","riskSlider","styleSlider","realSlider"].forEach(id=>$(id).addEventListener("input",()=>{ remember(); if(id==="amount") renderPresets(); }));
 $("amount").addEventListener("blur",renderPresets);
 
