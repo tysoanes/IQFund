@@ -11,7 +11,7 @@ var IQ_THEMES={broadsheet:"",classic:"",
   monograph:"family=Schibsted+Grotesk:wght@400;500;700;900",
   nightdesk:"family=Red+Hat+Display:wght@400;500;700;900&family=Red+Hat+Mono:wght@400;500"};
 function iqApplyTheme(t){
-  if(!(t in IQ_THEMES)) t="broadsheet";
+  if(!(t in IQ_THEMES)) t="monograph";
   document.documentElement.dataset.theme=t;
   if(IQ_THEMES[t]&&!document.getElementById("font-"+t)){
     var l=document.createElement("link"); l.rel="stylesheet"; l.id="font-"+t;
@@ -19,7 +19,7 @@ function iqApplyTheme(t){
   return t;
 }
 var iqSaved; try{ iqSaved=localStorage.getItem("iqfund-theme"); }catch(e){}
-iqApplyTheme(iqSaved||"broadsheet");
+iqApplyTheme(iqSaved||"monograph");   // Monograph is the default style
 </script>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Archivo:wdth,wght@62..125,400..800&family=Newsreader:opsz,wght@6..72,400;6..72,600;6..72,700&family=IBM+Plex+Sans:wght@400;500;600&display=swap" rel="stylesheet">
@@ -37,6 +37,9 @@ header.top{display:flex;justify-content:space-between;align-items:baseline;paddi
 .brand{font:800 22px/1 var(--display);font-stretch:112%;letter-spacing:-.01em}
 .brand span{color:var(--cobalt)}
 .asof{font-size:13px;color:var(--muted);text-align:right}
+.hdr-opts{display:inline-block;text-align:right;margin-top:2px}.hdr-opts>summary{cursor:pointer;list-style:none;font-size:13px;font-weight:600;color:var(--muted);text-decoration:underline;text-underline-offset:3px;display:inline-block;padding:4px 0}
+.hdr-opts>summary::-webkit-details-marker{display:none}.hdr-opts>summary::after{content:" ▾"}.hdr-opts[open]>summary::after{content:" ▴"}
+.hdr-opts-body{padding-top:4px}
 .asof select{font:600 14px var(--body);padding:4px 6px;border:1px solid var(--line);border-radius:6px;background:var(--panel);color:var(--ink)}
 .upload{display:inline-block;margin-top:6px;font:600 13px var(--body);color:var(--cobalt);text-decoration:underline;cursor:pointer}
 .upload:focus-within{outline:3px solid var(--cobalt)}
@@ -253,6 +256,9 @@ dialog::backdrop{background:rgba(20,33,61,.45)}
 .bcard .meta{font-size:13px;color:var(--muted)}
 .bcard .val{font:700 24px var(--display);margin-top:10px}
 .bcard .ret{font-weight:600;font-size:15px}
+.trk{display:inline-flex;align-items:center;gap:5px;margin-top:8px;font-size:13px;font-weight:600}
+.trk-ok{color:var(--buy)}.trk-behind{color:#8A6A1F}.trk-well{color:var(--sell)}.trk-early{color:var(--muted);font-weight:500}
+.trk-note{margin:10px 0 0;font-size:14px;line-height:1.5}.trk-note .trk{margin:0 6px 0 0}
 .badge{position:absolute;top:14px;right:14px;background:var(--sell-bg);color:var(--sell);font:700 12px var(--body);padding:3px 9px;border-radius:99px}
 .bnums{display:grid;grid-template-columns:repeat(3,1fr);gap:10px;margin:16px 0}
 .bnums div{background:var(--soft);border-radius:8px;padding:10px}
@@ -479,8 +485,10 @@ html[data-theme="nightdesk"] dialog::backdrop{background:rgba(0,0,0,.6)}
   <header class="top">
     <div class="brand">Fnd<span>Mngr</span></div>
     <div class="asof"><span id="visitors" class="visitors" hidden aria-live="polite"></span><label for="cur">Currency</label> <select id="cur"></select><br><span id="rateNote">Sample data — not live prices</span><br>
-      <span class="style-pick"><label for="themeSel">Style</label> <select id="themeSel"><option value="broadsheet">Broadsheet</option><option value="ledger">Ledger</option><option value="harbour">Harbour</option><option value="monograph">Monograph</option><option value="nightdesk">Night desk</option><option value="classic">Classic</option></select></span><br>
-      <label class="upload">Load CSV<input type="file" id="csvFile" accept=".csv,text/csv" hidden></label> <span id="csvMsg" role="status"></span></div>
+      <details class="hdr-opts" id="hdrOpts"><summary>Options</summary><div class="hdr-opts-body">
+      <span class="style-pick"><label for="themeSel">Style</label> <select id="themeSel"><option value="monograph">Monograph</option><option value="broadsheet">Broadsheet</option><option value="ledger">Ledger</option><option value="harbour">Harbour</option><option value="nightdesk">Night desk</option><option value="classic">Classic</option></select></span><br>
+      <label class="upload">Load CSV<input type="file" id="csvFile" accept=".csv,text/csv" hidden></label></div></details>
+      <span id="csvMsg" role="status"></span></div>
   </header>
 
   <section class="builder" aria-labelledby="builderTitle">
@@ -1802,7 +1810,9 @@ async function saveBasket(){
   const b=buildBundle(risk,count,$("overlapToggle").checked,style,real,{overlay:horizonOverlay()}), usd=amt/RATE;   // amount in the base currency
   const holdings=b.picks.map((e,i)=>({t:e.t,n:e.n,units:usd*b.w[i]/e.p,entry:e.p,since:ASOF}));
   const name=$("basketName").value.trim()||`Basket ${BASKETS.length+1}`;
-  BASKETS.push({id:Date.now().toString(36),name,created:ASOF,cur:CUR,base:BASE,fx:RATE,invested:amt,usdInvested:usd,risk,style,real,
+  const mr=measureRisk(b.picks,b.w);
+  const plan={base:b.mu,vol:mr?mr.vol:b.vol,horizon:$("horizonSel").value,need:$("needSel").value};   // what the basket was expected to do
+  BASKETS.push({id:Date.now().toString(36),name,created:ASOF,cur:CUR,base:BASE,fx:RATE,invested:amt,usdInvested:usd,risk,style,real,plan,
     versions:[{from:ASOF,holdings}],log:[{d:ASOF,x:`Saved with ${holdings.map(h=>h.t).join(", ")}`}],seen:[]});
   if(LIVE) BASKETS[BASKETS.length-1].seen=alertsFor(BASKETS[BASKETS.length-1]).map(a=>a.key); // don't notify about alerts you saved with
   const ok=await Store.save(); $("basketName").value="";
@@ -1822,6 +1832,42 @@ function swap(b,t,repT){
 }
 
 /* ---------- Rendering ---------- */
+/* On track? Compare the return since saving with the basket's own plan: its base case spread over the time
+   held, with a normal range that widens with time and volatility. Behind = below the path but within normal
+   ups and downs; Well behind = worse than about 1 period in 7 (the same line as the weak year). */
+function trackStatus(b,s){
+  const days=Math.max(0,(new Date(ASOF)-new Date(b.created))/864e5);
+  let plan=b.plan;
+  if(!plan||plan.base==null){   // baskets saved before plans were recorded: estimate from today's figures for the same funds
+    const hs=b.versions[0].holdings, picks=[], w=[];
+    hs.forEach(h=>{ const e=DATA.find(x=>x.t===h.t); if(e){ picks.push(e); w.push(h.units*h.entry); } });
+    if(!picks.length) return null;
+    const sw=w.reduce((a,c)=>a+c,0), mr=measureRisk(picks,w);
+    plan={base:picks.reduce((a,e,i)=>a+w[i]/sw*e.mu,0),vol:mr?mr.vol:picks.reduce((a,e,i)=>a+w[i]/sw*e.vol,0),estimated:true};
+  }
+  const t=days/365.25, expected=(Math.pow(1+plan.base/100,t)-1)*100, sd=plan.vol*Math.sqrt(t), actual=s.ret*100;
+  const lo=expected-1.04*sd, hi=expected+1.04*sd;
+  const status=days<28?"early":actual>=expected-0.5*sd?"ok":actual>=lo?"behind":"well";
+  return {status,days,expected,actual,lo,hi,plan};
+}
+const TRACK={ok:["●","On track"],behind:["▲","Behind plan"],well:["■","Well behind"],early:["○","Too early to tell"]};
+function trackBadge(b,s){
+  const tr=trackStatus(b,s); if(!tr) return "";
+  const f=x=>(x>=0?"+":"−")+Math.abs(x).toFixed(1)+"%";
+  const tip=tr.status==="early"?`Saved ${Math.round(tr.days)} days ago: too soon for a fair comparison. Check back after about a month.`
+    :`${f(tr.actual)} since ${fmtDate(b.created)}. Plan: ${f(tr.expected)} by now (base case ${tr.plan.base.toFixed(1)}% a year${tr.plan.estimated?", estimated from today's figures":""}); normal range ${f(tr.lo)} to ${f(tr.hi)}.`;
+  return `<span class="trk trk-${tr.status}" title="${tip}"><span aria-hidden="true">${TRACK[tr.status][0]}</span> ${TRACK[tr.status][1]}</span>`;
+}
+function trackDetail(b,s){
+  const tr=trackStatus(b,s); if(!tr) return "";
+  const f=x=>(x>=0?"+":"−")+Math.abs(x).toFixed(1)+"%";
+  if(tr.status==="early") return `<p class="trk-note">${trackBadge(b,s)} Saved ${Math.round(tr.days)} days ago. Day-to-day moves swamp any trend this early; the check starts after about a month.</p>`;
+  const why={ok:"It's at or close to where its plan expected by now.",
+    behind:"It's below its expected path, but within the normal ups and downs for this risk level.",
+    well:"It's further below plan than about 1 period in 7 would be. Falls like this are part of the risk level chosen and often recover, so this isn't a signal to sell on its own; any alerts below cover individual funds."}[tr.status];
+  const need=b.plan&&b.plan.need==="yes"&&tr.status==="well"&&s.localNow<b.invested?` It's ${moneyIn(b.invested-s.localNow,b.cur)} below the ${moneyIn(b.invested,b.cur)} you said you'd need.`:"";
+  return `<p class="trk-note">${trackBadge(b,s)} ${f(tr.actual)} since saving vs a planned ${f(tr.expected)} by now (normal range ${f(tr.lo)} to ${f(tr.hi)}). ${why}${need}${tr.plan.estimated?" <i>Plan estimated from today's figures: this basket was saved before plans were recorded.</i>":""}</p>`;
+}
 function renderBaskets(){
   const el=$("basketList"); if(!el) return;
   if(!BASKETS.length){ el.innerHTML=`<p class="lead" style="grid-column:1/-1">No saved baskets yet. Build one above and tap “Save basket”.</p>`; return; }
@@ -1829,11 +1875,12 @@ function renderBaskets(){
     if(old) return `<button class="bcard" data-id="${b.id}" aria-label="${esc(b.name)}, saved with the old US fund list">
       <h3>${esc(b.name)}</h3><div class="meta">Saved ${fmtDate(b.created)} · old US fund list</div>
       <div class="val" style="font-size:17px">Prices no longer update</div><div class="meta">Save it again with the London funds</div></button>`;
-    return `<button class="bcard" data-id="${b.id}" aria-label="${esc(b.name)}, ${pct(s.ret*100)} since ${fmtDate(b.created)}${n?", "+n+" alerts":""}">
+    const tr=trackStatus(b,s);
+    return `<button class="bcard" data-id="${b.id}" aria-label="${esc(b.name)}, ${pct(s.ret*100)} since ${fmtDate(b.created)}${tr?", "+TRACK[tr.status][1]:""}${n?", "+n+" alerts":""}">
       ${n?`<span class="badge">${n} alert${n>1?"s":""}</span>`:""}
       <h3>${esc(b.name)}</h3><div class="meta">Saved ${fmtDate(b.created)} · ${s.hs.length} funds${(b.base||"USD")!==BASE&&LIVE?" · old US fund list":""}</div>
       <div class="val">${moneyIn(s.localNow,b.cur)}</div>
-      <div class="ret ${Math.round(s.ret*1000)>=0?"pos":"neg"}">${pct(s.ret*100)} <span class="meta">on ${moneyIn(b.invested,b.cur)}</span></div></button>`;}).join("");
+      <div class="ret ${Math.round(s.ret*1000)>=0?"pos":"neg"}">${pct(s.ret*100)} <span class="meta">on ${moneyIn(b.invested,b.cur)}</span></div>${trackBadge(b,s)}</button>`;}).join("");
 }
 function openBasket(id){
   const b=BASKETS.find(x=>x.id===id); if(!b) return;
@@ -1849,6 +1896,7 @@ function openBasket(id){
     <div><small>Invested</small><b>${moneyIn(b.invested,b.cur)}</b></div>
     <div><small>Fund return</small><b class="${Math.round(s.ret*1000)>=0?"pos":"neg"}">${pct(s.ret*100)}</b></div>
   </div>
+  ${(b.base||"USD")===BASE||!LIVE?trackDetail(b,s):""}
   ${(b.base||"USD")!==BASE&&LIVE?`<p class="alertbox" style="font-size:14px">This basket was saved with the old US fund list, so its prices no longer update. Build and save it again to track the London-listed funds.</p>`:""}
   ${b.cur!==(b.base||"USD")?`<p style="font-size:13px;color:var(--muted);margin:-6px 0 10px">Value includes a ${pct(s.fxMove*100)} move in the ${b.base||"USD"}/${b.cur} rate since you saved.</p>`:""}
   <div class="chart">${chartSVG(days)}</div>
