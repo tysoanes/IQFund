@@ -387,6 +387,7 @@ html[data-theme="nightdesk"] dialog::backdrop{background:rgba(0,0,0,.6)}
 .mix-stats div{margin:0}.mix-stats dt{font-size:12px;color:var(--muted)}.mix-stats dd{margin:0;font-weight:600;font-size:15px}
 @media (prefers-reduced-motion:reduce){.mix-bar div{transition:none}}
 .style-pick{margin-top:6px}
+.visitors{display:block;margin-bottom:6px;font-size:13px;color:var(--muted)}.visitors b{color:var(--ink);font-variant-numeric:tabular-nums}
 .amount-pick{display:flex;align-items:center;gap:10px;flex-wrap:wrap;margin:14px 0 0;font-size:15px;color:var(--muted)}
 .amount-pick select{font:600 15px var(--body);padding:8px 10px;border:1px solid var(--line);border-radius:var(--radius);background:var(--panel);color:var(--ink);min-height:44px}
 
@@ -405,7 +406,7 @@ html[data-theme="nightdesk"] dialog::backdrop{background:rgba(0,0,0,.6)}
 <div class="wrap">
   <header class="top">
     <div class="brand">Fnd<span>Mngr</span></div>
-    <div class="asof"><label for="cur">Currency</label> <select id="cur"></select><br><span id="rateNote">Sample data — not live prices</span><br>
+    <div class="asof"><span id="visitors" class="visitors" hidden aria-live="polite"></span><label for="cur">Currency</label> <select id="cur"></select><br><span id="rateNote">Sample data — not live prices</span><br>
       <span class="style-pick"><label for="themeSel">Style</label> <select id="themeSel"><option value="broadsheet">Broadsheet</option><option value="ledger">Ledger</option><option value="harbour">Harbour</option><option value="monograph">Monograph</option><option value="nightdesk">Night desk</option><option value="classic">Classic</option></select></span><br>
       <label class="upload">Load CSV<input type="file" id="csvFile" accept=".csv,text/csv" hidden></label> <span id="csvMsg" role="status"></span></div>
   </header>
@@ -1002,7 +1003,35 @@ function buildBundle(risk,count,lowOverlap,style,real,opts){
     {id:"fund",label:"Single-fund limits",ok:!overFinal.length},{id:"overlap",label:"Overlap",ok:ovAvg<0.35}];
   return {picks,w,sleeveOf,mix,style,real,count,buckets,moves,overCap:overFinal,swaps,kept,guards,unresolved,recommend,valid,hard,soft,limits:LIMITS.map(c=>({id:c.id,label:c.label,cap:c.cap,exp:expOf(c)})),look:lookThrough(picks,w,sleeveOf),mu,vol:Math.sqrt(v),dd,yld,er,ov:portfolioOverlap(picks,w)};
 }
-const volLabel=v=>v<6?"Low":v<10?"Low–medium":v<14?"Medium":v<18?"Medium–high":"High";
+// Objective volatility labels: they describe the number, whatever the risk level selected
+const volLabel=v=>v<5?"Low":v<9?"Low–medium":v<13?"Medium":v<17?"Medium–high":v<22?"High":"Very high";
+
+/* ---------- Outlook engine (separate from portfolio construction) ----------
+   Measures THIS basket from its funds' weekly total returns (risk.json, built daily):
+   - volatility: 70% x last 3 years + 30% x last 6 months, annualised from the basket's own
+     weekly returns (the same as sqrt(w'Σw) with the measured covariance of its funds)
+   - worst drop: the basket's own peak-to-trough fall at today's weights, rebalanced weekly.
+   Without risk.json (sample data, an uploaded CSV) the older estimates are used and labelled so. */
+let RISKDATA=null;
+function loadRisk(j){ if(!j||!Array.isArray(j.dates)||!j.funds) return; const u=j.unit||1e-4, f={};
+  for(const t in j.funds) f[t]={r:Float64Array.from(j.funds[t].r,x=>x*u),from:j.funds[t].from};
+  RISKDATA={dates:j.dates,funds:f,asOf:j.as_of}; }
+function annVol(a){ const n=a.length; if(n<8) return null; let m=0; for(const x of a) m+=x; m/=n; let v=0; for(const x of a) v+=(x-m)*(x-m); return Math.sqrt(v/(n-1)*52)*100; }
+function measureRisk(picks,w){
+  if(!RISKDATA) return null; const S=picks.map(e=>RISKDATA.funds[e.t]); if(!S.length||S.some(x=>!x)) return null;
+  const D=RISKDATA.dates, n=D.length, sw=w.reduce((a,b)=>a+b,0)||1, port=new Float64Array(n);
+  for(let t=0;t<n;t++){ let s=0; for(let i=0;i<S.length;i++) s+=w[i]/sw*S[i].r[t]; port[t]=s; }
+  const v3=annVol(port.subarray(Math.max(0,n-156))), v6=annVol(port.subarray(Math.max(0,n-26)));
+  if(v3==null) return null;
+  const vol=v6!=null?0.7*v3+0.3*v6:v3;
+  let nav=1,peak=1,pk=-1,worst={dd:0,from:-1,to:-1};
+  for(let t=0;t<n;t++){ nav*=1+port[t]; if(nav>peak){ peak=nav; pk=t; } const dd=nav/peak-1; if(dd<worst.dd) worst={dd,from:pk,to:t}; }
+  const start=D[0], peakDate=worst.from<0?start:D[worst.from], troughDate=worst.to<0?null:D[worst.to];
+  const stand=picks.map((e,i)=>({t:e.t,from:S[i].from})).filter(x=>x.from&&x.from>start);
+  return {vol,v3,v6,dd:worst.dd*100,peakDate,troughDate,start,weeks:n,
+    ddStand:troughDate?stand.filter(x=>x.from>peakDate):[], volStand:stand.filter(x=>x.from>D[Math.max(0,n-156)])};
+}
+const monthYear=d=>new Date(d+"T12:00:00").toLocaleDateString(LOCALE,{month:"short",year:"numeric"});
 const growLabel=m=>m<4?"Low":m<6?"Low–medium":m<8?"Medium":m<10?"Medium–high":"High";
 // Downside protection follows the risk level (how much sits outside equities), not past drawdowns,
 // so an 80%-equity basket is never described as well protected.
@@ -1146,7 +1175,7 @@ function renderMix(b,risk){
     <div class="mix-bar" role="img" aria-label="Asset mix: ${parts.map(p=>`${r(p[2])}% ${p[1]}`).join(", ")}">${parts.map(p=>`<div style="flex-grow:${p[2]};background:${MIX_COLORS[p[0]]}">${p[2]>=9?p[1]:""}</div>`).join("")}</div>
     ${m.eq>0?`<p class="mix-sub">Inside equities: ${eqSplit}</p>`:""}
     <p class="mix-sub">With ${b.count} funds: ${b.buckets.map(x=>`${r(x.w)}% ${bucketLabel(x.k,b.count).toLowerCase()}${x.n>1?` (${x.n} funds)`:""}`).join(" · ")}</p>
-    <dl class="mix-stats"><div><dt>Estimated volatility</dt><dd>${volLabel(b.vol)}</dd></div><div><dt>Growth potential</dt><dd>${growLabel(b.mu)}</dd></div><div><dt>Downside protection</dt><dd>${protLabel(risk)}</dd></div></dl>${divCheckHTML(b,risk,r)}`;
+    <dl class="mix-stats"><div><dt>Estimated volatility</dt><dd>${volLabel(b.risk?b.risk.vol:b.vol)}</dd></div><div><dt>Growth potential</dt><dd>${growLabel(b.mu)}</dd></div><div><dt>Downside protection</dt><dd>${protLabel(risk)}</dd></div></dl>${divCheckHTML(b,risk,r)}`;
 }
 function renderBundle(){
   const risk=+$("riskSlider").value, count=+$("countSlider").value, amt=amount();
@@ -1155,6 +1184,8 @@ function renderBundle(){
   $("styleVal").textContent=STYLE_LABELS[style-1]; $("realVal").textContent=REAL_LABELS[real-1];
   $("riskWord").textContent=MIX_WORDS[risk-1]; $("riskArt").textContent=/^[aeiou]/.test(MIX_WORDS[risk-1])?"an":"a"; $("countWord").textContent=count+" funds";
   const b=buildBundle(risk,count,$("overlapToggle").checked,style,real);
+  b.risk=measureRisk(b.picks,b.w);          // outlook engine: measured, not used for picking funds
+  const vol=b.risk?b.risk.vol:b.vol;
   const nFunds=b.picks.length; $("countVal").textContent=nFunds; $("countWord").textContent=nFunds+" funds";
   const fn=FUND_NOTES[b.count]; $("countNote").innerHTML=`<b>${b.count} — ${fn[0]}</b><br>${fn[1]}`;
   renderMix(b,risk);
@@ -1165,13 +1196,15 @@ function renderBundle(){
     <span class="nm">${(b.w[i]*100).toFixed(1)}% · ${SLEEVE_SHORT[b.sleeveOf[i]]||""} · ${esc(e.n)}</span>
     <span class="amt">${usd($a)}<small>${sh>0?sh+" share"+(sh>1?"s":"")+" @ "+priceFmt(conv(e.p)):"fractional"}</small></span><span class="chev" aria-hidden="true">›</span></button></li>`;}).join("");
   LAST_BUNDLE={b,amt};
-  const sc=[["Good year",b.mu+b.vol,"Roughly 1 year in 6 does at least this well"],
+  const R=b.risk, standTxt=l=>l.length?` ${l.map(x=>x.t).join(", ")} ${l.length>1?"weren't":"wasn't"} trading for all of it, so similar funds stand in before ${l.length>1?"their":"its"} launch.`:"";
+  const sc=[["Good year",b.mu+vol,"Roughly 1 year in 6 does at least this well"],
             ["Expected",b.mu,"Middle-of-the-road outcome"],
-            ["Bad year",b.mu-b.vol,"Roughly 1 year in 6 does this badly or worse"],
-            ["Crash (like 2008/2020)",b.dd,"Weighted worst past peak-to-trough drop of these funds"]];
+            ["Bad year",b.mu-vol,"Roughly 1 year in 6 does this badly or worse"],
+            R?[`Worst drop since ${monthYear(R.start)}`,R.dd,`This basket's own biggest fall (${monthYear(R.peakDate)} to ${monthYear(R.troughDate)}), at today's weights, dividends included.${standTxt(R.ddStand)}`]
+             :["Worst past drop (rough)",b.dd,"Each fund's own worst drop, weighted. An upper-end guess: the funds didn't all fall at the same time"]];
   $("outlook").innerHTML=sc.map(([l,r,d])=>`<div class="scen"><span>${l}</span><span class="v ${r>=0?"up":"down"}">${usd(amt*(1+r/100))} <small style="font-size:13px">${pct(r)}</small></span><span class="d">${d}</span></div>`).join("");
   const y5=amt*Math.pow(1+b.mu/100,5);
-  $("pstats").innerHTML=`<span><b>${usd(y5)}</b>5-yr expected</span><span><b>${b.vol.toFixed(1)}%</b>Volatility</span><span><b>${b.yld.toFixed(1)}%</b>Dividend yield</span><span><b>${b.er.toFixed(2)}%</b>Avg fee</span><span><b>${ovLabel(b.ov.avg)}</b>Fund overlap</span>`;
+  $("pstats").innerHTML=`<span><b>${usd(y5)}</b>5-yr expected</span><span title="${R?`Measured from this basket's weekly returns: 70% last 3 years (${R.v3.toFixed(1)}%) + 30% last 6 months (${R.v6!=null?R.v6.toFixed(1)+"%":"n/a"})`:"Estimated from each fund's volatility and typical correlations"}"><b>${vol.toFixed(1)}%</b>Volatility${R?"":" (est.)"}</span><span><b>${b.yld.toFixed(1)}%</b>Dividend yield</span><span><b>${b.er.toFixed(2)}%</b>Avg fee</span><span><b>${ovLabel(b.ov.avg)}</b>Fund overlap</span>`;
   const top=b.ov.top;
   const bt=backtestHTML(b.picks,b.w,amt);
   $("backtest").hidden=!bt;
@@ -1518,8 +1551,23 @@ function renderNotif(){ const btn=$("notifBtn");
 $("notifBtn").addEventListener("click",()=>Notification.requestPermission().then(()=>{renderNotif(); notifyNew();}));
 renderNotif();
 Store.load().then(v=>{ BASKETS=Array.isArray(v)?v:[]; renderBaskets(); notifyNew(); });
+fetch("risk.json",{cache:"no-store"}).then(r=>r.ok?r.json():Promise.reject()).then(j=>{ loadRisk(j); renderBundle(); }).catch(()=>{});
 fetch("history.csv",{cache:"no-store"}).then(r=>r.ok?r.text():Promise.reject()).then(t=>{ loadHistory(t); renderBaskets(); renderBundle(); }).catch(()=>{});
 
+</script>
+<script>
+/* ---------- Visitor count (GoatCounter: free, no cookies, works on GitHub Pages) ----------
+   Set GOATCOUNTER to your site code (the "xyz" in xyz.goatcounter.com) to count visits and show
+   the total top right. Left empty, nothing is loaded or shown. */
+const GOATCOUNTER="";
+if(GOATCOUNTER&&!/^(localhost|127\.)/.test(location.hostname)){
+  const gc=document.createElement("script"); gc.async=true; gc.src="https://gc.zgo.at/count.js";
+  gc.dataset.goatcounter=`https://${GOATCOUNTER}.goatcounter.com/count`; document.body.appendChild(gc);
+  fetch(`https://${GOATCOUNTER}.goatcounter.com/counter/TOTAL.json`).then(r=>r.ok?r.json():Promise.reject())
+    .then(d=>{ const n=parseInt(String(d.count).replace(/[^0-9]/g,""),10); if(!n) return;
+      const el=document.getElementById("visitors"); el.innerHTML=`<b>${n.toLocaleString("en-GB")}</b> visitor${n===1?"":"s"}`; el.hidden=false; })
+    .catch(()=>{});
+}
 </script>
 </body>
 </html>

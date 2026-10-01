@@ -12,6 +12,12 @@ Output: funds.csv    - one row per fund: price, 52-week range, 200-day
                        fees, yield, P/E. All prices in pounds (GBP).
         history.csv  - date,ticker,close_gbp for every trading day, kept for up
                        to 10 years. Saved baskets use it to chart performance.
+        risk.json    - weekly total returns (in pounds, dividends included) for
+                       every fund over up to 10 years. The site uses it to
+                       measure each basket's own volatility and worst drop.
+                       A fund younger than the window borrows the average of
+                       similar funds before its launch (its "from" date says
+                       where its real data starts).
         info_cache.json - fund details and each fund's quote currency.
 
 London ETFs are quoted in pence (GBp), pounds (GBP) or dollars (USD) depending
@@ -42,6 +48,9 @@ OUT_FILE = "funds.csv"
 HIST_FILE = "history.csv"
 HIST_HEADER = ["date", "ticker", "close_gbp"]
 HIST_KEEP_DAYS = 3650
+RISK_FILE = "risk.json"
+PRICE_PERIOD = "10y"             # long enough to include the 2020 crash and 2022 rate shock
+MIN_FUNDS_FOR_START = 10         # the risk window starts once this many funds have data
 INFO_CACHE = "info_cache.json"
 EXCHANGE_SUFFIX = ".L"           # London Stock Exchange on Yahoo
 BASE = "GBP"                     # every price in the output is in pounds
@@ -78,7 +87,7 @@ def read_tickers(path):
     return out
 
 
-def download(yahoo_symbols, period="5y"):
+def download(yahoo_symbols, period=PRICE_PERIOD):
     """Daily Close and Adj Close. Returns {yahoo_symbol: DataFrame}."""
     result = {}
     for i in range(0, len(yahoo_symbols), BATCH):
@@ -209,6 +218,7 @@ def rsi(close, n=14):
 
 
 def metrics(h):
+    h = h[h.index >= h.index[-1] - pd.DateOffset(years=5)]   # fund stats stay 5-year
     close, adj = h["Close"], h["Adj Close"]
     last_year = close.iloc[-252:]
     years = (adj.index[-1] - adj.index[0]).days / 365.25
@@ -267,6 +277,47 @@ def update_history(hist):
     print(f"history.csv now holds {len(rows)} prices.")
 
 
+def build_risk(hist, rows, as_of):
+    """Weekly total returns per fund for risk.json. Gaps before a fund launched are
+    filled with the average of its category (else its asset class, else all funds),
+    so every basket can be measured over the same window."""
+    meta = {r["symbol"]: ((r.get("category") or "").strip(), (r.get("class") or "eq").strip()) for r in rows}
+    weekly = {}
+    for s, h in hist.items():
+        wk = h["Adj Close"].resample("W-FRI").last().dropna()
+        r = wk.pct_change().dropna()
+        if len(r) >= 8:
+            weekly[s] = r.clip(-0.6, 0.6)            # guard against stray data glitches
+    if not weekly:
+        return None
+    rets = pd.DataFrame(weekly).sort_index()
+    counts = rets.notna().sum(axis=1)
+    rets = rets[counts.cumsum() > 0]
+    start_ok = counts[counts >= min(MIN_FUNDS_FOR_START, len(weekly))]
+    if len(start_ok):
+        rets = rets[rets.index >= start_ok.index[0]]
+    real_from = {s: rets[s].first_valid_index() for s in rets}
+    groups = {}
+    for s in rets:
+        cat, cls = meta.get(s, ("", "eq"))
+        groups.setdefault(("cat", cat), []).append(s)
+        groups.setdefault(("cls", cls), []).append(s)
+    out = {}
+    for s in rets:
+        col = rets[s].copy()
+        cat, cls = meta.get(s, ("", "eq"))
+        for peers in (groups.get(("cat", cat), []), groups.get(("cls", cls), []), list(rets.columns)):
+            peers = [p for p in peers if p != s]
+            if peers and col.isna().any():
+                col = col.fillna(rets[peers].mean(axis=1))
+        col = col.fillna(0.0)
+        out[s] = {"from": real_from[s].date().isoformat() if real_from[s] is not None else None,
+                  "r": [int(round(v * 10000)) for v in col]}   # in 0.01% steps, to keep the file small
+    return {"as_of": as_of, "freq": "weekly", "unit": 0.0001, "basis": "total return in GBP",
+            # weeks are labelled by their Friday; the current, unfinished week gets its last trading day
+            "dates": [min(d.date().isoformat(), as_of) for d in rets.index], "funds": out}
+
+
 def fmt(v, d=2):
     return "" if v is None or (isinstance(v, float) and math.isnan(v)) else round(v, d)
 
@@ -322,6 +373,11 @@ def main():
             written += 1
     print(f"Wrote {written} funds to {OUT_FILE} (prices in {BASE}).")
     update_history(hist)
+    risk = build_risk(hist, rows, as_of)
+    if risk:
+        with open(RISK_FILE, "w", encoding="utf-8") as f:
+            json.dump(risk, f, separators=(",", ":"))
+        print(f"{RISK_FILE}: {len(risk['funds'])} funds, {len(risk['dates'])} weeks from {risk['dates'][0]}.")
     if unknown:
         print("Skipped until their currency is known:", ", ".join(unknown))
     missing = [s for s in skipped if s not in {u.split()[0] for u in unknown}]
