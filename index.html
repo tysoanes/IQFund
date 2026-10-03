@@ -357,7 +357,7 @@ html:not([data-theme="classic"]) :is(.brand,.sentence,.screener h2,.baskets h2,.
 dialog{background:var(--panel)}
 
 /* B · Ledger: private-bank green and brass */
-html[data-theme="ledger"]{
+html[data-theme="ledger"]{--mix-bonds:#2F6A8F;
   --paper:#F6F3EA; --panel:#FFFDF7; --ink:#16231E; --muted:#5B6660; --line:#D8D1BF;
   --cobalt:#1E5A45; --accent-dark:#123A2F; --buy:#1E5A45; --hold:#7D6128; --sell:#9B2C2C;
   --buy-bg:#DDEAE3; --hold-bg:#F1E8D2; --sell-bg:#F4DEDB; --soft:#F1EDE2; --hover:#EAE4D5; --slot-focus:#F1E8D2; --radius:0px;
@@ -381,7 +381,7 @@ html[data-theme="ledger"] .bcard{border:1px solid #C9A961}
 html[data-theme="ledger"] .pill{background:transparent!important;min-width:0;padding:0}
 
 /* D · Harbour: friendly sea blue and sunset */
-html[data-theme="harbour"]{
+html[data-theme="harbour"]{--mix-bonds:#2A7F9E;
   --paper:#E9F0F2; --panel:#FFFFFF; --ink:#0B2545; --muted:#3D5170; --line:#C6D3DA;
   --cobalt:#0B2545; --accent-dark:#13315C; --buy:#164A7A; --hold:#3D4A5C; --sell:#B4441C;
   --buy-bg:#DDEBF7; --hold-bg:#EEF1F5; --sell-bg:#F9E0D3; --soft:#F2F6F8; --hover:#E3ECF0; --slot-focus:#FAD3B0; --radius:16px;
@@ -402,7 +402,7 @@ html[data-theme="harbour"] .chip{border-radius:99px}
 html[data-theme="harbour"] .risk-track{background:linear-gradient(90deg,#8FC1D4,#F7D08A,#F4A259)}
 
 /* E · Monograph: Swiss grid, one typeface, plum */
-html[data-theme="monograph"]{
+html[data-theme="monograph"]{--mix-bonds:#2B7A99;
   --paper:#FAFAF7; --panel:#FFFFFF; --ink:#1C1C1E; --muted:#4A4A50; --line:#D6D6D0;
   --cobalt:#5B2A86; --accent-dark:#43206A; --buy:#5B2A86; --hold:#4A4A50; --sell:#B3541E;
   --buy-bg:#EDE6F3; --hold-bg:#ECECE8; --sell-bg:#F5E3D9; --soft:#F3F3EE; --hover:#EDEDE6; --slot-focus:#EDE6F3; --radius:0px;
@@ -430,7 +430,7 @@ html[data-theme="monograph"] .backtest{border:0;border-top:2px solid var(--ink)}
 html[data-theme="monograph"] .risk-track{background:linear-gradient(90deg,#B9A6CC,#9A9AA0,#D19A78)}
 
 /* F · Night desk: dark, amber, monospaced figures */
-html[data-theme="nightdesk"]{
+html[data-theme="nightdesk"]{--mix-gold:#7A6A4F;
   color-scheme:dark;
   --paper:#15171B; --panel:#1D2026; --ink:#E8E6E1; --muted:#A9A59C; --line:#2F343C;
   --cobalt:#F2B84B; --accent-dark:#F7CD7A; --buy:#7FB2FF; --hold:#F2B84B; --sell:#FF7A59;
@@ -1336,7 +1336,7 @@ function amount(){ const raw=$("amount").value.split(SEP.g).join("").replace(SEP
 
 
 /* Asset mix summary: what the risk, style and real-asset settings mean in money terms */
-const MIX_COLORS={eq:"var(--cobalt)",bonds:"var(--buy)",cash:"#8A96A3",gold:"#B8913A",comm:"var(--sell)"};
+const MIX_COLORS={eq:"var(--cobalt)",bonds:"var(--mix-bonds,var(--buy))",cash:"#8A96A3",gold:"var(--mix-gold,#B8913A)",comm:"var(--sell)"};
 const chips=list=>`<p class="mix-sub checks">${list.map(c=>`<span class="${c.ok?"ok":"warn"}">${c.ok?"✓":"⚠"} ${c.label}</span>`).join("")}</p>`;
 const lc=x=>x.charAt(0).toUpperCase()+x.slice(1);
 // Plain-language summary of what the diversification step did
