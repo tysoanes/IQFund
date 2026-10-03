@@ -577,7 +577,7 @@ html[data-theme="nightdesk"] dialog::backdrop{background:rgba(0,0,0,.6)}
       <div id="btBody"></div>
     </section>
     <div class="save-row">
-      <input id="basketName" placeholder="Name this basket, e.g. Retirement" aria-label="Basket name" maxlength="40">
+      <input id="basketName" placeholder="Name this basket" aria-label="Basket name" maxlength="80">
       <button class="primary" id="saveBasket">Save basket</button>
       <span id="saveMsg" role="status"></span>
     </div>
@@ -1522,14 +1522,15 @@ function oneFundRow(b,risk){
 async function saveOneFund(t){
   const e=DATA.find(x=>x.t===t), amt=amount(); if(!e) return;
   if(!amt){ $("saveMsg").textContent="Enter an amount first."; return; }
-  const usd=amt/RATE, m=measureRisk([e],[1]), name=$("basketName").value.trim()||`${e.t} (one fund)`;
+  const usd=amt/RATE, m=measureRisk([e],[1]), money=new Intl.NumberFormat(LOCALE,{style:"currency",currency:CUR,notation:"compact",maximumFractionDigits:0}).format(amt);
+  const name=NAME_EDITED&&$("basketName").value.trim()?$("basketName").value.trim():uniqueName(`${e.t} one fund · ${money}`);
   const holdings=[{t:e.t,n:e.n,units:usd/e.p,entry:e.p,since:ASOF}];
   BASKETS.push({id:Date.now().toString(36),name,created:ASOF,cur:CUR,base:BASE,fx:RATE,invested:amt,usdInvested:usd,
     risk:+$("riskSlider").value,style:+$("styleSlider").value,real:+$("realSlider").value,
     plan:{base:e.mu,vol:m?m.vol:e.vol,horizon:$("horizonSel").value,need:$("needSel").value},
     versions:[{from:ASOF,holdings}],log:[{d:ASOF,x:`Saved as a one-fund basket: ${e.t}`}],seen:[]});
   if(LIVE) BASKETS[BASKETS.length-1].seen=alertsFor(BASKETS[BASKETS.length-1]).map(a=>a.key);
-  const ok=await Store.save(); $("basketName").value="";
+  const ok=await Store.save(); NAME_EDITED=false; if(LAST_BUNDLE) refreshName(LAST_BUNDLE.b,+$("riskSlider").value);
   $("saveMsg").textContent=ok?`Saved “${name}”`:"Saved for this visit only (storage unavailable)";
   setTimeout(()=>$("saveMsg").textContent="",4000); renderBaskets();
 }
@@ -1691,7 +1692,7 @@ function renderBundle(){
     return `<li><button class="hold-btn" data-t="${e.t}" data-i="${i}" aria-label="${e.t}, ${e.signal}, ${(b.w[i]*100).toFixed(1)}% of basket. Show reasoning"><span class="sw" style="background:${COLORS[i%COLORS.length]}"></span><span class="tk">${e.t} <span class="pill ${e.signal}" style="min-width:0;padding:1px 6px;font-size:10px;vertical-align:middle">${e.signal}</span></span>
     <span class="nm">${(b.w[i]*100).toFixed(1)}% · ${SLEEVE_SHORT[b.sleeveOf[i]]||""} · ${esc(e.n)}</span>
     <span class="amt">${usd($a)}<small>${sh>0?sh+" share"+(sh>1?"s":"")+" @ "+priceFmt(conv(e.p)):"fractional"}</small></span><span class="chev" aria-hidden="true">›</span></button></li>`;}).join("");
-  LAST_BUNDLE={b,amt};
+  LAST_BUNDLE={b,amt}; refreshName(b,risk);
   const R=b.risk, base=b.mu, money0=v=>usd(amt*(1+v/100));
   const standTxt=l=>l.length?" "+l.map(x=>x.proxy?`${x.t} launched ${monthYear(x.from)}; before that its US equivalent ${x.proxy.t} stands in${x.proxy.from>R.start?` (and similar funds before ${monthYear(x.proxy.from)})`:""}.`
     :`${x.t} launched ${monthYear(x.from)}; similar funds stand in before that.`).join(" "):"";
@@ -1785,6 +1786,8 @@ function openDetail(t,note,amtOverride,back){ BACK=back||null;
 /* ---------- Wire up ---------- */
 [...new Set(DATA.map(e=>e.cat))].sort().forEach(c=>$("cat").insertAdjacentHTML("beforeend",`<option>${esc(c)}</option>`));
 ["riskSlider","countSlider"].forEach(id=>$(id).addEventListener("input",renderBundle));
+$("basketName").addEventListener("input",()=>{ const v=$("basketName").value.trim(); NAME_EDITED=v!==""&&v!==LAST_SUGGEST; if(!NAME_EDITED&&LAST_BUNDLE){ refreshName(LAST_BUNDLE.b,+$("riskSlider").value); $("basketName").select(); } });
+$("basketName").addEventListener("focus",()=>{ if(!NAME_EDITED) $("basketName").select(); });
 $("aimSel").addEventListener("change",()=>{ AIM.active=null; $("aimTag").hidden=true; if($("aimSel").value) showAimOptions(+$("aimSel").value); else { $("aimPills").innerHTML=""; fillAimOptions(); } });
 ["riskSlider","countSlider","styleSlider","realSlider"].forEach(id=>$(id).addEventListener(id.startsWith("style")||id.startsWith("real")?"change":"input",aimCustom));
 ["styleSlider","realSlider"].forEach(id=>$(id).addEventListener("change",()=>{ renderBundle(); remember(); }));
@@ -1935,19 +1938,34 @@ async function notifyNew(){
 }
 
 /* ---------- Actions ---------- */
+/* Suggested basket name from the settings, kept up to date until the user types their own */
+var NAME_EDITED=false;   // var: the first render runs before this line
+function suggestName(b,risk){
+  const amt=amount(), money=amt?new Intl.NumberFormat(LOCALE,{style:"currency",currency:CUR,notation:"compact",maximumFractionDigits:amt>=1e6?2:0}).format(amt):"";
+  const style=+$("styleSlider").value, real=+$("realSlider").value, parts=[`Risk ${risk} ${RISK_LABELS[risk-1]}`];
+  if(b&&b.overlay) parts.push(`${b.overlay.name.toLowerCase()} (${b.overlay.when})`);
+  else { if(style!==3) parts.push(STYLE_LABELS[style-1].toLowerCase()); if(real!==3) parts.push(`${REAL_LABELS[real-1].replace("Minimum","no").toLowerCase()} real assets`); }
+  if(AIM.active){ const o=AIM.opts.find(x=>x.id===AIM.active); if(o) parts.push(`${o.label.toLowerCase()} for ${$("aimSel").value}%`); }
+  parts.push(`${b?b.picks.length:+$("countSlider").value} funds`); if(money) parts.push(money);
+  return uniqueName(parts.join(" · "));
+}
+function uniqueName(n){ let list=[]; try{ list=BASKETS; }catch(e){}   // first render runs before the basket list exists
+  let out=n, i=2; while(list.some(x=>x.name===out)) out=`${n} (${i++})`; return out; }
+var LAST_SUGGEST="";
+function refreshName(b,risk){ const el=$("basketName"); if(!el||NAME_EDITED) return; el.value=LAST_SUGGEST=suggestName(b,risk); }
 async function saveBasket(){
   const risk=+$("riskSlider").value, count=+$("countSlider").value, amt=amount();
   if(!amt){ $("saveMsg").textContent="Enter an amount first."; return; }
   const style=+$("styleSlider").value, real=+$("realSlider").value;
   const b=buildBundle(risk,count,$("overlapToggle").checked,style,real,{overlay:horizonOverlay()}), usd=amt/RATE;   // amount in the base currency
   const holdings=b.picks.map((e,i)=>({t:e.t,n:e.n,units:usd*b.w[i]/e.p,entry:e.p,since:ASOF}));
-  const name=$("basketName").value.trim()||`Basket ${BASKETS.length+1}`;
+  const name=$("basketName").value.trim()||suggestName(b,risk);
   const mr=measureRisk(b.picks,b.w);
   const plan={base:b.mu,vol:mr?mr.vol:b.vol,horizon:$("horizonSel").value,need:$("needSel").value};   // what the basket was expected to do
   BASKETS.push({id:Date.now().toString(36),name,created:ASOF,cur:CUR,base:BASE,fx:RATE,invested:amt,usdInvested:usd,risk,style,real,plan,
     versions:[{from:ASOF,holdings}],log:[{d:ASOF,x:`Saved with ${holdings.map(h=>h.t).join(", ")}`}],seen:[]});
   if(LIVE) BASKETS[BASKETS.length-1].seen=alertsFor(BASKETS[BASKETS.length-1]).map(a=>a.key); // don't notify about alerts you saved with
-  const ok=await Store.save(); $("basketName").value="";
+  const ok=await Store.save(); NAME_EDITED=false; refreshName(b,risk);
   $("saveMsg").textContent=ok?`Saved “${name}”`:"Saved for this visit only (storage unavailable)";
   setTimeout(()=>$("saveMsg").textContent="",4000);
   renderBaskets();
