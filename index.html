@@ -1523,7 +1523,7 @@ async function saveOneFund(t){
   const e=DATA.find(x=>x.t===t), amt=amount(); if(!e) return;
   if(!amt){ $("saveMsg").textContent="Enter an amount first."; return; }
   const usd=amt/RATE, m=measureRisk([e],[1]), money=new Intl.NumberFormat(LOCALE,{style:"currency",currency:CUR,notation:"compact",maximumFractionDigits:0}).format(amt);
-  const name=NAME_EDITED&&$("basketName").value.trim()?$("basketName").value.trim():uniqueName(`${e.t} one fund · ${money}`);
+  const name=NAME_EDITED&&$("basketName").value.trim()?$("basketName").value.trim():uniqueName(`${e.t} · 1F · ${money}`);
   const holdings=[{t:e.t,n:e.n,units:usd/e.p,entry:e.p,since:ASOF}];
   BASKETS.push({id:Date.now().toString(36),name,created:ASOF,cur:CUR,base:BASE,fx:RATE,invested:amt,usdInvested:usd,
     risk:+$("riskSlider").value,style:+$("styleSlider").value,real:+$("realSlider").value,
@@ -1626,11 +1626,12 @@ function scheduleAim(){
   setTimeout(step,0);
 }
 function fillAimOptions(){
-  const mus=AIM.cands.map(c=>c.mu), lo=Math.min(...mus), hi=Math.max(...mus), sel=$("aimSel"), prev=sel.value;
+  const mus=AIM.cands.map(c=>c.mu), lo=Math.min(...mus), hi=Math.max(...mus), sel=$("aimSel"), prev=AIM.target||"";
   const targets=[]; for(let t=Math.ceil(lo*2)/2;t<=Math.floor(hi*2)/2+1e-9;t+=0.5) targets.push(+t.toFixed(1));
   if(!targets.length) targets.push(+((lo+hi)/2).toFixed(1));   // e.g. under an overlay, base cases barely differ
   sel.innerHTML='<option value="">Choose a target…</option>'+targets.map(t=>`<option value="${t}">${t.toFixed(1)}% a year</option>`).join("");
   sel.disabled=false; if(targets.includes(+prev)) sel.value=prev;
+  else if(prev){ AIM.active=null; AIM.target=""; $("aimPills").innerHTML=""; $("aimTag").hidden=true; }   // the old target isn't reachable any more
   AIM.range=[lo,hi];
   const ov=horizonOverlay();
   $("aimNote").innerHTML=sel.value?$("aimNote").innerHTML:`Base cases here run from ${lo.toFixed(1)}% to ${hi.toFixed(1)}% a year${ov?` within the ${ov.name.toLowerCase()} overlay`:""}. Lower needs no investing risk (cash pays about Bank Rate); higher isn't reachable on FndMngr's assumptions. Examples, not recommendations.`;
@@ -1788,7 +1789,7 @@ function openDetail(t,note,amtOverride,back){ BACK=back||null;
 ["riskSlider","countSlider"].forEach(id=>$(id).addEventListener("input",renderBundle));
 $("basketName").addEventListener("input",()=>{ const v=$("basketName").value.trim(); NAME_EDITED=v!==""&&v!==LAST_SUGGEST; if(!NAME_EDITED&&LAST_BUNDLE){ refreshName(LAST_BUNDLE.b,+$("riskSlider").value); $("basketName").select(); } });
 $("basketName").addEventListener("focus",()=>{ if(!NAME_EDITED) $("basketName").select(); });
-$("aimSel").addEventListener("change",()=>{ AIM.active=null; $("aimTag").hidden=true; if($("aimSel").value) showAimOptions(+$("aimSel").value); else { $("aimPills").innerHTML=""; fillAimOptions(); } });
+$("aimSel").addEventListener("change",()=>{ AIM.active=null; AIM.target=$("aimSel").value; $("aimTag").hidden=true; if($("aimSel").value) showAimOptions(+$("aimSel").value); else { $("aimPills").innerHTML=""; fillAimOptions(); } });
 ["riskSlider","countSlider","styleSlider","realSlider"].forEach(id=>$(id).addEventListener(id.startsWith("style")||id.startsWith("real")?"change":"input",aimCustom));
 ["styleSlider","realSlider"].forEach(id=>$(id).addEventListener("change",()=>{ renderBundle(); remember(); }));
 // "More settings": closed by default, remembered for the session
@@ -1940,13 +1941,15 @@ async function notifyNew(){
 /* ---------- Actions ---------- */
 /* Suggested basket name from the settings, kept up to date until the user types their own */
 var NAME_EDITED=false;   // var: the first render runs before this line
+// Compact codes: R7 = risk 7 · Agg/LAgg/LDef/Def = equity style · RA0/RA-/RA+/RA++ = real assets none/low/high/max
+// · F2@6% = example F2 for a 6% target · Cash 1–2y = capital preservation overlay · 8F = 8 funds
 function suggestName(b,risk){
   const amt=amount(), money=amt?new Intl.NumberFormat(LOCALE,{style:"currency",currency:CUR,notation:"compact",maximumFractionDigits:amt>=1e6?2:0}).format(amt):"";
-  const style=+$("styleSlider").value, real=+$("realSlider").value, parts=[`Risk ${risk} ${RISK_LABELS[risk-1]}`];
-  if(b&&b.overlay) parts.push(`${b.overlay.name.toLowerCase()} (${b.overlay.when})`);
-  else { if(style!==3) parts.push(STYLE_LABELS[style-1].toLowerCase()); if(real!==3) parts.push(`${REAL_LABELS[real-1].replace("Minimum","no").toLowerCase()} real assets`); }
-  if(AIM.active){ const o=AIM.opts.find(x=>x.id===AIM.active); if(o) parts.push(`${o.label.toLowerCase()} for ${$("aimSel").value}%`); }
-  parts.push(`${b?b.picks.length:+$("countSlider").value} funds`); if(money) parts.push(money);
+  const style=+$("styleSlider").value, real=+$("realSlider").value, parts=[`R${risk}`];
+  if(b&&b.overlay) parts.push(`${b.overlay.strict?"Cash":"Prot"} ${b.overlay.when.replace(/^(in|within) /,"").replace("1 year","<1").replace(" years","")}y`.replace("<1y","<1y"));
+  else { const st={1:"Def",2:"LDef",4:"LAgg",5:"Agg"}[style], ra={1:"RA0",2:"RA-",4:"RA+",5:"RA++"}[real]; if(st) parts.push(st); if(ra) parts.push(ra); }
+  if(AIM.active&&$("aimSel").value){ const o=AIM.opts.find(x=>x.id===AIM.active); if(o) parts.push(`${o.id}@${$("aimSel").value}%`); }
+  parts.push(`${b?b.picks.length:+$("countSlider").value}F`); if(money) parts.push(money);
   return uniqueName(parts.join(" · "));
 }
 function uniqueName(n){ let list=[]; try{ list=BASKETS; }catch(e){}   // first render runs before the basket list exists
