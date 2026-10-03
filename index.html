@@ -1201,14 +1201,14 @@ function measureRisk(picks,w){
 }
 /* Stress tests: illustrative shocks by fund type, applied to today's weights (not forecasts) */
 const STRESS=[
-  {name:"Recession & credit crunch",like:"2008-style",s:{equity:-30,em:-35,defensive:-22,smallvalue:-38,tech:-35,energy:-30,miners:-35,crypto:-60,govbond:8,linkers:2,corp:-5,shortbond:2,hy:-20,reit:-35,gold:8,silver:-10,comm:-30}},
-  {name:"Inflation & interest-rate shock",like:"2022-style",s:{equity:-15,em:-18,defensive:-10,smallvalue:-12,tech:-30,energy:10,miners:-10,crypto:-60,govbond:-15,linkers:-15,corp:-14,shortbond:-3,hy:-10,reit:-25,gold:5,silver:0,comm:20}},
-  {name:"Geopolitical & energy shock",like:"",s:{equity:-18,em:-25,defensive:-12,smallvalue:-20,tech:-22,energy:10,miners:-5,crypto:-30,govbond:4,linkers:3,corp:-3,shortbond:1,hy:-8,reit:-15,gold:15,silver:5,comm:15}}];
+  {name:"Recession & credit crunch",like:"2008-style",s:{equity:-30,em:-35,defensive:-22,smallvalue:-38,tech:-35,energy:-30,miners:-35,crypto:-60,govbond:8,linkers:2,corp:-5,shortbond:2,shortcorp:-4,hy:-20,reit:-35,gold:8,silver:-10,comm:-30}},
+  {name:"Inflation & interest-rate shock",like:"2022-style",s:{equity:-15,em:-18,defensive:-10,smallvalue:-12,tech:-30,energy:10,miners:-10,crypto:-60,govbond:-20,linkers:-25,corp:-16,shortbond:-5,shortcorp:-8,hy:-10,reit:-25,gold:5,silver:0,comm:20}},
+  {name:"Geopolitical & energy shock",like:"",s:{equity:-18,em:-25,defensive:-12,smallvalue:-20,tech:-22,energy:10,miners:-5,crypto:-30,govbond:4,linkers:3,corp:-3,shortbond:1,shortcorp:-1,hy:-8,reit:-15,gold:15,silver:5,comm:15}}];
 STRESS.forEach(sc=>{ sc.s.cash=0; });   // cash / money-market: no price shock in any scenario
 function shockClass(e){ const c=e.cat||"";
   if(/^Crypto/i.test(c)) return "crypto"; if(e.cls==="hy") return "hy"; if(e.cls==="reit"||/property|real estate/i.test(c)) return "reit";
   if(/cash|ultra-short/i.test(c)) return "cash";
-  if(e.cls==="bond") return /inflation|index-linked/i.test(c)?"linkers":/short|ultra/i.test(c)?"shortbond":/corporate/i.test(c)?"corp":"govbond";
+  if(e.cls==="bond") return /inflation|index-linked/i.test(c)?"linkers":/short/i.test(c)&&/corporate/i.test(c)?"shortcorp":/short|ultra/i.test(c)?"shortbond":/corporate/i.test(c)?"corp":"govbond";
   if(c==="Gold") return "gold"; if(c==="Silver") return "silver"; if(/commodit/i.test(c)) return "comm";
   if(/miners/i.test(c)) return "miners"; if(EM_CATS.has(c)) return "em"; if(/energy|uranium/i.test(c)) return "energy";
   if(/semiconductor|tech|nasdaq|growth|artificial|robotics|cyber|gaming|innovation/i.test(c)) return "tech";
@@ -1216,11 +1216,15 @@ function shockClass(e){ const c=e.cat||"";
   if(/small|value|mid cap/i.test(c)) return "smallvalue";
   return "equity"; }
 const STRESS_GROUP={equity:"Shares",defensive:"Shares",tech:"Tech & growth",energy:"Shares",miners:"Shares",crypto:"Crypto",em:"Emerging markets",smallvalue:"Small & value",
-  cash:"Cash",govbond:"Bonds",linkers:"Bonds",corp:"Bonds",shortbond:"Bonds",hy:"Bonds",reit:"Property",gold:"Gold & silver",silver:"Gold & silver",comm:"Commodities"};
+  cash:"Cash",shortcorp:"Bonds",govbond:"Bonds",linkers:"Bonds",corp:"Bonds",shortbond:"Bonds",hy:"Bonds",reit:"Property",gold:"Gold & silver",silver:"Gold & silver",comm:"Commodities"};
 function stressTests(picks,w){ const sw=w.reduce((a,b)=>a+b,0)||1;
-  return STRESS.map(sc=>{ const parts={}; let loss=0;
+  const list=STRESS.map(sc=>{ const parts={}; let loss=0;
     picks.forEach((e,i)=>{ const k=shockClass(e), c=w[i]/sw*(sc.s[k]??sc.s.equity), g=STRESS_GROUP[k]||"Shares"; parts[g]=(parts[g]||0)+c; loss+=c; });
-    return {...sc,loss,parts:Object.entries(parts).filter(([,v])=>Math.abs(v)>=0.05).map(([g,pts])=>({g,pts})).sort((a,b)=>a.pts-b.pts)}; }); }
+    return {...sc,loss,parts:Object.entries(parts).filter(([,v])=>Math.abs(v)>=0.05).map(([g,pts])=>({g,pts})).sort((a,b)=>a.pts-b.pts)}; });
+  // a fourth test from real history, so "severe" can never be milder than something this mix has actually been through
+  const R=measureRisk(picks,w);
+  if(R&&R.troughDate&&R.dd<0) list.push({name:"Repeat of this mix's worst past period",like:`${monthYear(R.peakDate)} to ${monthYear(R.troughDate)}`,loss:R.dd,parts:[],hist:true});
+  return list; }
 const STRESS_NOTE=(()=>{ const f=v=>(v>0?"+":"")+v+"%"; const show=[["Shares","equity"],["Tech & growth","tech"],["Small & value","smallvalue"],["Emerging markets","em"],["Gilts","govbond"],["Gold","gold"],["Commodities","comm"]];
   return STRESS.map(sc=>`${sc.name.split(" &")[0].toLowerCase()}: ${show.map(([l,k])=>`${l} ${f(sc.s[k])}`).join(", ")}`).join("; "); })();
 
@@ -1708,8 +1712,8 @@ function renderBundle(){
   const wasOpen=new Set([...document.querySelectorAll("#outlook details[open]")].map(d=>d.dataset.k));
   const row=(k,l,v,short,full)=>`<details class="scen" data-k="${k}"${wasOpen.has(k)?" open":""}><summary><span>${l}</span><span class="v ${v>=0?"up":"down"}">${money0(v)} <small style="font-size:13px">${pct(v)}</small></span><span class="d">${short}<span class="why" aria-hidden="true">Why?</span></span></summary><div class="d full">${full}</div></details>`;
   const stressTable=`<ul class="stress-list">${b.stress.map(x=>`<li class="st-row"><span class="st-name">${x.name}${x.like?` · ${x.like}`:""}</span><span>${money0(x.loss)} (${pct(x.loss)})</span>
-        <span class="st-why">${x.parts.map(g=>`${g.g} <b class="${g.pts<0?"neg":"pos"}">${g.pts>0?"+":"−"}${Math.abs(g.pts).toFixed(1)}</b>`).join(" · ")} <i>(percentage points of the basket)</i></span></li>`).join("")}</ul>
-      <p class="st-note">Shocks assumed: ${STRESS_NOTE}. Illustrative, not forecasts.</p>`;
+        <span class="st-why">${x.hist?"From this mix's own weekly prices, dividends included: what actually happened, not an assumed shock.":`${x.parts.map(g=>`${g.g} <b class="${g.pts<0?"neg":"pos"}">${g.pts>0?"+":"−"}${Math.abs(g.pts).toFixed(1)}</b>`).join(" · ")} <i>(percentage points of the basket)</i>`}</span></li>`).join("")}</ul>
+      <p class="st-note">Shocks assumed: ${STRESS_NOTE}; short-dated gilts −5% and short corporate bonds −8% in the inflation shock. Illustrative, not forecasts.</p>`;
   $("outlook").innerHTML=`<p class="ol-head">One-year scenarios</p>`
     +row("strong","Strong year",strong,"Best 1 in 5 years for this mix, historically",sD)
     +row("base","Base case",base,"Central estimate, not a guarantee",`FndMngr central estimate, not a guaranteed return: long-run assumptions for shares (${BASE_RETURN.eq}%), gold and commodities (${BASE_RETURN.gold}%), a valuation tilt, and recent performance capped at ±2 points. ${bondNote(b)} Assumptions reviewed ${BASE_REVIEWED}.`)
@@ -1717,7 +1721,7 @@ function renderBundle(){
     +`<p class="ol-head">Risk &amp; stress</p>`
     +(R?row("dd","Historical max drawdown",R.dd,$("needSel").value==="yes"?`If repeated: ${usd(amt*-R.dd/100)} short of the ${usd(amt)} you need`:`Worst fall since ${monthYear(R.start)}: ${monthYear(R.peakDate)} to ${monthYear(R.troughDate)}`,`Worst peak-to-trough fall of today's mix since ${monthYear(R.start)} (${monthYear(R.peakDate)} to ${monthYear(R.troughDate)}), dividends included, measured weekly.${standTxt(R.ddStand)}`)
        :row("dd","Worst past drop (rough)",b.dd,"Rough, upper-end estimate","Each fund's own worst drop, weighted. An upper-end guess: the funds didn't all fall at the same time."))
-    +row("stress","Severe stress test",worstS.loss,`${worstS.name}${worstS.like?` (${worstS.like})`:""}`,`The worst of three illustrative shocks applied to today's weights. What drives each:${stressTable}`);
+    +row("stress","Severe stress test",worstS.loss,`${worstS.name}${worstS.like?` (${worstS.like})`:""}`,`The worst of four tests: three illustrative shocks applied to today's weights, plus a repeat of this mix's own worst past period, so it's never milder than real history. What drives each:${stressTable}`);
   syncOlToggle();
   const yCov=b.picks.reduce((a,e,i)=>a+(e.y!=null?b.w[i]:0),0);
   $("pstats").innerHTML=(R?`<span title="Annualised from every week since ${monthYear(R.start)}"><b>${R.vAll.toFixed(1)}%</b>Long-term volatility<small>since ${monthYear(R.start)}</small></span>`:"")
@@ -2049,7 +2053,7 @@ function basketOutlookHTML(b,s){
     <p><b>Strong / weak year:</b> ${sc.sD} ${sc.wD}</p>
     <p><b>Base case:</b> FndMngr central estimate, not a guaranteed return: long-run assumptions per asset class (bonds at today's yields where known), a valuation tilt and recent performance capped at ±2 points.</p>
     ${R?`<p><b>Worst past fall:</b> this mix's biggest peak-to-trough fall since ${monthYear(R.start)} (${monthYear(R.peakDate)} to ${monthYear(R.troughDate)}), dividends included, measured weekly.</p>`:""}
-    <p><b>Stress tests</b> (illustrative shocks applied to today's weights):</p>
+    <p><b>Stress tests</b> (three illustrative shocks applied to today's weights, plus a repeat of this mix's worst past period; the severe figure is the worst of them):</p>
     <ul class="b-ol-st">${st.map(x=>`<li><span>${x.name}${x.like?` · ${x.like}`:""}</span><span>${m(x.loss)} (${f(x.loss)})</span></li>`).join("")}</ul>
   </details>`;
 }
