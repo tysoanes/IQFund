@@ -477,6 +477,21 @@ html[data-theme="nightdesk"] dialog::backdrop{background:rgba(0,0,0,.6)}
 .mix-note{display:block;font:400 14px/1.4 var(--body);color:var(--muted);margin-top:2px}
 .count-note{display:block!important;color:var(--cobalt);min-height:0}
 .mix-line{margin:4px 0 10px;font-size:15px;color:var(--ink)}
+.mix-edit{position:relative;touch-action:none}
+.mix-h{position:absolute;top:-6px;bottom:-6px;width:24px;margin-left:-12px;padding:0;border:0;background:transparent;cursor:ew-resize;z-index:2;touch-action:none}
+.mix-h::before{content:"";position:absolute;left:50%;top:0;bottom:0;width:4px;margin-left:-2px;background:var(--paper,#fff);border:1px solid var(--ink);border-radius:2px}
+.mix-h:hover::before,.mix-h:focus-visible::before,.mix-h.drag::before{background:var(--ink)}
+.mix-h:focus-visible{outline:3px solid var(--cobalt);outline-offset:2px}
+.mix-h-tip{position:absolute;bottom:calc(100% + 4px);left:50%;transform:translateX(-50%);white-space:nowrap;font:600 12px var(--body);background:var(--ink);color:var(--paper,#fff);padding:3px 7px;border-radius:4px;display:none}
+.mix-h.drag .mix-h-tip{display:block}
+.mix-reset{background:none;border:0;padding:0;font:600 13px var(--body);color:var(--cobalt);text-decoration:underline;text-underline-offset:2px;cursor:pointer}
+.mix-steps{margin-top:8px;font-size:13px}.mix-steps>summary{cursor:pointer;font-weight:600;color:var(--cobalt)}
+.mix-step-grid{display:grid;grid-template-columns:repeat(5,minmax(0,1fr));gap:8px;margin-top:8px}
+.ms{display:grid;grid-template-columns:36px 1fr 36px;align-items:center;gap:4px;text-align:center}
+.ms-l{grid-column:1/-1;text-align:left;font-size:12px;color:var(--muted)}.ms-l i{display:inline-block;width:10px;height:10px;border-radius:2px;margin-right:5px;vertical-align:-1px}
+.ms button{height:36px;font:600 18px var(--body);border:1px solid var(--line);background:var(--paper,#fff);color:var(--ink);border-radius:var(--radius,4px);cursor:pointer}
+.ms b{font-size:15px}.ms-note{margin:8px 0 0;color:var(--muted);line-height:1.45}
+@media (max-width:700px){.mix-step-grid{grid-template-columns:repeat(2,minmax(0,1fr))}}
 .mix-bar{display:flex;height:30px;border-radius:var(--radius,6px);overflow:hidden}
 .mix-bar div{transition:flex-grow .45s ease;display:flex;align-items:center;justify-content:center;color:#fff;font:600 12px var(--body);white-space:nowrap;overflow:hidden;min-width:0}
 .mix-sub{margin:8px 0 0;font-size:13px;color:var(--muted)}
@@ -956,7 +971,25 @@ function sleevePrefs(key,style,risk,ov){
   })[key];
 }
 const FOLD={cash:["bonds","core"],real:["bonds","core"],comm:["gold","real","bonds","core"],gold:["comm","real","bonds","core"],thematic:["factor","core"],factor:["core","thematic"],bonds:["real","gold","core"],core:["factor","thematic"]};
-function assetMix(risk,style,real,ov){
+/* Custom mix (the user dragged the bar): their equities / cash / bonds / gold / commodities replace the risk
+   level's, the equity style still sets the core/factor/thematic split inside equities, and any horizon
+   overlay still caps it. */
+function assetMix(risk,style,real,ov,custom){
+  if(!custom) return assetMixBase(risk,style,real,ov);
+  const base=assetMixBase(risk,style,3,null).sleeves, be=base.core+base.factor+base.thematic;
+  let {eq,cash,bonds,gold,comm}=custom;
+  let core=be?base.core/be*eq:eq, factor=be?base.factor/be*eq:0, them=be?base.thematic/be*eq:0;
+  if(ov){ if(eq>ov.eq||(ov.strict&&them>0)){ const eqT=Math.min(eq,ov.eq), f=eq>0?eqT/eq:0;
+      if(ov.strict){ core=(core+them)*f; them=0; } else { core*=f; them*=f; } factor*=f; eq=eqT; }
+    gold=Math.min(gold,ov.gold); comm=Math.min(comm,ov.comm); cash=Math.max(cash,ov.cashMin);
+    bonds=100-eq-cash-gold-comm; if(bonds<0){ cash+=bonds; bonds=0; } }
+  return {eq,bonds,cash,gold,comm,custom:true,sleeves:{core,factor,thematic:them,bonds,cash,gold,comm}};
+}
+const RISK_EQ=[20,30,40,50,60,65,72,80,90,100];
+const closestRisk=eq=>RISK_EQ.reduce((best,v,i)=>Math.abs(v-eq)<Math.abs(RISK_EQ[best]-eq)?i:best,0)+1;
+var CUSTOM_MIX=null;   // {eq,cash,bonds,gold,comm} when the user has edited the mix
+const effRisk=()=>CUSTOM_MIX?closestRisk(CUSTOM_MIX.eq):+$("riskSlider").value;
+function assetMixBase(risk,style,real,ov){
   let [eq,bonds,gold,comm,core,factor,them]=RISK_GRID[risk];
   let cash=Math.min(CASH_GRID[risk]||0,bonds); bonds-=cash;   // cash stays fixed below; real assets never touch it
   // 2. equity style: tilt the thematic share inside equities; equities in total stay put
@@ -1022,7 +1055,7 @@ function buildBundle(risk,count,lowOverlap,style,real,opts){
   style=style||+($("styleSlider")?.value||3); real=real||+($("realSlider")?.value||3);
   count=Math.max(3,Math.min(10,Math.round(count)||5));        // the fund count is a hard constraint
   // 1-3. risk, equity style and real assets set the allocation (never changed below)
-  const OV=opts&&opts.overlay||null, mix=assetMix(risk,style,real,OV), m=mix.sleeves;
+  const OV=opts&&opts.overlay||null, CM=opts&&opts.custom||null, mix=assetMix(risk,style,real,OV,CM), m=mix.sleeves;
   // 4-5. how finely the fund count lets us implement it
   // start with every bucket, then combine only while there are more buckets than funds:
   // gold + commodities -> real assets, thematic -> factor, factor -> core
@@ -1144,7 +1177,7 @@ function buildBundle(risk,count,lowOverlap,style,real,opts){
   // can't meet every limit with this many funds? find the smallest count that can, and say so
   let recommend=null;
   if((unresolved.length||overFinal.length)&&!(opts&&opts.probe)){
-    for(let n=count+1;n<=10;n++){ const t=buildBundle(risk,n,lowOverlap,style,real,{probe:true,overlay:OV}); if(!t.unresolved.length&&!t.overCap.length){ recommend=n; break; } }
+    for(let n=count+1;n<=10;n++){ const t=buildBundle(risk,n,lowOverlap,style,real,{probe:true,overlay:OV,custom:CM}); if(!t.unresolved.length&&!t.overCap.length){ recommend=n; break; } }
   }
   const sw=w.reduce((a,b)=>a+b,0)||1; for(let i=0;i<w.length;i++) w[i]/=sw;
   let mu=0,v=0; picks.forEach((a,i)=>{mu+=w[i]*a.mu; picks.forEach((b,j)=>v+=w[i]*w[j]*a.vol*b.vol*corr(a,b));});
@@ -1423,10 +1456,10 @@ function breadthOf(b){ const x={};
   b.picks.forEach((e,i)=>{ const pr=profileOf(e), t=Object.values(pr).reduce((a,v)=>a+v,0)||1; for(const d in pr) x[d]=(x[d]||0)+b.w[i]*pr[d]/t; });
   const ss=Object.values(x).reduce((a,v)=>a+v*v,0); return ss?1/ss:0; }
 let SWEET_CACHE={key:null,rows:null};
-function sweetRows(risk,style,real,ov){
-  const OV=horizonOverlay(), key=[risk,style,real,ov,OV?OV.id:""].join("|");
+function sweetRows(risk,style,real,ov,custom){
+  const OV=horizonOverlay(), key=[risk,style,real,ov,OV?OV.id:"",custom?JSON.stringify(custom):""].join("|");
   if(SWEET_CACHE.key===key&&SWEET_CACHE.data===DATA) return SWEET_CACHE.rows;
-  const rows=[]; for(let n=3;n<=10;n++){ const b=buildBundle(risk,n,ov,style,real,{probe:true,overlay:OV});
+  const rows=[]; for(let n=3;n<=10;n++){ const b=buildBundle(risk,n,ov,style,real,{probe:true,overlay:OV,custom:custom||null});
     rows.push({n,b,eff:breadthOf(b),ov:b.ov.avg,maxW:Math.max(...b.w),minW:Math.min(...b.w),er:b.er,ok:!b.unresolved.length&&!b.overCap.length}); }
   SWEET_CACHE={key,data:DATA,rows}; return rows;
 }
@@ -1439,8 +1472,8 @@ function sweetSpot(rows,amt,cur){
 }
 function renderSweet(){
   const el=$("sweet"); if(!el) return;
-  const risk=+$("riskSlider").value, style=+$("styleSlider").value, real=+$("realSlider").value, ov=$("overlapToggle").checked, cur=+$("countSlider").value, amt=amount();
-  const rows=sweetRows(risk,style,real,ov), {best,max,sizeOK,limitsReachable}=sweetSpot(rows,amt,CUR), top=Math.max(...rows.map(r=>r.eff));
+  const risk=effRisk(), style=+$("styleSlider").value, real=+$("realSlider").value, ov=$("overlapToggle").checked, cur=+$("countSlider").value, amt=amount();
+  const rows=sweetRows(risk,style,real,ov,CUSTOM_MIX), {best,max,sizeOK,limitsReachable}=sweetSpot(rows,amt,CUR), top=Math.max(...rows.map(r=>r.eff));
   const chip=r=>`<button type="button" data-n="${r.n}" class="${r.n===cur?"cur":""} ${r.n===best.n?"best":""} ${sizeOK(r)?"":"small"} ${r.ok?"":"warn"}"
      aria-label="${r.n} funds${r.n===best.n?", sweet spot":""}${r.ok?"":", not every diversification limit met"}${sizeOK(r)?"":", some holdings under "+usd(MIN_POSITION*rateOf(CUR))}" aria-pressed="${r.n===cur}">${r.n}<i style="width:${Math.round(r.eff/top*100)}%"></i></button>`;
   const c=rows.find(r=>r.n===cur), pctB=r=>Math.round(r.eff/best.eff*100);
@@ -1535,11 +1568,11 @@ async function saveOneFund(t){
   const name=NAME_EDITED&&$("basketName").value.trim()?$("basketName").value.trim():uniqueName(`${e.t} · 1F · ${money}`);
   const holdings=[{t:e.t,n:e.n,units:usd/e.p,entry:e.p,since:ASOF}];
   BASKETS.push({id:Date.now().toString(36),name,created:ASOF,cur:CUR,base:BASE,fx:RATE,invested:amt,usdInvested:usd,
-    risk:+$("riskSlider").value,style:+$("styleSlider").value,real:+$("realSlider").value,
+    risk:effRisk(),style:+$("styleSlider").value,real:+$("realSlider").value,
     plan:{base:e.mu,vol:m?m.vol:e.vol,horizon:$("horizonSel").value,need:$("needSel").value},
     versions:[{from:ASOF,holdings}],log:[{d:ASOF,x:`Saved as a one-fund basket: ${e.t}`}],seen:[]});
   if(LIVE) BASKETS[BASKETS.length-1].seen=alertsFor(BASKETS[BASKETS.length-1]).map(a=>a.key);
-  const ok=await Store.save(); NAME_EDITED=false; if(LAST_BUNDLE) refreshName(LAST_BUNDLE.b,+$("riskSlider").value);
+  const ok=await Store.save(); NAME_EDITED=false; if(LAST_BUNDLE) refreshName(LAST_BUNDLE.b,effRisk());
   $("saveMsg").textContent=ok?`Saved “${name}”`:"Saved for this visit only (storage unavailable)";
   setTimeout(()=>$("saveMsg").textContent="",4000); renderBaskets();
 }
@@ -1586,9 +1619,23 @@ function renderMix(b,risk){
     +k("Average fee",b.er.toFixed(2)+"%","a year");
   const rows=[goalRow(b,risk),riskRow(b,risk),divRow(b,risk,r),oneFundRow(b,risk)];
   const detOpen=document.querySelector("#mixSummary .mix-details")?.open?" open":"";
-  $("mixSummary").innerHTML=`<p class="mix-title"><b>Risk ${risk}: ${RISK_LABELS[risk-1]}</b> <span class="mix-note">${b.overlay?`${b.overlay.name} overlay: cash and short-dated bonds first, with a small ${b.overlay.strict?"broad ":""}equity holding`:RISK_NOTES[risk-1]}</span></p>
+  const custom=!!m.custom, slider=+$("riskSlider").value;
+  const title=custom?`<b>Custom mix · closest to Risk ${risk}: ${RISK_LABELS[risk-1]}</b> <span class="mix-note">Your own split; funds, checks and outlook follow it. <button type="button" class="mix-reset">Reset to Risk ${slider}</button></span>`
+    :`<b>Risk ${risk}: ${RISK_LABELS[risk-1]}</b> <span class="mix-note">${b.overlay?`${b.overlay.name} overlay: cash and short-dated bonds first, with a small ${b.overlay.strict?"broad ":""}equity holding`:RISK_NOTES[risk-1]}</span>`;
+  // draggable dividers between neighbouring slices
+  let cum=0; const handles=[];
+  parts.forEach((p,i)=>{ cum+=p[2]; if(i<parts.length-1) handles.push(`<button type="button" class="mix-h" style="left:${cum}%" data-a="${p[0]}" data-b="${parts[i+1][0]}" role="slider" aria-label="Divider between ${p[1]} and ${parts[i+1][1]}" aria-valuemin="0" aria-valuemax="${r(p[2]+parts[i+1][2])}" aria-valuenow="${r(p[2])}" aria-valuetext="${r(p[2])}% ${p[1]}, ${r(parts[i+1][2])}% ${parts[i+1][1]}"><span class="mix-h-tip"></span></button>`); });
+  const ov=b.overlay, stepsOpen=document.querySelector("#mixSummary .mix-steps")?.open?" open":"";
+  const all=[["eq","Equities",m.eq],["cash","Cash",m.cash||0],["bonds","Bonds",m.bonds],["gold","Gold",m.gold],["comm","Commodities",m.comm]];
+  const steps=`<details class="mix-steps"${stepsOpen}><summary>Edit mix</summary>
+      <div class="mix-step-grid">${all.map(p=>`<div class="ms"><span class="ms-l"><i style="background:${MIX_COLORS[p[0]]}"></i>${p[1]}</span>
+        <button type="button" data-step="${p[0]}" data-dir="-1" aria-label="Less ${p[1].toLowerCase()}">−</button><b>${r(p[2])}%</b><button type="button" data-step="${p[0]}" data-dir="1" aria-label="More ${p[1].toLowerCase()}">+</button></div>`).join("")}</div>
+      <p class="ms-note">Drag the dividers in the bar, or use − and +. Each change is balanced against the largest other slice.${ov?` Limited by the ${ov.name.toLowerCase()} overlay: equities up to ${ov.eq}%, cash at least ${ov.cashMin}%, gold up to ${ov.gold}%, commodities up to ${ov.comm}%.`:""}</p></details>`;
+  $("mixSummary").innerHTML=`<p class="mix-title">${title}</p>
     <p class="mix-line">${parts.map(p=>`${r(p[2])}% ${p[1]}`).join(" · ")}</p>
-    <div class="mix-bar" role="img" aria-label="Asset mix: ${parts.map(p=>`${r(p[2])}% ${p[1]}`).join(", ")}">${parts.map(p=>`<div style="flex-grow:${p[2]};background:${MIX_COLORS[p[0]]}">${p[2]>=9?p[1]:""}</div>`).join("")}</div>
+    ${b.picks.length<b.count?`<p class="mix-sub mix-warn">This mix only has room for ${b.picks.length} different funds from your list, so ${b.picks.length} are used instead of ${b.count}.</p>`:""}
+    <div class="mix-edit"><div class="mix-bar" role="img" aria-label="Asset mix: ${parts.map(p=>`${r(p[2])}% ${p[1]}`).join(", ")}">${parts.map(p=>`<div data-k="${p[0]}" style="flex-grow:${p[2]};background:${MIX_COLORS[p[0]]}">${p[2]>=9?p[1]:""}</div>`).join("")}</div>${handles.join("")}</div>
+    ${steps}
     <div class="keystrip">${strip}</div>
     <div class="chkbox" role="group" aria-label="Checks"><p class="ol-head">Checks</p>${rows.map(checkRow).join("")}</div>
     <details class="mix-details"${detOpen}><summary>Details: how the mix is built</summary>
@@ -1672,7 +1719,7 @@ function showAimOptions(T){
 function applyAim(id){
   const o=AIM.opts.find(x=>x.id===id); if(!o) return;
   $("riskSlider").value=o.c.risk; $("styleSlider").value=o.c.style; $("realSlider").value=o.c.real; $("countSlider").value=o.n;
-  AIM.active=id; remember(); renderBundle();
+  AIM.active=id; CUSTOM_MIX=null; remember(); renderBundle();
   document.querySelectorAll(".aim-pill").forEach(b=>b.setAttribute("aria-pressed",b.dataset.aim===id));
   $("aimTag").hidden=false; $("aimTag").textContent=`Set by ${o.id} · ${o.label}`;
 }
@@ -1680,21 +1727,58 @@ function aimCustom(){ if(!AIM.active) return; const o=AIM.opts.find(x=>x.id===AI
   document.querySelectorAll(".aim-pill").forEach(b=>b.setAttribute("aria-pressed","false"));
   $("aimTag").textContent=o?`Custom: adjusted from ${o.id}`:""; }
 document.addEventListener("click",ev=>{ const p=ev.target.closest(".aim-pill"); if(p) applyAim(p.dataset.aim); });
+/* Editing the mix: drag a divider (or arrow keys on it) to move % between two neighbours; − / + moves 1 point,
+   balanced against the largest other slice. Risk level, Real assets or a target pill reset it. */
+const MIX_KEYS=["eq","cash","bonds","gold","comm"];
+function currentMix(){ const m=LAST_BUNDLE.b.mix; return {eq:m.eq,cash:m.cash||0,bonds:m.bonds,gold:m.gold,comm:m.comm}; }
+function commitMix(mix,focusSel){
+  const t=MIX_KEYS.reduce((a,k)=>a+mix[k],0); if(Math.abs(t-100)>0.01) return;
+  CUSTOM_MIX=mix; AIM.active=null; $("aimTag").hidden=true;
+  renderBundle(); CUSTOM_MIX=currentMix(); remember();   // keep what the overlay actually allowed
+  if(focusSel) document.querySelector(focusSel)?.focus();
+}
+function stepMix(k,dir){
+  const mix=currentMix(), others=MIX_KEYS.filter(x=>x!==k);
+  if(dir>0){ const from=others.filter(x=>mix[x]>0).sort((a,b)=>mix[b]-mix[a])[0]; if(!from) return; const d=Math.min(1,mix[from]); mix[k]+=d; mix[from]-=d; }
+  else { if(mix[k]<=0) return; const to=others.sort((a,b)=>mix[b]-mix[a])[0]; const d=Math.min(1,mix[k]); mix[k]-=d; mix[to]+=d; }
+  commitMix(mix,`[data-step="${k}"][data-dir="${dir}"]`);
+}
+let MIXDRAG=null;
+document.addEventListener("pointerdown",ev=>{ const h=ev.target.closest(".mix-h"); if(!h||!LAST_BUNDLE) return;
+  ev.preventDefault(); h.setPointerCapture(ev.pointerId);
+  const bar=h.parentElement.querySelector(".mix-bar"), mix=currentMix();
+  MIXDRAG={h,a:h.dataset.a,b:h.dataset.b,a0:mix[h.dataset.a],b0:mix[h.dataset.b],x0:ev.clientX,w:bar.getBoundingClientRect().width,left0:parseFloat(h.style.left),mix,bar};
+  h.classList.add("drag"); });
+document.addEventListener("pointermove",ev=>{ const d=MIXDRAG; if(!d) return;
+  const tot=d.a0+d.b0, a=Math.max(0,Math.min(tot,Math.round(d.a0+(ev.clientX-d.x0)/d.w*100))), b=tot-a;
+  d.mix[d.a]=a; d.mix[d.b]=b;
+  d.bar.querySelector(`[data-k="${d.a}"]`).style.flexGrow=a; d.bar.querySelector(`[data-k="${d.b}"]`).style.flexGrow=b;
+  d.h.style.left=(d.left0+(a-d.a0))+"%";
+  const nm={eq:"Equities",cash:"Cash",bonds:"Bonds",gold:"Gold",comm:"Commodities"};
+  d.h.querySelector(".mix-h-tip").textContent=`${nm[d.a]} ${Math.round(a)}% · ${nm[d.b]} ${Math.round(b*10)/10}%`; });
+document.addEventListener("pointerup",()=>{ const d=MIXDRAG; if(!d) return; MIXDRAG=null; d.h.classList.remove("drag");
+  if(d.mix[d.a]!==d.a0) commitMix(d.mix); });
+document.addEventListener("keydown",ev=>{ const h=ev.target.closest&&ev.target.closest(".mix-h"); if(!h||!LAST_BUNDLE) return;
+  const dir=ev.key==="ArrowRight"||ev.key==="ArrowUp"?1:ev.key==="ArrowLeft"||ev.key==="ArrowDown"?-1:0; if(!dir) return;
+  ev.preventDefault(); const mix=currentMix(), a=h.dataset.a, b=h.dataset.b, d=dir>0?Math.min(1,mix[b]):-Math.min(1,mix[a]); if(!d) return;
+  mix[a]+=d; mix[b]-=d; commitMix(mix,`.mix-h[data-a="${a}"][data-b="${b}"]`); });
+document.addEventListener("click",ev=>{ const st=ev.target.closest("[data-step]"); if(st&&LAST_BUNDLE){ stepMix(st.dataset.step,+st.dataset.dir); return; }
+  if(ev.target.closest(".mix-reset")){ CUSTOM_MIX=null; remember(); renderBundle(); } });
 function renderBundle(){
-  const risk=+$("riskSlider").value, count=+$("countSlider").value, amt=amount();
+  const risk=effRisk(), count=+$("countSlider").value, amt=amount();
   const style=+$("styleSlider").value, real=+$("realSlider").value;
-  $("riskVal").textContent=risk+" / 10"; $("countVal").textContent=count;
+  $("riskVal").textContent=CUSTOM_MIX?"Custom":risk+" / 10"; $("countVal").textContent=count;
   $("styleVal").textContent=STYLE_LABELS[style-1]; $("realVal").textContent=REAL_LABELS[real-1];
   $("riskWord").textContent=MIX_WORDS[risk-1]; $("riskArt").textContent=/^[aeiou]/.test(MIX_WORDS[risk-1])?"an":"a"; $("countWord").textContent=count+" funds";
-  const b=buildBundle(risk,count,$("overlapToggle").checked,style,real,{overlay:horizonOverlay()});
-  b.mixWithout=b.overlay?assetMix(risk,style,real):null;
+  const b=buildBundle(risk,count,$("overlapToggle").checked,style,real,{overlay:horizonOverlay(),custom:CUSTOM_MIX});
+  b.mixWithout=b.overlay?assetMix(risk,style,real,null,CUSTOM_MIX):null;
   b.risk=measureRisk(b.picks,b.w);          // outlook engine: measured, not used for picking funds
   b.stress=stressTests(b.picks,b.w);
   const vol=b.risk?b.risk.vol:b.vol;
   const nFunds=b.picks.length; $("countVal").textContent=nFunds; $("countWord").textContent=nFunds+" funds";
   const fn=FUND_NOTES[b.count]; $("countNote").innerHTML=`<b>${b.count} — ${fn[0]}</b><br>${fn[1]}`;
   scheduleSweet(); fitSentence(); scheduleAim();
-  { const h=$("horizonSel"), n=$("needSel"); $("moreSum").textContent=`${STYLE_LABELS[style-1]} style · ${REAL_LABELS[real-1].replace("Minimum","No")} real assets · ${h.value?`needed ${h.selectedOptions[0].text.toLowerCase()}${n.value==="yes"?", all of it":""}`:"goal not set"}${b.overlay?" (overlay on)":""} · overlap ${$("overlapToggle").checked?"minimised":"allowed"}`; }
+  { const h=$("horizonSel"), n=$("needSel"); $("moreSum").textContent=`${STYLE_LABELS[style-1]} style · ${CUSTOM_MIX?"custom mix":REAL_LABELS[real-1].replace("Minimum","No")+" real assets"} · ${h.value?`needed ${h.selectedOptions[0].text.toLowerCase()}${n.value==="yes"?", all of it":""}`:"goal not set"}${b.overlay?" (overlay on)":""} · overlap ${$("overlapToggle").checked?"minimised":"allowed"}`; }
   renderMix(b,risk);
   $("allocBar").innerHTML=b.picks.map((e,i)=>`<div data-t="${e.t}" data-i="${i}" style="flex-grow:${b.w[i]};background:${COLORS[i%COLORS.length]}" title="${e.t} ${(b.w[i]*100).toFixed(0)}%">${b.w[i]>.08?e.t:""}</div>`).join("");
   $("allocBar").setAttribute("aria-label","Allocation: "+b.picks.map((e,i)=>`${e.t} ${(b.w[i]*100).toFixed(0)}%`).join(", "));
@@ -1796,8 +1880,10 @@ function openDetail(t,note,amtOverride,back){ BACK=back||null;
 /* ---------- Wire up ---------- */
 [...new Set(DATA.map(e=>e.cat))].sort().forEach(c=>$("cat").insertAdjacentHTML("beforeend",`<option>${esc(c)}</option>`));
 ["riskSlider","countSlider"].forEach(id=>$(id).addEventListener("input",renderBundle));
-$("basketName").addEventListener("input",()=>{ const v=$("basketName").value.trim(); NAME_EDITED=v!==""&&v!==LAST_SUGGEST; if(!NAME_EDITED&&LAST_BUNDLE){ refreshName(LAST_BUNDLE.b,+$("riskSlider").value); $("basketName").select(); } });
+$("basketName").addEventListener("input",()=>{ const v=$("basketName").value.trim(); NAME_EDITED=v!==""&&v!==LAST_SUGGEST; if(!NAME_EDITED&&LAST_BUNDLE){ refreshName(LAST_BUNDLE.b,effRisk()); $("basketName").select(); } });
 $("basketName").addEventListener("focus",()=>{ if(!NAME_EDITED) $("basketName").select(); });
+$("riskSlider").addEventListener("input",()=>{ if(CUSTOM_MIX){ CUSTOM_MIX=null; remember(); } },true);
+$("realSlider").addEventListener("change",()=>{ if(CUSTOM_MIX){ CUSTOM_MIX=null; remember(); } },true);
 $("aimSel").addEventListener("change",()=>{ AIM.active=null; AIM.target=$("aimSel").value; $("aimTag").hidden=true; if($("aimSel").value) showAimOptions(+$("aimSel").value); else { $("aimPills").innerHTML=""; fillAimOptions(); } });
 ["riskSlider","countSlider","styleSlider","realSlider"].forEach(id=>$(id).addEventListener(id.startsWith("style")||id.startsWith("real")?"change":"input",aimCustom));
 ["styleSlider","realSlider"].forEach(id=>$(id).addEventListener("change",()=>{ renderBundle(); remember(); }));
@@ -1843,12 +1929,12 @@ $("amountPreset").addEventListener("change",e=>{ if(!e.target.value) return;
   $("amount").value=(+e.target.value).toLocaleString(LOCALE); sizeAmount(); amountTouched=true; remember(); renderBundle(); renderPresets(); });
 
 /* Remember amount, fund count and risk for this browser session */
-function remember(){ try{ sessionStorage.setItem("iqfund-builder",JSON.stringify({amount:amount(),cur:CUR,count:+$("countSlider").value,risk:+$("riskSlider").value,style:+$("styleSlider").value,real:+$("realSlider").value,horizon:$("horizonSel").value,need:$("needSel").value,overlayOff:OVERLAY_OFF})); }catch(e){} }
+function remember(){ try{ sessionStorage.setItem("iqfund-builder",JSON.stringify({amount:amount(),cur:CUR,count:+$("countSlider").value,risk:+$("riskSlider").value,style:+$("styleSlider").value,real:+$("realSlider").value,horizon:$("horizonSel").value,need:$("needSel").value,overlayOff:OVERLAY_OFF,custom:CUSTOM_MIX})); }catch(e){} }
 try{ const m=JSON.parse(sessionStorage.getItem("iqfund-builder")||"null");
   if(m){ if(m.amount>0){ const a=m.cur===CUR?m.amount:niceRound(m.amount*rateOf(CUR,m.cur)); $("amount").value=a.toLocaleString(LOCALE); amountTouched=true; }
     if(m.count>=3&&m.count<=10) $("countSlider").value=m.count; if(m.risk>=1&&m.risk<=10) $("riskSlider").value=m.risk;
     if(m.style>=1&&m.style<=5) $("styleSlider").value=m.style; if(m.real>=1&&m.real<=5) $("realSlider").value=m.real;
-    if(m.horizon!=null) $("horizonSel").value=m.horizon; if(m.need!=null) $("needSel").value=m.need; OVERLAY_OFF=!!m.overlayOff; } }catch(e){}
+    if(m.horizon!=null) $("horizonSel").value=m.horizon; if(m.need!=null) $("needSel").value=m.need; OVERLAY_OFF=!!m.overlayOff; if(m.custom&&typeof m.custom.eq==="number") CUSTOM_MIX=m.custom; } }catch(e){}
 ["horizonSel","needSel"].forEach(id=>$(id).addEventListener("change",()=>{ OVERLAY_OFF=false; remember(); renderBundle(); }));   // new answers: overlay back on
 ["amount","countSlider","riskSlider"].forEach(id=>$(id).addEventListener("input",()=>{ remember(); if(id==="amount") renderPresets(); }));
 $("amount").addEventListener("blur",renderPresets);
@@ -1954,9 +2040,10 @@ var NAME_EDITED=false;   // var: the first render runs before this line
 // · F2@6% = example F2 for a 6% target · Cash 1–2y = capital preservation overlay · 8F = 8 funds
 function suggestName(b,risk){
   const amt=amount(), money=amt?new Intl.NumberFormat(LOCALE,{style:"currency",currency:CUR,notation:"compact",maximumFractionDigits:amt>=1e6?2:0}).format(amt):"";
-  const style=+$("styleSlider").value, real=+$("realSlider").value, parts=[`R${risk}`];
+  const style=+$("styleSlider").value, real=+$("realSlider").value, r0=x=>Math.round(x);
+  const parts=[CUSTOM_MIX&&b?`Custom ${r0(b.mix.eq)}/${r0(b.mix.cash||0)}/${r0(b.mix.bonds)}/${r0(b.mix.gold+b.mix.comm)}`:`R${risk}`];
   if(b&&b.overlay) parts.push(`${b.overlay.strict?"Cash":"Prot"} ${b.overlay.when.replace(/^(in|within) /,"").replace("1 year","<1").replace(" years","")}y`.replace("<1y","<1y"));
-  else { const st={1:"Def",2:"LDef",4:"LAgg",5:"Agg"}[style], ra={1:"RA0",2:"RA-",4:"RA+",5:"RA++"}[real]; if(st) parts.push(st); if(ra) parts.push(ra); }
+  else { const st={1:"Def",2:"LDef",4:"LAgg",5:"Agg"}[style], ra={1:"RA0",2:"RA-",4:"RA+",5:"RA++"}[real]; if(st) parts.push(st); if(ra&&!CUSTOM_MIX) parts.push(ra); }
   if(AIM.active&&$("aimSel").value){ const o=AIM.opts.find(x=>x.id===AIM.active); if(o) parts.push(`${o.id}@${$("aimSel").value}%`); }
   parts.push(`${b?b.picks.length:+$("countSlider").value}F`); if(money) parts.push(money);
   return uniqueName(parts.join(" · "));
@@ -1966,15 +2053,15 @@ function uniqueName(n){ let list=[]; try{ list=BASKETS; }catch(e){}   // first r
 var LAST_SUGGEST="";
 function refreshName(b,risk){ const el=$("basketName"); if(!el||NAME_EDITED) return; el.value=LAST_SUGGEST=suggestName(b,risk); }
 async function saveBasket(){
-  const risk=+$("riskSlider").value, count=+$("countSlider").value, amt=amount();
+  const risk=effRisk(), count=+$("countSlider").value, amt=amount();
   if(!amt){ $("saveMsg").textContent="Enter an amount first."; return; }
   const style=+$("styleSlider").value, real=+$("realSlider").value;
-  const b=buildBundle(risk,count,$("overlapToggle").checked,style,real,{overlay:horizonOverlay()}), usd=amt/RATE;   // amount in the base currency
+  const b=buildBundle(risk,count,$("overlapToggle").checked,style,real,{overlay:horizonOverlay(),custom:CUSTOM_MIX}), usd=amt/RATE;   // amount in the base currency
   const holdings=b.picks.map((e,i)=>({t:e.t,n:e.n,units:usd*b.w[i]/e.p,entry:e.p,since:ASOF}));
   const name=$("basketName").value.trim()||suggestName(b,risk);
   const mr=measureRisk(b.picks,b.w);
   const plan={base:b.mu,vol:mr?mr.vol:b.vol,horizon:$("horizonSel").value,need:$("needSel").value};   // what the basket was expected to do
-  BASKETS.push({id:Date.now().toString(36),name,created:ASOF,cur:CUR,base:BASE,fx:RATE,invested:amt,usdInvested:usd,risk,style,real,plan,
+  BASKETS.push({id:Date.now().toString(36),name,created:ASOF,cur:CUR,base:BASE,fx:RATE,invested:amt,usdInvested:usd,risk,style,real,plan,custom:CUSTOM_MIX?{...b.mix,sleeves:undefined}:null,
     versions:[{from:ASOF,holdings}],log:[{d:ASOF,x:`Saved with ${holdings.map(h=>h.t).join(", ")}`}],seen:[]});
   if(LIVE) BASKETS[BASKETS.length-1].seen=alertsFor(BASKETS[BASKETS.length-1]).map(a=>a.key); // don't notify about alerts you saved with
   const ok=await Store.save(); NAME_EDITED=false; refreshName(b,risk);
