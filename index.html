@@ -134,6 +134,18 @@ details.scen .full{padding:0 0 10px;line-height:1.5}
 #countNote{display:none!important}
 .settings-card{margin:26px 0 8px;background:var(--panel,#FBF8F2);border-top:3px solid var(--cobalt);padding:18px 22px 6px}
 .set-title{margin:0;font:600 22px var(--display)}
+.aim{margin:14px 0 4px;padding-bottom:14px;border-bottom:1px solid var(--line)}
+.aim-row{display:flex;flex-wrap:wrap;gap:8px 12px;align-items:center}.aim-row label{font-weight:600;font-size:15px}
+.aim-row select{font:inherit;font-size:15px;font-weight:600;padding:7px 10px;border:1px solid var(--line);border-radius:var(--radius,4px);background:var(--paper,#fff);color:var(--ink);min-height:40px}
+.aim-tag{font-size:13px;color:var(--muted)}
+.aim-pills{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:8px;margin-top:10px}.aim-pills:empty{display:none}
+.aim-pill{all:unset;box-sizing:border-box;cursor:pointer;border:1px solid var(--line);border-radius:var(--radius,6px);padding:10px 12px;background:var(--paper,#fff);display:flex;flex-direction:column;gap:2px;min-height:44px}
+.aim-pill:hover{border-color:var(--ink)}.aim-pill:focus-visible{outline:3px solid var(--cobalt);outline-offset:2px}
+.aim-pill[aria-pressed="true"]{border:2px solid var(--cobalt);padding:9px 11px}
+.aim-pill b{font-size:14px}.aim-pill .ap-set{font-size:12px;color:var(--muted)}.aim-pill .ap-num{font-size:13px}
+.aim-pill .ap-num .up{color:var(--buy)}.aim-pill .ap-num .down{color:var(--sell)}
+.aim-note{margin:8px 0 0;font-size:13px;color:var(--muted);line-height:1.45}.aim-note:empty{display:none}
+@media (max-width:700px){.aim-pills{grid-template-columns:1fr}}
 .settings-card .controls{margin:16px 0 6px;max-width:none}
 @media (min-width:900px){.settings-card .controls{grid-template-columns:minmax(0,1fr) minmax(0,1.4fr);gap:24px 40px}}
 .more-set{border-top:1px solid var(--line);margin-top:6px}
@@ -503,6 +515,13 @@ html[data-theme="nightdesk"] dialog::backdrop{background:rgba(0,0,0,.6)}
 
     <div class="settings-card">
     <p class="set-title">Your settings</p>
+    <div class="aim" id="aim">
+      <div class="aim-row"><label for="aimSel">Aim for a base case of</label>
+        <select id="aimSel" disabled><option value="">Working out what's reachable…</option></select>
+        <span class="aim-tag" id="aimTag" hidden></span></div>
+      <div class="aim-pills" id="aimPills" role="group" aria-label="Example mixes"></div>
+      <p class="aim-note" id="aimNote"></p>
+    </div>
     <div class="controls">
       <div class="ctl">
         <label for="riskSlider">Portfolio risk <b id="riskVal">6 / 10</b></label>
@@ -1539,6 +1558,71 @@ addEventListener("resize",()=>{ clearTimeout(fitSentence.t); fitSentence.t=setTi
 // web fonts arrive after first paint (and again on a style change): re-measure once they're in
 if(document.fonts){ document.fonts.ready.then(()=>{ sizeAmount(); fitSentence(); });
   document.fonts.addEventListener?.("loadingdone",()=>{ sizeAmount(); fitSentence(); }); }
+/* "Aim for a base case of X%": search every risk × style × real-assets setting (within any horizon overlay),
+   then offer three different ways to aim for the chosen target. Choosing one just sets the sliders, so the
+   rest of the page and Save work as usual. Examples, not recommendations. */
+const AIM={key:null,cands:null,busy:false,active:null,opts:[]};
+function aimState(){ const ov=horizonOverlay(); return {data:DATA,risk:RISKDATA,yields:YIELDS,ov:ov?ov.id:"",low:$("overlapToggle").checked}; }
+function aimStale(){ const n=aimState(), o=AIM.state; return !o||Object.keys(n).some(k=>n[k]!==o[k]); }
+function scheduleAim(){
+  if(AIM.busy||!aimStale()) return;
+  AIM.state=aimState(); AIM.busy=true; AIM.cands=[];
+  $("aimSel").disabled=true; $("aimSel").innerHTML='<option value="">Working out what\'s reachable…</option>';
+  const ov=horizonOverlay(), lowOv=$("overlapToggle").checked, combos=[];
+  for(let r=1;r<=10;r++) for(let st=1;st<=5;st++) for(let ra=1;ra<=5;ra++) combos.push([r,st,ra]);
+  let i=0;
+  const step=()=>{ const t0=performance.now();
+    while(i<combos.length&&performance.now()-t0<30){ const [r,st,ra]=combos[i++];
+      const b=buildBundle(r,6,lowOv,st,ra,{probe:true,overlay:ov}), m=measureRisk(b.picks,b.w), vol=m?m.vol:b.vol, sc=oneYearScenarios(b.mu,m,vol);
+      AIM.cands.push({risk:r,style:st,real:ra,mu:b.mu,vol,weak:sc.weak,strong:sc.strong,dd:m?m.dd:b.dd,ok:!b.unresolved.length&&!b.overCap.length,breadth:breadthOf(b)}); }
+    if(i<combos.length) setTimeout(step,0); else { AIM.busy=false; if(aimStale()) scheduleAim(); else fillAimOptions(); } };
+  setTimeout(step,0);
+}
+function fillAimOptions(){
+  const mus=AIM.cands.map(c=>c.mu), lo=Math.min(...mus), hi=Math.max(...mus), sel=$("aimSel"), prev=sel.value;
+  const targets=[]; for(let t=Math.ceil(lo*2)/2;t<=Math.floor(hi*2)/2+1e-9;t+=0.5) targets.push(+t.toFixed(1));
+  if(!targets.length) targets.push(+((lo+hi)/2).toFixed(1));   // e.g. under an overlay, base cases barely differ
+  sel.innerHTML='<option value="">Choose a target…</option>'+targets.map(t=>`<option value="${t}">${t.toFixed(1)}% a year</option>`).join("");
+  sel.disabled=false; if(targets.includes(+prev)) sel.value=prev;
+  AIM.range=[lo,hi];
+  const ov=horizonOverlay();
+  $("aimNote").innerHTML=sel.value?$("aimNote").innerHTML:`Base cases here run from ${lo.toFixed(1)}% to ${hi.toFixed(1)}% a year${ov?` within the ${ov.name.toLowerCase()} overlay`:""}. Lower needs no investing risk (cash pays about Bank Rate); higher isn't reachable on FndMngr's assumptions. Examples, not recommendations.`;
+  if(sel.value) showAimOptions(+sel.value);
+}
+function showAimOptions(T){
+  let near=[]; for(const tol of [0.15,0.25,0.4,0.6]){ near=AIM.cands.filter(c=>Math.abs(c.mu-T)<=tol); if(near.length>=3) break; }
+  const pool=near.length?near:[...AIM.cands].sort((a,b)=>Math.abs(a.mu-T)-Math.abs(b.mu-T)).slice(0,6);
+  const same=(a,b)=>a&&b&&a.risk===b.risk&&a.style===b.style&&a.real===b.real, picked=[];
+  const pick=(label,desc,sorter)=>{ const c=[...pool].sort(sorter).find(x=>!picked.some(p=>same(p.c,x))); if(c) picked.push({label,desc,c}); };
+  pick("Steadiest","the least volatile mix aiming for this",(a,b)=>a.vol-b.vol);
+  pick("Best spread","the most diversified mix that meets every limit",(a,b)=>(b.ok-a.ok)||(b.breadth-a.breadth));
+  pick("More upside","the best strong year, with a deeper weak year",(a,b)=>b.strong-a.strong);
+  const amt=amount(), f=x=>(x>=0?"+":"−")+Math.abs(x).toFixed(1)+"%";
+  AIM.opts=picked.map((p,i)=>{   // final fund count: the sweet spot for that setting at this amount
+    const ov=horizonOverlay(), low=$("overlapToggle").checked;
+    const measure=n=>{ const b=buildBundle(p.c.risk,n,low,p.c.style,p.c.real,{probe:true,overlay:ov}), m=measureRisk(b.picks,b.w), vol=m?m.vol:b.vol, sc=oneYearScenarios(b.mu,m,vol);
+      return {n,mu:b.mu,weak:sc.weak,dd:m?m.dd:b.dd}; };
+    let fin=measure(sweetSpot(sweetRows(p.c.risk,p.c.style,p.c.real,low),amt,CUR).best.n);
+    if(Math.abs(fin.mu-T)>0.3&&fin.n!==6){ const six=measure(6); if(Math.abs(six.mu-T)<Math.abs(fin.mu-T)) fin=six; }   // stay on target
+    return {...p,id:"F"+(i+1),n:fin.n,fin}; });
+  $("aimPills").innerHTML=AIM.opts.map(o=>`<button type="button" class="aim-pill" data-aim="${o.id}" aria-pressed="${AIM.active===o.id}" title="${o.desc}">
+      <b>${o.id} · ${o.label}</b><span class="ap-set">Risk ${o.c.risk} · ${o.n} funds · ${STYLE_LABELS[o.c.style-1]} · ${REAL_LABELS[o.c.real-1].replace("Minimum","No")} real assets</span>
+      <span class="ap-num">Base <span class="up">${f(o.fin.mu)}</span> · weak year <span class="down">${f(o.fin.weak)}</span> · worst fall <span class="down">${f(o.fin.dd)}</span></span></button>`).join("");
+  const hi=AIM.range&&T>AIM.range[1]+0.01;
+  $("aimNote").innerHTML=(near.length?`Three different ways to aim for a ${T.toFixed(1)}% base case. Choose one to load it below; it's a starting point you can adjust and save.`
+    :`Nothing lands exactly on ${T.toFixed(1)}%; these are the closest.`)+` Base case is a central estimate, not a guaranteed return. Examples, not recommendations.`;
+}
+function applyAim(id){
+  const o=AIM.opts.find(x=>x.id===id); if(!o) return;
+  $("riskSlider").value=o.c.risk; $("styleSlider").value=o.c.style; $("realSlider").value=o.c.real; $("countSlider").value=o.n;
+  AIM.active=id; remember(); renderBundle();
+  document.querySelectorAll(".aim-pill").forEach(b=>b.setAttribute("aria-pressed",b.dataset.aim===id));
+  $("aimTag").hidden=false; $("aimTag").textContent=`Set by ${o.id} · ${o.label}`;
+}
+function aimCustom(){ if(!AIM.active) return; const o=AIM.opts.find(x=>x.id===AIM.active); AIM.active=null;
+  document.querySelectorAll(".aim-pill").forEach(b=>b.setAttribute("aria-pressed","false"));
+  $("aimTag").textContent=o?`Custom: adjusted from ${o.id}`:""; }
+document.addEventListener("click",ev=>{ const p=ev.target.closest(".aim-pill"); if(p) applyAim(p.dataset.aim); });
 function renderBundle(){
   const risk=+$("riskSlider").value, count=+$("countSlider").value, amt=amount();
   const style=+$("styleSlider").value, real=+$("realSlider").value;
@@ -1552,7 +1636,7 @@ function renderBundle(){
   const vol=b.risk?b.risk.vol:b.vol;
   const nFunds=b.picks.length; $("countVal").textContent=nFunds; $("countWord").textContent=nFunds+" funds";
   const fn=FUND_NOTES[b.count]; $("countNote").innerHTML=`<b>${b.count} — ${fn[0]}</b><br>${fn[1]}`;
-  scheduleSweet(); fitSentence();
+  scheduleSweet(); fitSentence(); scheduleAim();
   { const h=$("horizonSel"), n=$("needSel"); $("moreSum").textContent=`${STYLE_LABELS[style-1]} style · ${REAL_LABELS[real-1].replace("Minimum","No")} real assets · ${h.value?`needed ${h.selectedOptions[0].text.toLowerCase()}${n.value==="yes"?", all of it":""}`:"goal not set"}${b.overlay?" (overlay on)":""} · overlap ${$("overlapToggle").checked?"minimised":"allowed"}`; }
   renderMix(b,risk);
   $("allocBar").innerHTML=b.picks.map((e,i)=>`<div data-t="${e.t}" data-i="${i}" style="flex-grow:${b.w[i]};background:${COLORS[i%COLORS.length]}" title="${e.t} ${(b.w[i]*100).toFixed(0)}%">${b.w[i]>.08?e.t:""}</div>`).join("");
@@ -1655,6 +1739,8 @@ function openDetail(t,note,amtOverride,back){ BACK=back||null;
 /* ---------- Wire up ---------- */
 [...new Set(DATA.map(e=>e.cat))].sort().forEach(c=>$("cat").insertAdjacentHTML("beforeend",`<option>${esc(c)}</option>`));
 ["riskSlider","countSlider"].forEach(id=>$(id).addEventListener("input",renderBundle));
+$("aimSel").addEventListener("change",()=>{ AIM.active=null; $("aimTag").hidden=true; if($("aimSel").value) showAimOptions(+$("aimSel").value); else { $("aimPills").innerHTML=""; fillAimOptions(); } });
+["riskSlider","countSlider","styleSlider","realSlider"].forEach(id=>$(id).addEventListener(id.startsWith("style")||id.startsWith("real")?"change":"input",aimCustom));
 ["styleSlider","realSlider"].forEach(id=>$(id).addEventListener("change",()=>{ renderBundle(); remember(); }));
 // "More settings": closed by default, remembered for the session
 try{ if(sessionStorage.getItem("fndmngr-more")==="open") $("moreSet").open=true; }catch(e){}
