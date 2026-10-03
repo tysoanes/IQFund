@@ -278,6 +278,11 @@ dialog::backdrop{background:rgba(20,33,61,.45)}
 .bnums div{background:var(--soft);border-radius:8px;padding:10px}
 .bnums small{display:block;font-size:12px;color:var(--muted)}
 .bnums b{font:700 18px var(--display)}
+.b-ol-sub{margin:0;font-size:13px;color:var(--muted)}
+.bnums.b-ol{margin:10px 0 6px}.bnums.b-ol .pos{color:var(--buy)}.bnums.b-ol .neg{color:var(--sell)}
+.b-ol-more{font-size:13px;line-height:1.5;margin-bottom:6px}.b-ol-more summary{cursor:pointer;font-weight:600;color:var(--cobalt)}
+.b-ol-st{list-style:none;margin:4px 0;padding:0}.b-ol-st li{display:flex;justify-content:space-between;gap:10px;padding:4px 0;border-top:1px solid var(--line)}
+@media (max-width:560px){.bnums.b-ol{grid-template-columns:repeat(2,1fr)}}
 .chart svg{width:100%;height:auto;display:block}
 .chart .axis{display:flex;justify-content:space-between;font-size:12px;color:var(--muted);margin-top:4px}
 .alertbox{border:1px solid #E8B4AE;background:#FFF7F6;border-radius:8px;padding:12px 14px;margin:10px 0}
@@ -2021,6 +2026,33 @@ function trackDetail(b,s){
   const need=b.plan&&b.plan.need==="yes"&&tr.status==="well"&&s.localNow<b.invested?` It's ${moneyIn(b.invested-s.localNow,b.cur)} below the ${moneyIn(b.invested,b.cur)} you said you'd need.`:"";
   return `<p class="trk-note">${trackBadge(b,s)} ${f(tr.actual)} since saving vs a planned ${f(tr.expected)} by now (normal range ${f(tr.lo)} to ${f(tr.hi)}). ${why}${need}${tr.plan.estimated?" <i>Plan estimated from today's figures: this basket was saved before plans were recorded.</i>":""}</p>`;
 }
+/* Outlook & risk for a saved basket: same engine as the builder, from today's value, funds and weights */
+function basketOutlookHTML(b,s){
+  const picks=[], w=[];
+  s.hs.forEach(h=>{ const e=DATA.find(x=>x.t===h.t); if(e){ picks.push(e); w.push(h.units*priceNow(h)); } });
+  if(!picks.length) return "";
+  const sw=w.reduce((a,c)=>a+c,0); for(let i=0;i<w.length;i++) w[i]/=sw;
+  const mu=picks.reduce((a,e,i)=>a+w[i]*e.mu,0), R=measureRisk(picks,w);
+  let v=0; picks.forEach((a,i)=>picks.forEach((c,j)=>v+=w[i]*w[j]*a.vol*c.vol*corr(a,c)));
+  const vol=R?R.vol:Math.sqrt(v), sc=oneYearScenarios(mu,R,vol), dd=R?R.dd:picks.reduce((a,e,i)=>a+w[i]*e.dd,0);
+  const st=stressTests(picks,w), worst=st.reduce((m,x)=>x.loss<m.loss?x:m), amt=s.localNow;
+  const f=x=>(x>=0?"+":"−")+Math.abs(x).toFixed(1)+"%", m=x=>moneyIn(amt*(1+x/100),b.cur);
+  const tile=(l,x,sub,cls)=>`<div><small>${l}</small><b class="${cls||(x>=0?"pos":"neg")}">${f(x)}</b><br><small>${sub}</small></div>`;
+  return `<h4>Outlook &amp; risk</h4>
+  <p class="b-ol-sub">From today's value of ${moneyIn(amt,b.cur)}, with today's funds and weights. Illustrations, not forecasts.</p>
+  <div class="bnums b-ol">
+    ${tile("Strong year",sc.strong,m(sc.strong))}${tile("Base case",mu,m(mu))}${tile("Weak year",sc.weak,m(sc.weak))}
+    ${tile(R?"Worst past fall":"Worst past fall (rough)",dd,m(dd),"neg")}${tile("Severe stress test",worst.loss,m(worst.loss),"neg")}
+    <div><small>Volatility</small><b>${vol.toFixed(1)}%</b><br><small>${volLabel(vol)}${R?` · ${R.vAll.toFixed(1)}% since ${new Date(R.start).getFullYear()}`:""}</small></div>
+  </div>
+  <details class="b-ol-more"><summary>Why? How these are worked out</summary>
+    <p><b>Strong / weak year:</b> ${sc.sD} ${sc.wD}</p>
+    <p><b>Base case:</b> FndMngr central estimate, not a guaranteed return: long-run assumptions per asset class (bonds at today's yields where known), a valuation tilt and recent performance capped at ±2 points.</p>
+    ${R?`<p><b>Worst past fall:</b> this mix's biggest peak-to-trough fall since ${monthYear(R.start)} (${monthYear(R.peakDate)} to ${monthYear(R.troughDate)}), dividends included, measured weekly.</p>`:""}
+    <p><b>Stress tests</b> (illustrative shocks applied to today's weights):</p>
+    <ul class="b-ol-st">${st.map(x=>`<li><span>${x.name}${x.like?` · ${x.like}`:""}</span><span>${m(x.loss)} (${f(x.loss)})</span></li>`).join("")}</ul>
+  </details>`;
+}
 function renderBaskets(){
   const el=$("basketList"); if(!el) return;
   if(!BASKETS.length){ el.innerHTML=`<p class="lead" style="grid-column:1/-1">No saved baskets yet. Build one above and tap “Save basket”.</p>`; return; }
@@ -2049,7 +2081,7 @@ function openBasket(id){
     <div><small>Invested</small><b>${moneyIn(b.invested,b.cur)}</b></div>
     <div><small>Fund return</small><b class="${Math.round(s.ret*1000)>=0?"pos":"neg"}">${pct(s.ret*100)}</b></div>
   </div>
-  ${(b.base||"USD")===BASE||!LIVE?trackDetail(b,s):""}
+  ${(b.base||"USD")===BASE||!LIVE?trackDetail(b,s)+basketOutlookHTML(b,s):""}
   ${(b.base||"USD")!==BASE&&LIVE?`<p class="alertbox" style="font-size:14px">This basket was saved with the old US fund list, so its prices no longer update. Build and save it again to track the London-listed funds.</p>`:""}
   ${b.cur!==(b.base||"USD")?`<p style="font-size:13px;color:var(--muted);margin:-6px 0 10px">Value includes a ${pct(s.fxMove*100)} move in the ${b.base||"USD"}/${b.cur} rate since you saved.</p>`:""}
   <div class="chart">${chartSVG(days)}</div>
