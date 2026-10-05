@@ -513,6 +513,9 @@ html[data-theme="nightdesk"] dialog::backdrop{background:rgba(0,0,0,.6)}
 .mix-stats div{margin:0}.mix-stats dt{font-size:12px;color:var(--muted)}.mix-stats dd{margin:0;font-weight:600;font-size:15px}
 @media (prefers-reduced-motion:reduce){.mix-bar div{transition:none}}
 .style-pick{margin-top:6px}
+.use-set{display:flex;flex-wrap:wrap;gap:6px 12px;align-items:center;margin:0 0 12px}.use-set span{font-size:12.5px;color:var(--muted);flex:1 1 240px}
+.from-basket{margin:-4px 0 12px;padding:8px 12px;font-size:13px;line-height:1.45;border-left:3px solid var(--cobalt);background:var(--hover,rgba(0,0,0,.04))}
+.from-basket button{all:unset;cursor:pointer;margin-left:6px;font-weight:600;text-decoration:underline;text-underline-offset:2px}
 .visitors{display:block;margin:2px 0 6px;font-size:13px;color:var(--muted)}.visitors b{color:var(--ink);font-variant-numeric:tabular-nums}
 .amount-pick{display:flex;align-items:center;gap:10px;flex-wrap:wrap;margin:14px 0 0;font-size:15px;color:var(--muted)}
 .amount-pick select{font:600 15px var(--body);padding:8px 10px;border:1px solid var(--line);border-radius:var(--radius);background:var(--panel);color:var(--ink);min-height:44px}
@@ -551,6 +554,7 @@ html[data-theme="nightdesk"] dialog::backdrop{background:rgba(0,0,0,.6)}
 
     <div class="settings-card">
     <p class="set-title">Your settings</p>
+    <p class="from-basket" id="fromBasket" hidden></p>
     <div class="aim" id="aim">
       <div class="aim-row"><label for="aimSel">Aim for a base case of</label>
         <select id="aimSel" disabled><option value="">Working out what's reachable…</option></select>
@@ -1711,7 +1715,8 @@ async function saveOneFund(t){
   const name=NAME_EDITED&&$("basketName").value.trim()?$("basketName").value.trim():uniqueName(`${e.t} · 1F · ${money}`);
   const holdings=[{t:e.t,n:e.n,units:usd/e.p,entry:e.p,since:ASOF}];
   BASKETS.push({id:Date.now().toString(36),name,created:ASOF,cur:CUR,base:BASE,fx:RATE,invested:amt,usdInvested:usd,
-    risk:effRisk(),style:+$("styleSlider").value,real:+$("realSlider").value,
+    risk:effRisk(),style:+$("styleSlider").value,real:+$("realSlider").value,one:true,custom:CUSTOM_MIX?{...CUSTOM_MIX}:null,
+    count:+$("countSlider").value,low:$("overlapToggle").checked,overlayOff:!!OVERLAY_OFF,
     plan:{base:e.mu,vol:m?m.vol:e.vol,horizon:$("horizonSel").value,need:$("needSel").value},
     versions:[{from:ASOF,holdings}],log:[{d:ASOF,x:`Saved as a one-fund basket: ${e.t}`}],seen:[]});
   if(LIVE) BASKETS[BASKETS.length-1].seen=alertsFor(BASKETS[BASKETS.length-1]).map(a=>a.key);
@@ -2256,9 +2261,10 @@ async function saveBasket(){
   const mr=measureRisk(b.picks,b.w);
   const plan={base:b.mu,vol:mr?mr.vol:b.vol,horizon:$("horizonSel").value,need:$("needSel").value};   // what the basket was expected to do
   BASKETS.push({id:Date.now().toString(36),name,created:ASOF,cur:CUR,base:BASE,fx:RATE,invested:amt,usdInvested:usd,risk,style,real,plan,custom:CUSTOM_MIX?{...b.mix,sleeves:undefined}:null,
-    versions:[{from:ASOF,holdings}],log:[{d:ASOF,x:`Saved with ${holdings.map(h=>h.t).join(", ")}`}],seen:[]});
+    count,low:$("overlapToggle").checked,overlayOff:!!OVERLAY_OFF,
+    versions:[{from:ASOF,holdings}],log:[{d:ASOF,x:`Saved with ${holdings.map(h=>h.t).join(", ")}${FROM_BASKET?` (a new version of “${FROM_BASKET}”)`:""}`}],seen:[]});
   if(LIVE) BASKETS[BASKETS.length-1].seen=alertsFor(BASKETS[BASKETS.length-1]).map(a=>a.key); // don't notify about alerts you saved with
-  const ok=await Store.save(); NAME_EDITED=false; refreshName(b,risk);
+  const ok=await Store.save(); NAME_EDITED=false; FROM_BASKET=null; $("fromBasket").hidden=true; refreshName(b,risk);
   $("saveMsg").textContent=ok?`Saved “${name}”`:"Saved for this visit only (storage unavailable)";
   setTimeout(()=>$("saveMsg").textContent="",4000);
   renderBaskets();
@@ -2361,6 +2367,8 @@ function openBasket(id){
   $("dlgBody").innerHTML=`
   <div class="dlg-h"><div><h3 id="dTitle">${esc(b.name)}</h3><p>Saved ${fmtDate(b.created)} · risk ${b.risk} (${RISK_LABELS[b.risk-1].toLowerCase()})${b.style?`, ${STYLE_LABELS[b.style-1].toLowerCase()} equities`:""} · prices as of ${fmtDate(ASOF)}</p></div>
   <button class="close" onclick="dlg.close()">Close</button></div>
+  <p class="use-set"><button class="ghost" id="useSettings">Start a new version from these settings</button>
+    <span>Loads this basket's amount, risk, mix, fund count and goal into the builder to tweak and save as a new basket. This one stays as it is.</span></p>
   <div class="bnums">
     <div><small>Value now</small><b>${moneyIn(s.localNow,b.cur)}</b></div>
     <div><small>Invested</small><b>${moneyIn(b.invested,b.cur)}</b></div>
@@ -2386,12 +2394,35 @@ function openBasket(id){
   $("dlgBody").onclick=ev=>{
     const f=ev.target.closest("[data-fund]"); if(f){ openDetail(f.dataset.fund,`In ${b.name}`,null,()=>openBasket(b.id)); return; }
     const sw=ev.target.closest("[data-swap]"); if(sw){ swap(b,sw.dataset.swap,sw.dataset.rep||null); return; }
+    if(ev.target.closest("#useSettings")){ loadBasketSettings(b); return; }
     if(ev.target.id==="delBasket"){ if(ev.target.dataset.confirm){ BASKETS=BASKETS.filter(x=>x.id!==b.id); Store.save(); renderBaskets(); dlg.close(); }
       else { ev.target.dataset.confirm=1; ev.target.textContent="Tap again to delete"; } }
   };
   if(!dlg.open) dlg.showModal();
 }
 dlg.addEventListener("close",()=>{ $("dlgBody").onclick=null; });
+/* Start a new version of a saved basket: put its settings back into the builder. Holdings are rebuilt from
+   today's data, so they can differ a little from what was saved. Older baskets didn't store every setting;
+   the gaps keep their current values. */
+var FROM_BASKET=null;
+function loadBasketSettings(b){
+  if(b.cur&&b.cur!==CUR&&[...$("cur").options].some(o=>o.value===b.cur)){ $("cur").value=b.cur; setCurrency(b.cur,false); }
+  const amt=b.cur===CUR?b.invested:niceRound(b.invested*rateOf(CUR,b.cur));
+  if(amt>0){ $("amount").value=Math.round(amt).toLocaleString(LOCALE); amountTouched=true; sizeAmount(); }
+  const set=(id,v)=>{ if(v!=null&&v!=="") $(id).value=v; };
+  set("riskSlider",b.risk); set("styleSlider",b.style); set("realSlider",b.real);
+  const n=b.count||(b.one?null:holdingsOf(b).length); if(n) set("countSlider",clamp(n,3,10));
+  if(b.plan){ $("horizonSel").value=b.plan.horizon||""; $("needSel").value=b.plan.need||""; }
+  if(typeof b.low==="boolean") $("overlapToggle").checked=b.low;
+  OVERLAY_OFF=!!b.overlayOff;
+  CUSTOM_MIX=b.custom&&typeof b.custom.eq==="number"?{eq:b.custom.eq,cash:b.custom.cash||0,bonds:b.custom.bonds||0,gold:b.custom.gold||0,comm:b.custom.comm||0}:null;
+  AIM.active=null; AIM.target=""; $("aimSel").value=""; $("aimPills").innerHTML=""; $("aimTag").hidden=true;
+  FROM_BASKET=b.name; NAME_EDITED=true; $("basketName").value=uniqueName(b.name.replace(/ \(\d+\)$/,"")+" v2");
+  remember(); renderBundle(); if($("amountPreset").options.length) renderPresets();
+  const fb=$("fromBasket"); fb.innerHTML=`Started from “${esc(b.name)}”${b.one?" (a one-fund basket, so the builder suggests a full basket at the same settings)":""}. Funds are picked from today's data, so they may differ a little from what was saved. Change anything, then save as a new basket.<button type="button" id="fromClear">Clear</button>`; fb.hidden=false;
+  dlg.close(); document.querySelector(".settings-card").scrollIntoView({behavior:"smooth",block:"start"});
+}
+document.addEventListener("click",ev=>{ if(ev.target.id==="fromClear"){ $("fromBasket").hidden=true; FROM_BASKET=null; NAME_EDITED=false; if(LAST_BUNDLE) refreshName(LAST_BUNDLE.b,effRisk()); } });
 
 /* ---------- Wire up ---------- */
 $("saveBasket").addEventListener("click",saveBasket);
