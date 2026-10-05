@@ -174,6 +174,7 @@ details.chk>summary::-webkit-details-marker{display:none}
 details.chk .why{font-size:11px;font-weight:600;text-decoration:underline;text-underline-offset:2px;opacity:.75;white-space:nowrap}details.chk[open] .why{display:none}
 .chk-body{padding:0 0 10px 30px;font-size:14px;line-height:1.5}.chk-body p{margin:4px 0}.chk-foot{font-size:12px;color:var(--muted)}
 .chkbox .ov-btn{margin:6px 0 8px 30px}
+.ov-cmp{margin:2px 0 0 30px;font-size:13px;color:var(--muted);line-height:1.45}.ov-cmp b{color:var(--ink)}
 .one-acts{display:flex;flex-wrap:wrap;gap:0 18px}.one-acts .ov-btn{margin:6px 0 8px 0}.one-acts .ov-btn:first-child{margin-left:30px}
 .one-t{border-collapse:collapse;font-size:13px;margin:6px 0;min-width:280px}.one-t td,.one-t th{padding:4px 10px 4px 0;border-bottom:1px solid var(--line);text-align:left;font-weight:500}.one-t .r{text-align:right}.one-t th{font-weight:700}
 .mix-details{margin-top:10px;font-size:13px}.mix-details summary{cursor:pointer;color:var(--muted);font-weight:600}
@@ -921,6 +922,8 @@ const EM_CATS=new Set(["Emerging markets","India","China"]), EM_DIMS=["EM","CHIN
 const themeCap=risk=>risk<=4?5:risk<=7?10:15;
 /* Emerging markets: limited as a share of EQUITIES (look-through), anchored to EM's roughly 10–11% weight in the
    world market: Risk 1–2 about world weight, rising with risk. Money needed within 5 years tightens one band. */
+const REGION_LIMITS={"UK":20,"Europe":25,"Japan":15,"Asia Pacific":10,"US":80};   // % of equities
+function regionShare(e,reg){ const pr=profileOf(e), t=Object.values(pr).reduce((a,v)=>a+v,0)||1; let x=0; for(const d in pr) if(DIM_GROUP(d)===reg) x+=pr[d]; return x/t; }
 const EM_EQ_BANDS=[[2,12],[5,18],[8,25],[10,30]];   // [up to risk, % of equities]
 function emShareLimit(risk){ let i=EM_EQ_BANDS.findIndex(([hi])=>risk<=hi); const h=+(document.getElementById("horizonSel")?.value||0), tight=!!h&&h<=5&&i>0;
   if(tight) i--; return {pct:EM_EQ_BANDS[i][1],tight}; }
@@ -936,6 +939,10 @@ function exposureLimits(risk,eqPct){
   const emLim=emShareLimit(risk), eqW=eqPct==null?100:eqPct;
   // look-through, not labels: EM held inside global, international and dividend funds counts too
   const L=[{id:"em",label:"emerging-markets exposure",cap:emLim.pct*eqW/100,emLim,share:e=>shareIn(e,EM_DIMS),group:"Emerging markets"}];
+  // regions, look-through, equity funds only, as a share of equities: so trimming one region can't
+  // quietly create a concentration in another (e.g. EM out, UK in)
+  for(const [reg,pct] of Object.entries(REGION_LIMITS)) L.push({id:"region:"+reg,label:reg+" exposure",cap:pct*eqW/100,regPct:pct,group:"Regions",
+    share:e=>e.cls==="eq"?regionShare(e,reg):0});
   for(const [n,d] of Object.entries(SECTOR_SETS)) L.push({id:"sector:"+n,label:n+" sector",cap:25,share:e=>shareIn(e,d),group:"Sectors"});
   for(const [n,d] of Object.entries(THEME_SETS)) L.push({id:"theme:"+n,label:n,cap:risk>=8?15:10,share:e=>shareIn(e,d),group:"Themes"});
   for(const [n,d] of Object.entries(FACTOR_SETS)) L.push({id:"factor:"+n,label:n+" factor",cap:20,share:e=>shareIn(e,d),group:"Factors"});
@@ -1096,6 +1103,10 @@ function buildBundle(risk,count,lowOverlap,style,real,opts){
   // emerging-markets limit (share of equities); another broad market takes the slot instead
   if(ranked.core&&slots.core){ const emCapPct=emShareLimit(risk).pct*mix.eq/100, perCore=sl.core/slots.core;
     if(perCore/2>emCapPct){ const alt=ranked.core.filter(x=>!EM_CATS.has(x.e.cat)); if(new Set(alt.map(x=>x.e.cat)).size>=slots.core) ranked.core=alt; } }
+  // same for single-region funds (a UK or Japan fund): skip one if even half its share would use up most of that region's limit (global funds hold some of it too)
+  if(ranked.core&&slots.core){ const perCore=sl.core/slots.core;
+    const tooBig=e=>Object.entries(REGION_LIMITS).some(([reg,pct])=>regionShare(e,reg)*perCore/2>pct*mix.eq/100*0.7);
+    const alt=ranked.core.filter(x=>!tooBig(x.e)); if(new Set(alt.map(x=>x.e.cat)).size>=slots.core) ranked.core=alt; }
   // 8-9. concentration limits: specialist excess moves to broader equity funds (still equities, so
   //      risk is unchanged); broad core/bond funds and real assets may exceed their limit when slots run out
   const moves=[];
@@ -1203,7 +1214,7 @@ function buildBundle(risk,count,lowOverlap,style,real,opts){
   // SOFT optimisation constraints: pursued as far as the fund count allows, relaxed (and said so) when they can't all be met
   const LG=id=>LIMITS.find(c=>c.id===id).group, grpOk=g=>!unresolved.some(u=>LG(u.id)===g);
   const ovAvg=portfolioOverlap(picks,w).avg;
-  const soft=[{id:"geo",label:"Geographic",ok:grpOk("Emerging markets")},{id:"sector",label:"Sectors",ok:grpOk("Sectors")},
+  const soft=[{id:"geo",label:"Geographic",ok:grpOk("Emerging markets")&&grpOk("Regions")},{id:"sector",label:"Sectors",ok:grpOk("Sectors")},
     {id:"theme",label:"Themes",ok:grpOk("Themes")},{id:"factor",label:"Factors",ok:grpOk("Factors")},
     {id:"fund",label:"Single-fund limits",ok:!overFinal.length},{id:"overlap",label:"Overlap",ok:ovAvg<0.35}];
   const lookNow=lookThrough(picks,w,sleeveOf), eqNow=sleeveOf.reduce((a,k,i)=>a+(["core","factor","thematic"].includes(k)?w[i]*100:0),0);
@@ -1400,6 +1411,7 @@ function divPlain(b){
   const out=[], seen=new Set(), buckets=new Set();
   b.guards.forEach(g=>{ buckets.add(g.bucket); const kind=g.id.split(":")[0]; const key=g.id.startsWith("fund:")?"fund":g.id; if(seen.has(key)) return; seen.add(key);
     const name=g.id.split(":")[1];
+    if(kind==="region"){ const pct=REGION_LIMITS[name]; out.push(`${name} exposure limited to ${pct}% of equities so no single region dominates.`); return; }
     out.push(g.id==="em"?`Emerging markets limited to ${b.emLim.pct}% of equities (now ${Math.round(b.emLim.eqShare*10)/10}%)${b.emLim.tight?", one band tighter because the money is needed within 5 years,":""} to avoid excessive regional concentration.`
       :kind==="sector"?`${lc(name)} sector exposure was limited so the basket doesn't lean too heavily on one sector.`
       :kind==="theme"?`${lc(name)} exposure was trimmed so no single theme dominates.`
@@ -1464,9 +1476,15 @@ document.addEventListener("click",ev=>{ const btn=ev.target.closest(".ov-btn"); 
    funds that reach about 90% of the breadth available, preferring counts that meet every limit and
    never suggesting positions below MIN_POSITION. Information only: the user's choice is never changed. */
 const MIN_POSITION=1000;
+// near-identical exposures count once. For the fund count, cash and investment-grade bonds are one
+// exposure (interest rates): splitting a defensive slice across more bond funds adds little real spread.
+// High yield and emerging-market debt carry credit risk, so they count separately.
+const RATE_DIMS=["CASH","ULTRA_SHORT","GILT","GILT_SHORT","GBP_CORP","GBP_CORP_SHORT","GLOBAL_AGG","UST","UST_SHORT","UST_LONG","US_CORP","MBS","LINKER","TIPS"];
+const BREADTH_MERGE=Object.fromEntries(RATE_DIMS.map(d=>[d,"RATES"]));
 function breadthOf(b){ const x={};
-  b.picks.forEach((e,i)=>{ const pr=profileOf(e), t=Object.values(pr).reduce((a,v)=>a+v,0)||1; for(const d in pr) x[d]=(x[d]||0)+b.w[i]*pr[d]/t; });
-  const ss=Object.values(x).reduce((a,v)=>a+v*v,0); return ss?1/ss:0; }
+  b.picks.forEach((e,i)=>{ const pr=profileOf(e), t=Object.values(pr).reduce((a,v)=>a+v,0)||1; for(const d0 in pr){ const d=BREADTH_MERGE[d0]||d0; x[d]=(x[d]||0)+b.w[i]*pr[d0]/t; } });
+  delete x.RATES;   // rates count as one exposure, so the spread that more funds can add is in everything else
+  const tot=Object.values(x).reduce((a,v)=>a+v,0), ss=Object.values(x).reduce((a,v)=>a+(v/tot)**2,0); return tot&&ss?1/ss:0; }
 let SWEET_CACHE={key:null,rows:null};
 function sweetRows(risk,style,real,ov,custom){
   const OV=horizonOverlay(), key=[risk,style,real,ov,OV?OV.id:"",custom?JSON.stringify(custom):""].join("|");
@@ -1475,11 +1493,15 @@ function sweetRows(risk,style,real,ov,custom){
     rows.push({n,b,eff:breadthOf(b),ov:b.ov.avg,maxW:Math.max(...b.w),minW:Math.min(...b.w),er:b.er,ok:!b.unresolved.length&&!b.overCap.length}); }
   SWEET_CACHE={key,data:DATA,rows}; return rows;
 }
+const SWEET_PENALTY=0.04;
 function sweetSpot(rows,amt,cur){
   const sizeOK=r=>amt*r.minW>=MIN_POSITION*rateOf(cur)||r.n===3;    // MIN_POSITION is in the data's base currency
   let pool=rows.filter(sizeOK); if(!pool.length) pool=[rows[0]];
   const limitPool=pool.filter(r=>r.ok), use=limitPool.length?limitPool:pool;
-  const max=Math.max(...use.map(r=>r.eff)), best=use.find(r=>r.eff>=0.9*max)||use[use.length-1];
+  // score = breadth minus a complexity penalty: each extra fund has to add at least 4% of the best
+  // breadth on offer to earn its place, so "more funds" doesn't automatically win
+  const max=Math.max(...use.map(r=>r.eff)), score=r=>r.eff-SWEET_PENALTY*max*r.n;
+  const best=use.reduce((a,r)=>score(r)>score(a)+1e-9?r:a,use[0]);
   return {best,max,sizeOK,limitsReachable:limitPool.length>0};
 }
 function renderSweet(){
@@ -1502,7 +1524,7 @@ function renderSweet(){
   }
   el.innerHTML=`<div class="sweet-chips" role="group" aria-label="Number of funds compared">${rows.map(chip).join("")}</div>
     <details class="sweet-text"${el.querySelector("details[open]")?" open":""}><summary>${head}<span class="why" aria-hidden="true">Why?</span></summary>
-      <p>${FUND_NOTES[cur]?`<b>${cur} — ${FUND_NOTES[cur][0]}:</b> ${FUND_NOTES[cur][1]} `:""}${msg} <span style="opacity:.8">Bars show breadth: how widely the basket spreads across markets, sectors and asset types. ★ = sweet spot; dotted = not every limit met.</span></p></details>`;
+      <p>${FUND_NOTES[cur]?`<b>${cur} — ${FUND_NOTES[cur][0]}:</b> ${FUND_NOTES[cur][1]} `:""}${msg} <span style="opacity:.8">Each extra fund has to add at least ${Math.round(SWEET_PENALTY*100)}% more breadth to be worth the extra complexity. Bars show breadth: how widely the basket spreads across markets, sectors and asset types, with cash and high-grade bonds counted as one exposure, since splitting them across more funds adds little. ★ = sweet spot; dotted = not every limit met.</span></p></details>`;
 }
 let sweetTimer=null;
 function scheduleSweet(){ clearTimeout(sweetTimer); sweetTimer=setTimeout(()=>{ try{ renderSweet(); }catch(e){ console.error(e); } },120); }
@@ -1531,7 +1553,8 @@ function goalRow(b,risk){
         ${short!=null?`<p class="ov-tol"><b>Could you tolerate this?</b> A fall like this mix's worst since ${monthYear(b.risk.start)} (−${Math.abs(dd).toFixed(1)}%) would turn ${usd(amt)} into ${usd(amt-short)}, about <b>${usd(short)} short</b> of the amount you need.</p>`:""}
         <p>Market exposure reduced and cash raised: ${ov.strict?"bonds limited to short-dated gilts and sterling corporate bonds; no thematic, emerging-market or commodity funds":"bonds tilted to shorter dates"}; gold up to ${ov.gold}%. Your Risk ${risk} preference is unchanged; Equity style and Real assets apply only within these limits.</p>
         <p>Where a sum is needed on a set date, savings or bonds that mature on that date match it exactly; FndMngr builds fund baskets, which never mature.</p>${foot}`,
-      after:`<button type="button" class="ov-btn" data-ov="off">Show my Risk ${risk} mix without the overlay</button>`};
+      after:`${w?(Math.abs(w.eq-m.eq)+Math.abs((w.cash||0)-(m.cash||0))+Math.abs(w.bonds-m.bonds)+Math.abs(w.gold+w.comm-m.gold-m.comm)<0.1?`<p class="ov-cmp">The overlay's limits don't change this mix.</p>`
+          :`<p class="ov-cmp">Without the overlay: ${mixTxt(w)}<br>With it: <b>${mixTxt(m)}</b></p>`):""}<button type="button" class="ov-btn" data-ov="off">Show my ${m.custom?"":`Risk ${risk} `}mix without the overlay</button>`};
   }
   if(h<=2&&need==="yes") return {key:"goal",status:"warn",title:"Money needed within about 2 years",short:`this mix holds ${Math.round(cash)}% in cash`,
     body:`<p>Money with a near, fixed date usually sits mostly in cash or cash-like savings, because investments that fall may not recover in time. This mix's weak year is ${pctTxt(sc.weak)}${dd!=null?` and its worst historical fall ${pctTxt(dd)}`:""}. Where a sum is needed on a set date, savings or bonds that mature on that date match it exactly; FndMngr builds fund baskets, which never mature.</p>${foot}`,
@@ -1605,7 +1628,7 @@ function divRow(b,risk,r){
   const softBad=b.soft.filter(c=>!c.ok), plain=divPlain(b), relaxed=softBad.length>0, styleOk=!b.moves.length;
   const msg=relaxed?`<p><b>Diversification constraint partially relaxed:</b> no ${b.count}-fund combination we tested satisfied every exposure limit (${softBad.map(c=>c.label.toLowerCase()).join(", ")}).${b.recommend?` Increase to ${b.recommend} funds for improved diversification.`:` Even 10 funds can't meet them all at this risk and style; ${fixHint(b)} would help.`} Your risk level${styleOk?" and style are":" is"} unaffected.</p>`:"";
   const tech=b.moves.map(x=>`<p class="mix-sub">${SLEEVE_NAMES[x.from]} would break the ${etfCap(x.from,risk)}% per-fund limit, so ${r(x.amt)}% moves to ${SLEEVE_NAMES[x.to].toLowerCase()}. Still equities, so your risk is unchanged.</p>`).join("")
-    +b.guards.map(g=>`<p class="mix-sub">Exposure guardrail (${g.label} ≤ ${g.id==="em"?`${b.emLim.pct}% of equities, ${r(g.cap)}% of the basket`:r(g.cap)+"%"}): ${g.fund} capped, with ${g.moved.map(m=>`${r(m.amt)}% moved to ${m.t}`).join(" and ")}, staying in ${SLEEVE_NAMES[g.bucket].toLowerCase()}.</p>`).join("")
+    +b.guards.map(g=>`<p class="mix-sub">Exposure guardrail (${g.label} ≤ ${g.id==="em"?`${b.emLim.pct}% of equities, ${r(g.cap)}% of the basket`:g.id.startsWith("region:")?`${REGION_LIMITS[g.id.slice(7)]}% of equities, ${r(g.cap)}% of the basket`:r(g.cap)+"%"}): ${g.fund} capped, with ${g.moved.map(m=>`${r(m.amt)}% moved to ${m.t}`).join(" and ")}, staying in ${SLEEVE_NAMES[g.bucket].toLowerCase()}.</p>`).join("")
     +b.unresolved.map(u=>`<p class="mix-sub">Limit not met: ${u.label} ${r(u.exp)}% vs ${r(u.cap)}%.</p>`).join("")
     +b.overCap.map(x=>`<p class="mix-sub">${x.t} holds ${r(x.per)}%, above its ${x.cap}% single-fund limit${x.alone?`: it's the only ${bucketLabel(x.k,b.count).toLowerCase()} fund in your list, so there's nothing to share it with`:""}.</p>`).join("")
     +b.swaps.map(x=>`<p class="mix-sub">Swapped ${x.out} for ${x.in}: ${x.out} was ${r(x.o*100)}% alike with ${x.with}. Breadth ${x.breadth[0].toFixed(1)} → ${x.breadth[1].toFixed(1)}, fund overlap ${r(x.ov[0]*100)}% → ${r(x.ov[1]*100)}%. The ${SLEEVE_NAMES[x.bucket].toLowerCase()} allocation is unchanged.</p>`).join("")
@@ -1717,12 +1740,12 @@ function showAimOptions(T){
   AIM.opts=picked.map((p,i)=>{   // final fund count: the sweet spot for that setting at this amount
     const ov=horizonOverlay(), low=$("overlapToggle").checked;
     const measure=n=>{ const b=buildBundle(p.c.risk,n,low,p.c.style,p.c.real,{probe:true,overlay:ov}), m=measureRisk(b.picks,b.w), vol=m?m.vol:b.vol, sc=oneYearScenarios(b.mu,m,vol);
-      return {n,mu:b.mu,weak:sc.weak,dd:m?m.dd:b.dd}; };
+      return {n,mu:b.mu,weak:sc.weak,dd:m?m.dd:b.dd,eq:b.mix.eq}; };
     let fin=measure(sweetSpot(sweetRows(p.c.risk,p.c.style,p.c.real,low),amt,CUR).best.n);
     if(Math.abs(fin.mu-T)>0.3&&fin.n!==6){ const six=measure(6); if(Math.abs(six.mu-T)<Math.abs(fin.mu-T)) fin=six; }   // stay on target
     return {...p,id:"F"+(i+1),n:fin.n,fin}; });
   $("aimPills").innerHTML=AIM.opts.map(o=>`<button type="button" class="aim-pill" data-aim="${o.id}" aria-pressed="${AIM.active===o.id}" title="${o.desc}">
-      <b>${o.id} · ${o.label}</b><span class="ap-set">Risk ${o.c.risk} · ${o.n} funds · ${STYLE_LABELS[o.c.style-1]} · ${REAL_LABELS[o.c.real-1].replace("Minimum","No")} real assets</span>
+      <b>${o.id} · ${o.label}</b><span class="ap-set">${Math.round(o.fin.eq)}% equities · ${horizonOverlay()&&o.fin.eq<RISK_EQ[o.c.risk-1]-0.5?`Risk ${o.c.risk}, capped by the overlay`:`Risk ${o.c.risk}`} · ${o.n} funds · ${STYLE_LABELS[o.c.style-1]}${horizonOverlay()?"":` · ${REAL_LABELS[o.c.real-1].replace("Minimum","No")} real assets`}</span>
       <span class="ap-num">Base <span class="up">${f(o.fin.mu)}</span> · weak year <span class="down">${f(o.fin.weak)}</span> · worst fall <span class="down">${f(o.fin.dd)}</span></span></button>`).join("");
   const hi=AIM.range&&T>AIM.range[1]+0.01;
   $("aimNote").innerHTML=(near.length?`Three different ways to aim for a ${T.toFixed(1)}% base case. Choose one to load it below; it's a starting point you can adjust and save.`
@@ -1733,11 +1756,9 @@ function applyAim(id){
   $("riskSlider").value=o.c.risk; $("styleSlider").value=o.c.style; $("realSlider").value=o.c.real; $("countSlider").value=o.n;
   AIM.active=id; CUSTOM_MIX=null; remember(); renderBundle();
   document.querySelectorAll(".aim-pill").forEach(b=>b.setAttribute("aria-pressed",b.dataset.aim===id));
-  $("aimTag").hidden=false; $("aimTag").textContent=`Set by ${o.id} · ${o.label}`;
 }
-function aimCustom(){ if(!AIM.active) return; const o=AIM.opts.find(x=>x.id===AIM.active); AIM.active=null;
-  document.querySelectorAll(".aim-pill").forEach(b=>b.setAttribute("aria-pressed","false"));
-  $("aimTag").textContent=o?`Custom: adjusted from ${o.id}`:""; }
+function aimCustom(){ if(!AIM.active) return; AIM.active=null;
+  document.querySelectorAll(".aim-pill").forEach(b=>b.setAttribute("aria-pressed","false")); }
 document.addEventListener("click",ev=>{ const p=ev.target.closest(".aim-pill"); if(p) applyAim(p.dataset.aim); });
 /* Editing the mix: drag a divider (or arrow keys on it) to move % between two neighbours; − / + moves 1 point,
    balanced against the largest other slice. Risk level, Real assets or a target pill reset it. */
@@ -1790,6 +1811,9 @@ function renderBundle(){
   const nFunds=b.picks.length; $("countVal").textContent=nFunds; $("countWord").textContent=nFunds+" funds";
   const fn=FUND_NOTES[b.count]; $("countNote").innerHTML=`<b>${b.count} — ${fn[0]}</b><br>${fn[1]}`;
   scheduleSweet(); fitSentence(); scheduleAim();
+  if(AIM.target&&$("aimSel").value){ const T=+$("aimSel").value, d=b.mu-T, tag=$("aimTag"), o=AIM.opts.find(x=>x.id===AIM.active);
+    const gap=`this mix ${b.mu.toFixed(1)}% vs target ${T.toFixed(1)}%${Math.abs(d)>=0.05?` (${d>0?"+":"−"}${Math.abs(d).toFixed(1)})`:""}`;
+    tag.hidden=false; tag.textContent=o?`Set by ${o.id} · ${o.label} · ${gap}`:`Custom · ${gap}`; }
   { const h=$("horizonSel"), n=$("needSel"); $("moreSum").textContent=`${STYLE_LABELS[style-1]} style · ${CUSTOM_MIX?"custom mix":REAL_LABELS[real-1].replace("Minimum","No")+" real assets"} · ${h.value?`needed ${h.selectedOptions[0].text.toLowerCase()}${n.value==="yes"?", all of it":""}`:"goal not set"}${b.overlay?" (overlay on)":""} · overlap ${$("overlapToggle").checked?"minimised":"allowed"}`; }
   renderMix(b,risk);
   $("allocBar").innerHTML=b.picks.map((e,i)=>`<div data-t="${e.t}" data-i="${i}" style="flex-grow:${b.w[i]};background:${COLORS[i%COLORS.length]}" title="${e.t} ${(b.w[i]*100).toFixed(0)}%">${b.w[i]>.08?e.t:""}</div>`).join("");
