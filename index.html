@@ -92,7 +92,10 @@ input[type=range]{width:100%;accent-color:var(--cobalt);height:32px;margin:4px 0
 .basket-note{margin:10px 0 0;font-size:14px;font-weight:600;color:var(--cobalt)}
 .holdings .sw{width:12px;height:12px;border-radius:3px}
 .holdings .tk{font:700 15px var(--display);font-stretch:105%}
-.holdings .nm{font-size:14px;color:var(--muted);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.holdings .nm{font-size:14px;color:var(--muted);min-width:0;display:flex;flex-direction:column;gap:1px}
+.holdings .nm1{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.holdings .whyf{grid-column:3/4;grid-row:2;margin-top:-8px;font-size:12px;line-height:1.35;color:var(--muted);opacity:.85;white-space:normal}
+@media (max-width:600px){.holdings .whyf{grid-column:2/-1;margin-top:-4px}}
 .holdings .amt{text-align:right;font-weight:600}
 .holdings .amt small{display:block;font-weight:400;color:var(--muted);font-size:12px}
 .outlook{background:var(--ink);color:#E6EAF2;border-radius:10px;padding:22px}
@@ -174,6 +177,13 @@ details.chk>summary::-webkit-details-marker{display:none}
 details.chk .why{font-size:11px;font-weight:600;text-decoration:underline;text-underline-offset:2px;opacity:.75;white-space:nowrap}details.chk[open] .why{display:none}
 .chk-body{padding:0 0 10px 30px;font-size:14px;line-height:1.5}.chk-body p{margin:4px 0}.chk-foot{font-size:12px;color:var(--muted)}
 .chkbox .ov-btn{margin:6px 0 8px 30px}
+.audit{margin:0 0 24px;padding:14px 16px;border:2px solid var(--ink);background:var(--card,#fff)}
+.audit h2{margin:0 0 6px;font-size:18px}.au-note{font-size:13px;color:var(--muted);margin:6px 0}
+.au-note button{font:inherit;font-size:12px;padding:3px 8px;margin-left:4px;cursor:pointer}
+.au-scroll{overflow-x:auto}.au-t{border-collapse:collapse;font-size:12px;width:100%;font-variant-numeric:tabular-nums}
+.au-t th,.au-t td{padding:4px 6px;border-bottom:1px solid var(--line,#ddd);text-align:left;vertical-align:top;white-space:nowrap}
+.au-t td:last-child{white-space:normal;min-width:220px}.au-row-bad{background:rgba(200,60,40,.07)}
+.au-bad{color:var(--sell,#b33)}.au-ok{color:var(--buy,#287)}.au-info{color:var(--muted)}
 .ov-cmp{margin:2px 0 0 30px;font-size:13px;color:var(--muted);line-height:1.45}.ov-cmp b{color:var(--ink)}
 .one-acts{display:flex;flex-wrap:wrap;gap:0 18px}.one-acts .ov-btn{margin:6px 0 8px 0}.one-acts .ov-btn:first-child{margin-left:30px}
 .one-t{border-collapse:collapse;font-size:13px;margin:6px 0;min-width:280px}.one-t td,.one-t th{padding:4px 10px 4px 0;border-bottom:1px solid var(--line);text-align:left;font-weight:500}.one-t .r{text-align:right}.one-t th{font-weight:700}
@@ -1504,6 +1514,9 @@ function sweetSpot(rows,amt,cur){
   const best=use.reduce((a,r)=>score(r)>score(a)+1e-9?r:a,use[0]);
   return {best,max,sizeOK,limitsReachable:limitPool.length>0};
 }
+function roleShort(e,k){ const c=e.cat;
+  return k==="gold"?"gold":k==="comm"?"commodities":k==="cash"?"cash":k==="bonds"?c.replace(/^Bonds: /,"")+" bonds"
+    :k==="core"?lcCat(c)+" shares":k==="factor"?lcCat(c.replace(/ factor$/i,""))+" tilt":k==="thematic"?lcCat(c)+" theme":lcCat(c); }
 function renderSweet(){
   const el=$("sweet"); if(!el) return;
   const risk=effRisk(), style=+$("styleSlider").value, real=+$("realSlider").value, ov=$("overlapToggle").checked, cur=+$("countSlider").value, amt=amount();
@@ -1518,9 +1531,16 @@ function renderSweet(){
   msg+=`largest holding ${Math.round(best.maxW*100)}%, smallest ${usd(amt*best.minW)}.`;
   if(c&&c.n!==best.n){ const d=pctB(c)-100;
     if(!sizeOK(c)) msg+=` At ${c.n} funds the smallest holding would be ${usd(amt*c.minW)}, under ${usd(MIN_POSITION*rateOf(CUR))}, where dealing costs start to bite.`;
-    else if(d<=-3) msg+=` Your ${c.n}: less spread than ${best.n} (${sgn(d)} breadth)${c.n>best.n?": the extra funds repeat exposures you already have":""}${c.ok||!best.ok?"":", and not every limit met"}.`;
-    else if(d<3) msg+=` Your ${c.n}: about the same spread as ${best.n}${c.n>best.n?", so the extra funds add little":""}${c.ok||!best.ok?"":", but not every limit met"}.`;
-    else msg+=` Your ${c.n}: a little more spread (${sgn(d)} breadth)${c.ok||!best.ok?"":", but not every limit met"}.`;
+    else { // say what the difference actually is, rather than declaring one count better
+      const T=x=>new Set(x.b.picks.map(e=>e.t)), inC=T(c), inB=T(best);
+      const add=c.b.picks.map((e,j)=>({e,j})).filter(x=>!inB.has(x.e.t)), drop=best.b.picks.map((e,j)=>({e,j})).filter(x=>!inC.has(x.e.t));
+      const name=(bb,x)=>`${x.e.t} (${roleShort(x.e,bb.sleeveOf[x.j])}, ${Math.round(bb.w[x.j]*1000)/10}%)`;
+      const list=(bb,a)=>a.slice(0,2).map(x=>name(bb,x)).join(" and ")+(a.length>2?` and ${a.length-2} more`:"");
+      const lim=c.ok||!best.ok?"":" Not every diversification limit is met at "+c.n+".";
+      const spread=d<=-3?` Breadth ${sgn(d)} against ${best.n}.`:d>=3?` Breadth ${sgn(d)} against ${best.n}.`:"";
+      if(c.n>best.n) msg+=` <b>${best.n}</b> is the best balance of spread and simplicity${best.ok?" that meets every limit":" here"}; your <b>${c.n}</b> ${add.length?`adds ${list(c.b,add)}`:"spreads the same funds more thinly"}.${spread}${lim}`;
+      else msg+=` Your <b>${c.n}</b> is simpler; <b>${best.n}</b> would add ${drop.length?list(best.b,drop):"more of the same funds"}.${spread}${lim}`;
+    }
   }
   el.innerHTML=`<div class="sweet-chips" role="group" aria-label="Number of funds compared">${rows.map(chip).join("")}</div>
     <details class="sweet-text"${el.querySelector("details[open]")?" open":""}><summary>${head}<span class="why" aria-hidden="true">Why?</span></summary>
@@ -1547,13 +1567,15 @@ function goalRow(b,risk){
   if(b.overlay){ const ov=b.overlay, m=b.mix, w=b.mixWithout, r=x=>Math.round(x*10)/10;
     const mixTxt=x=>`${r(x.eq)}% equities · ${r(x.cash||0)}% cash · ${r(x.bonds)}% bonds · ${r(x.gold+x.comm)}% gold & commodities`;
     const short=dd!=null?amt*(-dd/100):null;
-    return {key:"goal",status:"info",title:`${ov.name} overlay applied`,short:`needed ${ov.when}: equities ≤${ov.eq}%, cash ≥${ov.cashMin}%`,
+    const same=!w||Math.abs(w.eq-m.eq)+Math.abs((w.cash||0)-(m.cash||0))+Math.abs(w.bonds-m.bonds)+Math.abs(w.gold+w.comm-m.gold-m.comm)<0.1;
+    return {key:"goal",status:same?"ok":"info",title:same?`${ov.name} check`:`${ov.name} overlay applied`,
+      short:same?`your mix already meets the limits for money needed ${ov.when}: equities ≤${ov.eq}%, cash ≥${ov.cashMin}%`:`needed ${ov.when}: equities ≤${ov.eq}%, cash ≥${ov.cashMin}%`,
       body:`<p>Risk preference: <b>${RISK_LABELS[risk-1]} (Risk ${risk})</b> · Horizon constraint: <b>${ov.name}</b> (needed ${ov.when}, most or all of it).</p>
         ${w?`<p>Without the overlay: ${mixTxt(w)}<br>With it: <b>${mixTxt(m)}</b></p>`:""}
         ${short!=null?`<p class="ov-tol"><b>Could you tolerate this?</b> A fall like this mix's worst since ${monthYear(b.risk.start)} (−${Math.abs(dd).toFixed(1)}%) would turn ${usd(amt)} into ${usd(amt-short)}, about <b>${usd(short)} short</b> of the amount you need.</p>`:""}
         <p>Market exposure reduced and cash raised: ${ov.strict?"bonds limited to short-dated gilts and sterling corporate bonds; no thematic, emerging-market or commodity funds":"bonds tilted to shorter dates"}; gold up to ${ov.gold}%. Your Risk ${risk} preference is unchanged; Equity style and Real assets apply only within these limits.</p>
         <p>Where a sum is needed on a set date, savings or bonds that mature on that date match it exactly; FndMngr builds fund baskets, which never mature.</p>${foot}`,
-      after:`${w?(Math.abs(w.eq-m.eq)+Math.abs((w.cash||0)-(m.cash||0))+Math.abs(w.bonds-m.bonds)+Math.abs(w.gold+w.comm-m.gold-m.comm)<0.1?`<p class="ov-cmp">The overlay's limits don't change this mix.</p>`
+      after:`${w?(same?`<p class="ov-cmp">No allocation change was needed.</p>`
           :`<p class="ov-cmp">Without the overlay: ${mixTxt(w)}<br>With it: <b>${mixTxt(m)}</b></p>`):""}<button type="button" class="ov-btn" data-ov="off">Show my ${m.custom?"":`Risk ${risk} `}mix without the overlay</button>`};
   }
   if(h<=2&&need==="yes") return {key:"goal",status:"warn",title:"Money needed within about 2 years",short:`this mix holds ${Math.round(cash)}% in cash`,
@@ -1635,7 +1657,7 @@ function divRow(b,risk,r){
     +b.kept.map(x=>`<p class="mix-sub">Kept ${x.a} and ${x.b} together (${r(x.o*100)}% alike): no replacement improved overall diversification without breaking a guardrail.</p>`).join("")
     +`<p class="mix-sub">Look-through (estimated, whole basket: Σ fund weight × fund exposure): US ${r(b.look.US)}% · Europe ${r(b.look.Europe)}% · UK ${r(b.look.UK)}% · Japan ${r(b.look.Japan)}% · Emerging markets ${r(b.look.Emerging)}% (${r(b.emLim.eqShare)}% of equities; limit ${b.emLim.pct}% of equities${b.emLim.tight?", tightened for a 5-year-or-shorter horizon":""}) · Technology ${r(b.look.tech)}%</p>`;
   return {key:"div",status:relaxed?"warn":"ok",title:relaxed?"Diversification partially relaxed":"Diversification",
-    short:relaxed?(b.recommend?`${b.recommend} funds would meet every limit`:"not every limit can be met at these settings"):(plain[0]?plain[0].replace(/\.$/,"").replace(/^./,c=>c.toLowerCase()):"every exposure limit met"),
+    short:relaxed?(b.recommend?`${b.recommend} funds would meet every limit`:"not every limit can be met at these settings"):(plain[0]?plain[0].replace(/\.$/,"").replace(/^./,c=>/^(UK|US|Europe|Japan|Asia|Emerging)\b/.test(plain[0])?c:c.toLowerCase()):"every exposure limit met"),
     body:`${msg}${plain.slice(relaxed?0:1).map(t=>`<p>${t}</p>`).join("")}
       <p class="dc-label">Always enforced</p>${chips(b.hard)}
       <p class="dc-label">Diversification limits (relaxed only when they can't all be met)</p>${chips(b.soft)}${tech}`};
@@ -1723,6 +1745,7 @@ function fillAimOptions(){
   sel.innerHTML='<option value="">Choose a target…</option>'+targets.map(t=>`<option value="${t}">${t.toFixed(1)}% a year</option>`).join("");
   sel.disabled=false; if(targets.includes(+prev)) sel.value=prev;
   else if(prev){ AIM.active=null; AIM.target=""; $("aimPills").innerHTML=""; $("aimTag").hidden=true; }   // the old target isn't reachable any more
+  aimTagUpdate();
   AIM.range=[lo,hi];
   const ov=horizonOverlay();
   $("aimNote").innerHTML=sel.value?$("aimNote").innerHTML:`Base cases here run from ${lo.toFixed(1)}% to ${hi.toFixed(1)}% a year${ov?` within the ${ov.name.toLowerCase()} overlay`:""}. Lower needs no investing risk (cash pays about Bank Rate); higher isn't reachable on FndMngr's assumptions. Examples, not recommendations.`;
@@ -1745,12 +1768,20 @@ function showAimOptions(T){
     if(Math.abs(fin.mu-T)>0.3&&fin.n!==6){ const six=measure(6); if(Math.abs(six.mu-T)<Math.abs(fin.mu-T)) fin=six; }   // stay on target
     return {...p,id:"F"+(i+1),n:fin.n,fin}; });
   $("aimPills").innerHTML=AIM.opts.map(o=>`<button type="button" class="aim-pill" data-aim="${o.id}" aria-pressed="${AIM.active===o.id}" title="${o.desc}">
-      <b>${o.id} · ${o.label}</b><span class="ap-set">${Math.round(o.fin.eq)}% equities · ${horizonOverlay()&&o.fin.eq<RISK_EQ[o.c.risk-1]-0.5?`Risk ${o.c.risk}, capped by the overlay`:`Risk ${o.c.risk}`} · ${o.n} funds · ${STYLE_LABELS[o.c.style-1]}${horizonOverlay()?"":` · ${REAL_LABELS[o.c.real-1].replace("Minimum","No")} real assets`}</span>
-      <span class="ap-num">Base <span class="up">${f(o.fin.mu)}</span> · weak year <span class="down">${f(o.fin.weak)}</span> · worst fall <span class="down">${f(o.fin.dd)}</span></span></button>`).join("");
+      <b>${o.id} · ${o.label}</b><span class="ap-set">${Math.round(o.fin.eq)}% equities · ${horizonOverlay()&&o.fin.eq<RISK_EQ[o.c.risk-1]-0.5?`behaves like Risk ${closestRisk(o.fin.eq)} (Risk ${o.c.risk} before the ${horizonOverlay().when.replace(/^(in|within) /,"").replace(/years?$/,"year")} cap)`:`Risk ${o.c.risk}`} · ${o.n} funds · ${STYLE_LABELS[o.c.style-1]}${horizonOverlay()?"":` · ${REAL_LABELS[o.c.real-1].replace("Minimum","No")} real assets`}</span>
+      <span class="ap-num">Base <span class="up">${f(o.fin.mu)}</span> · weak year <span class="down">${f(o.fin.weak)}</span> · worst past fall <span class="down">${f(o.fin.dd)}</span></span></button>`).join("");
   const hi=AIM.range&&T>AIM.range[1]+0.01;
   $("aimNote").innerHTML=(near.length?`Three different ways to aim for a ${T.toFixed(1)}% base case. Choose one to load it below; it's a starting point you can adjust and save.`
     :`Nothing lands exactly on ${T.toFixed(1)}%; these are the closest.`)+` Base case is a central estimate, not a guaranteed return. Examples, not recommendations.`;
 }
+// "Set by F2 · Best spread · this mix 5.6% vs target 6.0% (−0.4)": uses the remembered target, so it survives
+// the aim list being recalculated after a mix edit
+function aimTagUpdate(b){ b=b||(LAST_BUNDLE&&LAST_BUNDLE.b); const tag=$("aimTag"); if(!tag||!b) return;
+  if(!AIM.target){ tag.hidden=true; return; }
+  const T=+AIM.target, d=b.mu-T, o=AIM.opts.find(x=>x.id===AIM.active);
+  const gap=`this mix ${b.mu.toFixed(1)}% vs target ${T.toFixed(1)}%${Math.abs(d)>=0.05?` (${d>0?"+":"−"}${Math.abs(d).toFixed(1)})`:""}`;
+  tag.hidden=false; tag.textContent=o?`Set by ${o.id} · ${o.label} · ${gap}`:`Custom · ${gap}`;
+  tag.title=d<-0.05?"Reaching the full target would need more risk than these settings allow.":""; }
 function applyAim(id){
   const o=AIM.opts.find(x=>x.id===id); if(!o) return;
   $("riskSlider").value=o.c.risk; $("styleSlider").value=o.c.style; $("realSlider").value=o.c.real; $("countSlider").value=o.n;
@@ -1797,6 +1828,46 @@ document.addEventListener("keydown",ev=>{ const h=ev.target.closest&&ev.target.c
   mix[a]+=d; mix[b]-=d; commitMix(mix,`.mix-h[data-a="${a}"][data-b="${b}"]`); });
 document.addEventListener("click",ev=>{ const st=ev.target.closest("[data-step]"); if(st&&LAST_BUNDLE){ stepMix(st.dataset.step,+st.dataset.dir); return; }
   if(ev.target.closest(".mix-reset")){ CUSTOM_MIX=null; remember(); renderBundle(); } });
+/* "Why is this fund here?": one sentence per holding, built from the basket's own numbers */
+const lcCat=c=>/^(UK|US|U\.S|Europe|European|Japan|Asia|Emerging|China|India|S&P|FTSE|MSCI|Nasdaq)/.test(c)?c:c.charAt(0).toLowerCase()+c.slice(1);
+const EQ_SLEEVES=["core","factor","thematic"], REGION_ORDER=["US","Europe","UK","Japan","Asia Pacific","Emerging"];
+// same measure as the regional limits: look-through exposure as a share of all equities
+function eqRegions(b,w){ const x={}; let t=0;
+  b.picks.forEach((e,i)=>{ if(!EQ_SLEEVES.includes(b.sleeveOf[i])) return; t+=w[i]; const pr=profileOf(e), pt=Object.values(pr).reduce((a,v)=>a+v,0)||1;
+    for(const d in pr){ const g=DIM_GROUP(d); if(g==="Other") continue; x[g]=(x[g]||0)+w[i]*pr[d]/pt; } });
+  for(const g in x) x[g]=x[g]/t*100; return x; }
+const BOND_ROLE={"Bonds: cash / overnight":"cash: earns close to Bank Rate with very little price movement",
+  "Bonds: ultra-short":"cash-like bonds: a little more than cash, with very little price movement",
+  "Bonds: short UK gilts":"short-dated UK government bonds: steadier than longer gilts when interest rates move",
+  "Bonds: UK gilts":"UK government bonds: tend to help when shares fall in a slowdown",
+  "Bonds: index-linked gilts":"inflation-linked gilts: protect against inflation surprises",
+  "Bonds: short sterling corporate":"short-dated company bonds: a little more income than gilts, low rate sensitivity",
+  "Bonds: sterling corporate":"sterling company bonds: more income than gilts, some credit risk",
+  "Bonds: global aggregate (GBP hedged)":"global bonds, hedged to pounds: spreads interest-rate risk beyond the UK",
+  "Bonds: high yield":"high-yield bonds: more income, but they fall with shares in a crisis",
+  "Bonds: high yield (GBP hedged)":"high-yield bonds: more income, but they fall with shares in a crisis",
+  "Bonds: emerging markets":"emerging-market government bonds: higher income, more risk"};
+function fundReason(b,i){
+  const e=b.picks[i], k=b.sleeveOf[i], cat=e.cat, w=b.w, pc=x=>Math.round(x)+"%";
+  let why="";
+  if(k==="core"){
+    const core=b.picks.map((x,j)=>j).filter(j=>b.sleeveOf[j]==="core"), main=core.reduce((a,j)=>w[j]>w[a]?j:a,core[0]);
+    if(i===main||core.length<2) why=`Main equity holding: one low-cost fund for the ${lcCat(cat)} market.`;
+    else { const w2=[...w]; w2[main]+=w2[i]; w2[i]=0; const now=eqRegions(b,w), without=eqRegions(b,w2);
+      const ch=REGION_ORDER.map(g=>({g,a:without[g]||0,z:now[g]||0})).filter(c=>Math.abs(c.z-c.a)>=2).sort((p,q)=>Math.abs(q.z-q.a)-Math.abs(p.z-p.a)).slice(0,2);
+      const atCap=ch.find(c=>REGION_LIMITS[c.g]&&c.z>=REGION_LIMITS[c.g]-0.6);
+      why=ch.length?`Second core fund: takes ${ch.map(c=>`${c.g==="Emerging"?"emerging markets":c.g} from ${pc(c.a)} to ${pc(c.z)}`).join(" and ")} of your equities${atCap?`; ${atCap.g} is held at its ${REGION_LIMITS[atCap.g]}% limit`:""}.`
+        :`Second core fund: ranked well in its category and adds little overlap.`; }
+  } else if(k==="factor") why=`Adds a ${lcCat(cat.replace(/ factor$/i,""))} tilt: a different return driver from the broad market.`;
+  else if(k==="thematic") why=`A small ${lcCat(cat)} satellite, kept down by the theme limit.`;
+  else if(k==="cash"||k==="bonds") why=(BOND_ROLE[cat]?BOND_ROLE[cat].replace(/^./,c=>c.toUpperCase()):`${cat.replace(/^Bonds: /,"")} bonds`)+".";
+  else if(k==="gold"||(k==="real"&&/^Gold/.test(cat)&&!/miners/i.test(cat))) why="Gold: has tended to hold up when shares fall sharply.";
+  else if(k==="comm"||(k==="real"&&/^Commodit/.test(cat))) why="Commodities: a hedge against inflation and supply shocks.";
+  else if(k==="real") why=/Property|Real estate/i.test(cat)?"Property: rental income and some protection from inflation.":`Real assets: ${lcCat(cat)}.`;
+  const sw=b.swaps.find(x=>x.in===e.t); if(sw) why+=` Replaced ${sw.out}, which was ${Math.round(sw.o*100)}% alike with ${sw.with}.`;
+  const g=b.guards.find(x=>x.fund===e.t); if(g) why+=` Trimmed by the ${g.label} limit.`;
+  return why;
+}
 function renderBundle(){
   const risk=effRisk(), count=+$("countSlider").value, amt=amount();
   const style=+$("styleSlider").value, real=+$("realSlider").value;
@@ -1811,16 +1882,14 @@ function renderBundle(){
   const nFunds=b.picks.length; $("countVal").textContent=nFunds; $("countWord").textContent=nFunds+" funds";
   const fn=FUND_NOTES[b.count]; $("countNote").innerHTML=`<b>${b.count} — ${fn[0]}</b><br>${fn[1]}`;
   scheduleSweet(); fitSentence(); scheduleAim();
-  if(AIM.target&&$("aimSel").value){ const T=+$("aimSel").value, d=b.mu-T, tag=$("aimTag"), o=AIM.opts.find(x=>x.id===AIM.active);
-    const gap=`this mix ${b.mu.toFixed(1)}% vs target ${T.toFixed(1)}%${Math.abs(d)>=0.05?` (${d>0?"+":"−"}${Math.abs(d).toFixed(1)})`:""}`;
-    tag.hidden=false; tag.textContent=o?`Set by ${o.id} · ${o.label} · ${gap}`:`Custom · ${gap}`; }
+  aimTagUpdate(b);
   { const h=$("horizonSel"), n=$("needSel"); $("moreSum").textContent=`${STYLE_LABELS[style-1]} style · ${CUSTOM_MIX?"custom mix":REAL_LABELS[real-1].replace("Minimum","No")+" real assets"} · ${h.value?`needed ${h.selectedOptions[0].text.toLowerCase()}${n.value==="yes"?", all of it":""}`:"goal not set"}${b.overlay?" (overlay on)":""} · overlap ${$("overlapToggle").checked?"minimised":"allowed"}`; }
   renderMix(b,risk);
   $("allocBar").innerHTML=b.picks.map((e,i)=>`<div data-t="${e.t}" data-i="${i}" style="flex-grow:${b.w[i]};background:${COLORS[i%COLORS.length]}" title="${e.t} ${(b.w[i]*100).toFixed(0)}%">${b.w[i]>.08?e.t:""}</div>`).join("");
   $("allocBar").setAttribute("aria-label","Allocation: "+b.picks.map((e,i)=>`${e.t} ${(b.w[i]*100).toFixed(0)}%`).join(", "));
   $("holdings").innerHTML=b.picks.map((e,i)=>{const $a=amt*b.w[i], sh=Math.floor($a/conv(e.p));
     return `<li><button class="hold-btn" data-t="${e.t}" data-i="${i}" aria-label="${e.t}, ${e.signal}, ${(b.w[i]*100).toFixed(1)}% of basket. Show reasoning"><span class="sw" style="background:${COLORS[i%COLORS.length]}"></span><span class="tk">${e.t} <span class="pill ${e.signal}" style="min-width:0;padding:1px 6px;font-size:10px;vertical-align:middle">${e.signal}</span></span>
-    <span class="nm">${(b.w[i]*100).toFixed(1)}% · ${SLEEVE_SHORT[b.sleeveOf[i]]||""} · ${esc(e.n)}</span>
+    <span class="nm"><span class="nm1">${(b.w[i]*100).toFixed(1)}% · ${SLEEVE_SHORT[b.sleeveOf[i]]||""} · ${esc(e.n)}</span></span><span class="whyf">${fundReason(b,i)}</span>
     <span class="amt">${usd($a)}<small>${sh>0?sh+" share"+(sh>1?"s":"")+" @ "+priceFmt(conv(e.p)):"fractional"}</small></span><span class="chev" aria-hidden="true">›</span></button></li>`;}).join("");
   LAST_BUNDLE={b,amt}; refreshName(b,risk);
   const R=b.risk, base=b.mu, money0=v=>usd(amt*(1+v/100));
@@ -1839,9 +1908,9 @@ function renderBundle(){
     +row("base","Base case",base,"Central estimate, not a guarantee",`FndMngr central estimate, not a guaranteed return: long-run assumptions for shares (${BASE_RETURN.eq}%), gold and commodities (${BASE_RETURN.gold}%), a valuation tilt, and recent performance capped at ±2 points. ${bondNote(b)} Assumptions reviewed ${BASE_REVIEWED}.`)
     +row("weak","Weak year",weak,"About 1 year in 7",wD)
     +`<p class="ol-head">Risk &amp; stress</p>`
-    +(R?row("dd","Historical max drawdown",R.dd,$("needSel").value==="yes"?`If repeated: ${usd(amt*-R.dd/100)} short of the ${usd(amt)} you need`:`Worst fall since ${monthYear(R.start)}: ${monthYear(R.peakDate)} to ${monthYear(R.troughDate)}`,`Worst peak-to-trough fall of today's mix since ${monthYear(R.start)} (${monthYear(R.peakDate)} to ${monthYear(R.troughDate)}), dividends included, measured weekly.${standTxt(R.ddStand)}`)
-       :row("dd","Worst past drop (rough)",b.dd,"Rough, upper-end estimate","Each fund's own worst drop, weighted. An upper-end guess: the funds didn't all fall at the same time."))
-    +row("stress","Severe stress test",worstS.loss,`${worstS.name}${worstS.like?` (${worstS.like})`:""}`,`The worst of four tests: three illustrative shocks applied to today's weights, plus a repeat of this mix's own worst past period, so it's never milder than real history. What drives each:${stressTable}`);
+    +(R?row("dd","Worst past fall",R.dd,$("needSel").value==="yes"?`If repeated: ${usd(amt*-R.dd/100)} short of the ${usd(amt)} you need`:`Worst fall since ${monthYear(R.start)}: ${monthYear(R.peakDate)} to ${monthYear(R.troughDate)}`,`Real history, not a model: the biggest peak-to-trough fall (maximum drawdown) of today's mix since ${monthYear(R.start)} (${monthYear(R.peakDate)} to ${monthYear(R.troughDate)}), dividends included, measured weekly.${standTxt(R.ddStand)}`)
+       :row("dd","Worst past fall (rough)",b.dd,"Rough, upper-end estimate","Each fund's own worst drop, weighted. An upper-end guess: the funds didn't all fall at the same time."))
+    +row("stress","Severe stress test",worstS.loss,`${worstS.name}${worstS.like?` (${worstS.like})`:""}`,`A modelled loss, not history: the worst of four tests, three illustrative shocks applied to today's weights, plus a repeat of this mix's own worst past period, so it's never milder than real history. What drives each:${stressTable}`);
   syncOlToggle();
   const yCov=b.picks.reduce((a,e,i)=>a+(e.y!=null?b.w[i]:0),0);
   $("pstats").innerHTML=(R?`<span title="Annualised from every week since ${monthYear(R.start)}"><b>${R.vAll.toFixed(1)}%</b>Long-term volatility<small>since ${monthYear(R.start)}</small></span>`:"")
@@ -1881,7 +1950,7 @@ function renderTable(){
 
 function openBasketDetail(i){
   const {b,amt}=LAST_BUNDLE, e=b.picks[i], $a=amt*b.w[i];
-  openDetail(e.t,`In your basket: ${(b.w[i]*100).toFixed(1)}% · ${money($a)}`,$a);
+  openDetail(e.t,`In your basket: ${(b.w[i]*100).toFixed(1)}% · ${money($a)}<br>Why it's here: ${fundReason(b,i)}`,$a);
 }
 let BACK=null;
 function openDetail(t,note,amtOverride,back){ BACK=back||null;
@@ -1920,7 +1989,7 @@ $("basketName").addEventListener("input",()=>{ const v=$("basketName").value.tri
 $("basketName").addEventListener("focus",()=>{ if(!NAME_EDITED) $("basketName").select(); });
 $("riskSlider").addEventListener("input",()=>{ if(CUSTOM_MIX){ CUSTOM_MIX=null; remember(); } },true);
 $("realSlider").addEventListener("change",()=>{ if(CUSTOM_MIX){ CUSTOM_MIX=null; remember(); } },true);
-$("aimSel").addEventListener("change",()=>{ AIM.active=null; AIM.target=$("aimSel").value; $("aimTag").hidden=true; if($("aimSel").value) showAimOptions(+$("aimSel").value); else { $("aimPills").innerHTML=""; fillAimOptions(); } });
+$("aimSel").addEventListener("change",()=>{ AIM.active=null; AIM.target=$("aimSel").value; aimTagUpdate(); if($("aimSel").value) showAimOptions(+$("aimSel").value); else { $("aimPills").innerHTML=""; fillAimOptions(); } });
 ["riskSlider","countSlider","styleSlider","realSlider"].forEach(id=>$(id).addEventListener(id.startsWith("style")||id.startsWith("real")?"change":"input",aimCustom));
 ["styleSlider","realSlider"].forEach(id=>$(id).addEventListener("change",()=>{ renderBundle(); remember(); }));
 // "More settings": closed by default, remembered for the session
@@ -2292,6 +2361,68 @@ $("notifBtn").addEventListener("click",()=>Notification.requestPermission().then
 renderNotif();
 Store.load().then(v=>{ BASKETS=Array.isArray(v)?v:[]; renderBaskets(); notifyNew(); });
 fetch("risk.json",{cache:"no-store"}).then(r=>r.ok?r.json():Promise.reject()).then(j=>{ loadRisk(j); renderBundle(); riskReport(); }).catch(()=>{});
+
+/* ---------- Audit matrix: open the page with ?audit (or ?audit=290000 for a specific amount; default
+   is the amount box or £100,000, whichever is larger, since small amounts force very few funds) ----------
+   Builds the sweet-spot basket for Risk 1/3/5/7/10 × every horizon × "need all of it" yes/no on the
+   live data, and flags anything odd. Hidden from normal visitors; nothing is saved or sent anywhere. */
+if(new URLSearchParams(location.search).has("audit")){
+  const waitFor=(ok,ms=20000)=>new Promise(res=>{ const t0=Date.now(); (function poll(){ if(ok()||Date.now()-t0>ms) res(); else setTimeout(poll,200); })(); });
+  waitFor(()=>RISKDATA&&!/^Sample/.test(SOURCE)).then(()=>setTimeout(runAudit,300));
+}
+async function runAudit(){
+  let el=document.getElementById("audit");
+  if(!el){ el=document.createElement("section"); el.id="audit"; el.className="audit"; document.querySelector("header.top").after(el); }
+  el.innerHTML=`<h2>Audit matrix</h2><p class="au-note">Working…</p>`;
+  const H=[["1","within 1 year"],["2","1–2 years"],["5","3–5 years"],["10","5–10 years"],["11","10+ years"]], NEED=[["yes","all"],["no","not all"]], RISKS=[1,3,5,7,10];
+  const keep={h:$("horizonSel").value,n:$("needSel").value,off:OVERLAY_OFF,custom:CUSTOM_MIX};
+  OVERLAY_OFF=false; CUSTOM_MIX=null;
+  const q=+new URLSearchParams(location.search).get("audit"), amt=q>=1000?q*rateOf(CUR):Math.max(amount(),100000*rateOf(CUR)), style=+$("styleSlider").value, real=+$("realSlider").value, low=$("overlapToggle").checked;
+  const r1=x=>Math.round(x*10)/10, rows=[];
+  try{
+  for(const [h,hl] of H) for(const [need,nl] of NEED){ let prev=null;
+    for(const risk of RISKS){
+      $("horizonSel").value=h; $("needSel").value=need; const OV=horizonOverlay();
+      SWEET_CACHE={}; const n=sweetSpot(sweetRows(risk,style,real,low,null),amt,CUR).best.n;
+      const b=buildBundle(risk,n,low,style,real,{overlay:OV}), m=measureRisk(b.picks,b.w), vol=m?m.vol:b.vol, sc=oneYearScenarios(b.mu,m,vol);
+      const st=stressTests(b.picks,b.w), worst=st.reduce((a,x)=>x.loss<a.loss?x:a), dd=m?m.dd:b.dd, mx=b.mix;
+      const top=b.w.reduce((a,v,i)=>v>b.w[a]?i:a,0);
+      const flags=[], info=[];
+      b.unresolved.forEach(u=>flags.push(`${u.label} ${r1(u.exp)}% > ${r1(u.cap)}%`));
+      b.overCap.forEach(x=>flags.push(`${x.t} over its ${x.cap}% fund limit`));
+      b.hard.filter(x=>!x.ok).forEach(x=>flags.push(`hard rule failed: ${x.label}`));
+      if(OV&&mx.eq>OV.eq+0.5) flags.push(`equities ${r1(mx.eq)}% above the overlay's ${OV.eq}%`);
+      if(OV&&(mx.cash||0)<OV.cashMin-0.5) flags.push(`cash ${r1(mx.cash||0)}% below the overlay's ${OV.cashMin}%`);
+      if(worst.loss>dd+0.1) flags.push("stress test milder than worst past fall");
+      if(sc.weak<dd-0.1) flags.push("weak year worse than worst past fall");
+      if(prev&&b.mu<prev.mu-0.2) flags.push(`base case below Risk ${prev.risk}'s ${prev.mu.toFixed(1)}%`);
+      if(prev&&dd>prev.dd+3&&!OV) info.push(`shallower worst fall than Risk ${prev.risk}`);
+      const cashLike=["cash","bonds"].includes(b.sleeveOf[top]);
+      if(b.w[top]>(cashLike?0.5:0.35)+1e-9) flags.push(`${b.picks[top].t} is ${r1(b.w[top]*100)}% of the basket`);
+      if(n===3||n===10) info.push(`sweet spot at ${n}`);
+      if(OV){ const w=assetMix(risk,style,real,null,null); if(Math.abs(w.eq-mx.eq)<0.1&&Math.abs((w.cash||0)-(mx.cash||0))<0.1) info.push("overlay changes nothing"); }
+      rows.push({risk,hl,nl,ov:OV?OV.name:"",mix:`${r1(mx.eq)}/${r1(mx.cash||0)}/${r1(mx.bonds)}/${r1(mx.gold+mx.comm+(mx.real||0))}`,n,funds:b.picks.map((e,i)=>`${e.t} ${r1(b.w[i]*100)}`).join(", "),
+        mu:b.mu,weak:sc.weak,dd,stress:worst.loss,vol,top:`${b.picks[top].t} ${r1(b.w[top]*100)}%`,flags,info});
+      prev={risk,mu:b.mu,dd};
+      await new Promise(r=>setTimeout(r,0));
+    } }
+  } finally {
+    $("horizonSel").value=keep.h; $("needSel").value=keep.n; OVERLAY_OFF=keep.off; CUSTOM_MIX=keep.custom; SWEET_CACHE={}; renderBundle();
+  }
+  const f=x=>(x>=0?"+":"−")+Math.abs(x).toFixed(1)+"%", bad=rows.filter(r=>r.flags.length).length;
+  const head=["Risk","Needed","All of it?","Overlay","Mix E/C/B/R %","Funds","Base","Weak year","Worst past fall","Stress test","Volatility","Largest","Flags"];
+  const csv=[head.concat(["Notes","Holdings"]).join(",")].concat(rows.map(r=>[r.risk,r.hl,r.nl,r.ov,r.mix,r.n,r.mu.toFixed(1),r.weak.toFixed(1),r.dd.toFixed(1),r.stress.toFixed(1),r.vol.toFixed(1),r.top,r.flags.join("; "),r.info.join("; "),r.funds].map(v=>`"${String(v).replace(/"/g,'""')}"`).join(","))).join("\n");
+  el.innerHTML=`<h2>Audit matrix</h2>
+    <p class="au-note">${rows.length} baskets: Risk 1/3/5/7/10 × every horizon × need all of it or not, at ${usd(amt)}, ${STYLE_LABELS[style-1]} style, ${REAL_LABELS[real-1]} real assets, each at its sweet-spot fund count. Data ${RISKDATA.asOf||""}.
+    <b class="${bad?"au-bad":"au-ok"}">${bad?`${bad} flagged`:"Nothing flagged"}</b>. <button type="button" id="auCopy">Copy as CSV</button> <button type="button" id="auHide">Hide</button></p>
+    <div class="au-scroll"><table class="au-t"><thead><tr>${head.map(x=>`<th>${x}</th>`).join("")}</tr></thead><tbody>
+    ${rows.map(r=>`<tr class="${r.flags.length?"au-row-bad":""}" title="${esc(r.funds)}"><td>${r.risk}</td><td>${r.hl}</td><td>${r.nl}</td><td>${r.ov||"—"}</td><td>${r.mix}</td><td>${r.n}</td><td>${f(r.mu)}</td><td>${f(r.weak)}</td><td>${f(r.dd)}</td><td>${f(r.stress)}</td><td>${r.vol.toFixed(1)}%</td><td>${r.top}</td>
+      <td>${r.flags.map(x=>`<span class="au-bad">${esc(x)}</span>`).join("<br>")}${r.info.length?`${r.flags.length?"<br>":""}<span class="au-info">${r.info.map(esc).join(" · ")}</span>`:""}</td></tr>`).join("")}</tbody></table></div>
+    <p class="au-note">Red rows break a rule or look inconsistent; grey notes are worth a glance but not necessarily wrong. Hover a row to see its holdings.</p>`;
+  $("auCopy").onclick=()=>{ (navigator.clipboard?navigator.clipboard.writeText(csv):Promise.reject()).then(()=>{$("auCopy").textContent="Copied";})
+    .catch(()=>{ const a=document.createElement("a"); a.href=URL.createObjectURL(new Blob([csv],{type:"text/csv"})); a.download="fndmngr-audit.csv"; a.click(); }); };
+  $("auHide").onclick=()=>el.remove();
+}
 fetch("history.csv",{cache:"no-store"}).then(r=>r.ok?r.text():Promise.reject()).then(t=>{ loadHistory(t); renderBaskets(); renderBundle(); }).catch(()=>{});
 
 </script>
