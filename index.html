@@ -2519,7 +2519,7 @@ fetch("history.csv",{cache:"no-store"}).then(r=>r.ok?r.text():Promise.reject()).
 /* ---------- Visitor count (GoatCounter: free, no cookies, works on GitHub Pages) ----------
    Set GOATCOUNTER to your site code (the "xyz" in xyz.goatcounter.com) to count visits and show
    the total top right. Left empty, nothing is loaded or shown. */
-const GOATCOUNTER="";
+const GOATCOUNTER="fndmngr";
 if(GOATCOUNTER&&!/^(localhost|127\.)/.test(location.hostname)){
   const gc=document.createElement("script"); gc.async=true; gc.src="https://gc.zgo.at/count.js";
   gc.dataset.goatcounter=`https://${GOATCOUNTER}.goatcounter.com/count`; document.body.appendChild(gc);
