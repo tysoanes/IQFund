@@ -17,7 +17,7 @@ jobs:
       - uses: actions/setup-python@v5
         with:
           python-version: "3.12"
-      - run: pip install yfinance pandas
+      - run: pip install yfinance pandas xlrd
       - run: python -u update_funds.py
       - name: Commit data files
         run: |
