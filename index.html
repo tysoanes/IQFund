@@ -118,6 +118,9 @@ details.scen .full{padding:0 0 10px;line-height:1.5}
 .ol-toggle:hover{opacity:1}
 .ol-head{margin:14px 0 2px;font-size:11px;font-weight:700;letter-spacing:.08em;text-transform:uppercase;opacity:.7}
 .ol-head:first-child{margin-top:0}
+.ol-chg{margin:2px 0 6px;font-size:12.5px;line-height:1.45;color:var(--muted)}.ol-chg span{opacity:.85}
+.scen.mc .mc-v{font:600 13px var(--body,inherit);text-align:right;max-width:60%}
+.mc-list{margin:4px 0 6px;padding-left:18px}.mc-list li{margin:0 0 6px}
 .stress-more{font-size:13px;padding:2px 0 8px}.stress-more summary{cursor:pointer;opacity:.85;font-weight:600}
 .stress-more ul{list-style:none;margin:6px 0 0;padding:0}.stress-more li{display:flex;flex-wrap:wrap;justify-content:space-between;gap:2px 10px;padding:6px 0;border-top:1px solid rgba(127,127,127,.25)}
 .st-name{font-weight:600}.st-why{flex-basis:100%;font-size:12px;opacity:.9}.st-why i{opacity:.75}.st-why .neg{color:var(--sell)}.st-why .pos{color:var(--buy)}
@@ -710,7 +713,30 @@ const BOND_CURVE={"Bonds: UK gilts":["g10",0],"Bonds: short UK gilts":["g5",0],"
   "Bonds: sterling corporate":["g10",1.0],"Bonds: short sterling corporate":["g5",0.8],"Bonds: ultra-short":["bank",0.2],
   "Bonds: cash / overnight":["bank",0],"Bonds: global aggregate (GBP hedged)":["g10",-0.2],"Bonds: long US Treasury":["us30",0],
   "Bonds: short US Treasury":["us5",0],"Bonds: US corporate":["us10",1.0],"Bonds: high yield (GBP hedged)":["g5",2.0],"Bonds: emerging markets":["us10",1.5]};
-function bondYield(e){ const m=BOND_CURVE[e.cat]; if(!m||!YIELDS||YIELDS[m[0]]==null) return null; return YIELDS[m[0]]+m[1]; }
+BOND_CURVE["Bonds: high yield"]=["us5",2.0];
+// Market conditions, refreshed daily in risk.json (each part optional): VIX/MOVE fear gauges, credit
+// spreads, market-implied inflation, regional P/E ratios and the geopolitical risk index.
+var MACRO=null, MACRO_PREV=null;
+// Credit bonds: today's spread over government bonds, less expected default losses. [spread, share of it, loss]
+const BOND_CREDIT={"Bonds: sterling corporate":["ig",1,0.2],"Bonds: short sterling corporate":["ig",0.8,0.1],"Bonds: US corporate":["ig",1,0.2],
+  "Bonds: high yield (GBP hedged)":["hy",1,2.0],"Bonds: high yield":["hy",1,2.0]};
+function creditSpread(key){ const sp=MACRO&&MACRO.spreads; if(!sp) return null;
+  if(key==="ig") return sp.ig?sp.ig.now:null;
+  const v=[sp.hy_us,sp.hy_eu].filter(Boolean).map(x=>x.now); return v.length?v.reduce((a,b)=>a+b,0)/v.length:null; }
+function bondYield(e){ const m=BOND_CURVE[e.cat]; if(!m||!YIELDS||YIELDS[m[0]]==null) return null;
+  const c=BOND_CREDIT[e.cat], sp=c?creditSpread(c[0]):null;
+  return YIELDS[m[0]]+(sp!=null?sp*c[1]-c[2]:m[1]); }
+// expected inflation: the Bank of England's market-implied 5-year figure is RPI-based, which has run
+// about 0.8 points above CPI; without it, the 2% CPI target
+function inflationCPI(){ const i=MACRO&&MACRO.inflation; return i&&i.infl5!=null?clamp(i.infl5-0.8,0,8):null; }
+// Shares: half the long-run assumption, half today's earnings yield (earnings ÷ price, by region,
+// looked through each fund) plus expected inflation; kept within 5-9%
+const PE_REGION={US:"US",Europe:"Europe",UK:"UK",Japan:"Japan","Asia Pacific":"Asia Pacific",Emerging:"Emerging"};
+function equityAnchor(e){ const pe=MACRO&&MACRO.pe; if(!pe) return null;
+  const pr=profileOf(e); let w=0, ey=0;
+  for(const d in pr){ const g=DIM_GROUP(d); if(g==="Other") continue; const p=pe[PE_REGION[g]]||pe.World; if(!p) continue; w+=pr[d]; ey+=pr[d]*100/p; }
+  if(!w) return null; ey/=w; const inf=inflationCPI()??2;
+  return {v:clamp(0.5*BASE_RETURN.eq+0.5*clamp(ey+inf,3,11),5,9),ey,inf}; }
 
 const DEF_VOL={eq:18,reit:21,bond:6,hy:8,gold:15}, DEF_DD={eq:-35,reit:-45,bond:-18,hy:-25,gold:-25};
 function analyze(e){
@@ -747,9 +773,10 @@ function analyze(e){
   // isn't counted twice (it already helps pick the funds).
   const BR=BASE_RETURN[e.cls]??BASE_RETURN.eq, isBond=e.cls==="bond"||e.cls==="hy", by=isBond?bondYield(e):null;
   // bonds: today's yield is the anchor and replaces momentum (past bond returns say little about the next year)
-  const anchor=by!=null?by:isBond&&e.hasVal?e.val:BR, momentum=by!=null||e.r5==null?0:clamp(0.2*(e.r5-BR),-2,2);
-  const mu=clamp(anchor+(isBond?0:clamp(gap*15,-3,3))+momentum,-10,25);
-  return {...e,gap,trend,range,score,signal,reasons,mu,muSel,momentum,baseYield:by,
+  const eqA=e.cls==="eq"?equityAnchor(e):null, tilt=eqA?1.5:3;   // market valuation already in the anchor: halve the fund's own tilt
+  const anchor=by!=null?by:isBond&&e.hasVal?e.val:eqA?eqA.v:BR, momentum=by!=null||e.r5==null?0:clamp(0.2*(e.r5-BR),-2,2);
+  const mu=clamp(anchor+(isBond?0:clamp(gap*15,-tilt,tilt))+momentum,-10,25);
+  return {...e,gap,trend,range,score,signal,reasons,mu,muSel,momentum,baseYield:by,eqAnchor:eqA,
     up:mu+e.vol, down:mu-e.vol, bad:mu-2*e.vol};
 }
 let ASOF=new Date().toISOString().slice(0,10), LIVE=false, LAST_BUNDLE=null, DATA=ETFS.map(analyze), SOURCE="Sample data — not live prices";
@@ -1244,7 +1271,9 @@ let RISKDATA=null;
 function loadRisk(j){ if(!j||!Array.isArray(j.dates)||!j.funds) return; const u=j.unit||1e-4, f={};
   for(const t in j.funds) f[t]={r:Float64Array.from(j.funds[t].r,x=>x*u),from:j.funds[t].from,proxy:j.funds[t].proxy||null};
   RISKDATA={dates:j.dates,funds:f,asOf:j.as_of};
-  if(j.yields&&Object.keys(j.yields).some(k=>typeof j.yields[k]==="number")){ YIELDS=j.yields; DATA=DATA.map(analyze); if(typeof renderTable==="function") renderTable(); } }
+  if(j.macro&&typeof j.macro==="object"){ MACRO=j.macro; MACRO_PREV=j.macro_prev||null; }
+  if(j.yields&&Object.keys(j.yields).some(k=>typeof j.yields[k]==="number")) YIELDS=j.yields;
+  if(YIELDS||MACRO){ DATA=DATA.map(analyze); if(typeof renderTable==="function") renderTable(); } }
 function annVol(a){ const n=a.length; if(n<8) return null; let m=0; for(const x of a) m+=x; m/=n; let v=0; for(const x of a) v+=(x-m)*(x-m); return Math.sqrt(v/(n-1)*52)*100; }
 function measureRisk(picks,w){
   if(!RISKDATA) return null; const S=picks.map(e=>RISKDATA.funds[e.t]); if(!S.length||S.some(x=>!x)) return null;
@@ -1262,7 +1291,7 @@ function measureRisk(picks,w){
     const r=[]; for(let t=52;t<=n;t++) r.push(c[t]-c[t-52]); r.sort((a,b)=>a-b);
     const at=p=>{ const k=(r.length-1)*p, i=Math.floor(k); return r[i]+(r[Math.min(i+1,r.length-1)]-r[i])*(k-i); };
     q={p15:at(0.15),p20:at(0.2),p50:at(0.5),p80:at(0.8),windows:r.length}; }
-  return {vol,v3,v6,vAll:annVol(port),q,dd:worst.dd*100,peakDate,troughDate,start,weeks:n,
+  return {vol,v3,v6,vAll:annVol(port),q,dd:worst.dd*100,peakDate,troughDate,start,weeks:n,regime:regimeFactor(picks,w),
     ddStand:troughDate?stand.filter(x=>x.from>peakDate):[], volStand:stand.filter(x=>x.from>D[Math.max(0,n-156)])};
 }
 /* Stress tests: illustrative shocks by fund type, applied to today's weights (not forecasts) */
@@ -1443,15 +1472,72 @@ function bondNote(b){
   if(!live.length) return `Bonds at a ${BASE_RETURN.bond}% long-run assumption (today's yields not loaded).`;
   return `Bonds at today's yields: ${live.map(e=>`${e.t} ${e.baseYield.toFixed(1)}%`).join(", ")}${YIELDS.uk_as_of?` (gilt yields from the Bank of England, ${new Date(YIELDS.uk_as_of+"T12:00:00").toLocaleDateString(LOCALE,{day:"numeric",month:"short",year:"numeric"})})`:""}.`;
 }
+// Fear gauges: when markets expect more turbulence than usual, widen the strong/weak range (and narrow it
+// when calm). Square-rooted and half-weighted, because they look a month ahead, not a year.
+function regimeFactor(picks,w){ if(!MACRO) return null; const sw=w.reduce((a,b)=>a+b,0)||1;
+  const f=g=>g&&g.now>0&&g.median>0?0.5*(Math.sqrt(g.now/g.median)-1):0, kE=f(MACRO.vix), kB=f(MACRO.move);
+  let eq=0,bd=0; picks.forEach((e,i)=>{ const x=w[i]/sw; if(e.cls==="eq"||e.cls==="reit") eq+=x; else if((e.cls==="bond"||e.cls==="hy")&&!/cash|ultra-short/i.test(e.cat)) bd+=x; });
+  const k=clamp(1+eq*kE+bd*kB,0.85,1.35); return {k,eq,bd}; }
+function regimeText(R){ const g=R&&R.regime; if(!g||Math.abs(g.k-1)<0.02) return "";
+  const v=MACRO.vix, pctTxt=Math.round(Math.abs(g.k-1)*100);
+  return ` ${g.k>1?"Widened":"Narrowed"} by ${pctTxt}% because markets currently expect ${g.k>1?"more":"less"} turbulence than usual${v?` (VIX ${v.now} against a typical ${v.median})`:""}.`; }
+/* What changed since last week: re-run today's basket with last week's market conditions, one group at
+   a time, so each move in the base case is traced to the input that caused it. */
+const MACRO_GROUPS={rates:{label:"interest rates",keys:["g5","g10","g20","bank","us5","us10","us30"]},
+  spreads:{label:"credit spreads",keys:["sp_ig","sp_hy_us","sp_hy_eu"]},inflation:{label:"expected inflation",keys:["infl5","infl10"]},
+  valuations:{label:"share valuations",keys:Object.keys(PE_REGION).concat("World").map(r=>"pe_"+r)}};
+function inputsWith(prev,keys){ const Y={...(YIELDS||{})}, M=JSON.parse(JSON.stringify(MACRO||{}));
+  for(const k of keys){ if(prev[k]==null) continue; const v=prev[k];
+    if(k.startsWith("sp_")){ const n=k.slice(3); if(M.spreads&&M.spreads[n]) M.spreads[n].now=v; }
+    else if(k.startsWith("pe_")){ if(M.pe) M.pe[k.slice(3)]=v; }
+    else if(k.startsWith("infl")){ if(M.inflation) M.inflation[k]=v; }
+    else Y[k]=v; }
+  return {Y,M}; }
+function muWith(picks,w,inp){ const y0=YIELDS, m0=MACRO; YIELDS=inp.Y; MACRO=inp.M;
+  try{ return picks.reduce((a,e,i)=>a+w[i]*analyze(e).mu,0); } finally { YIELDS=y0; MACRO=m0; } }
+function whatChanged(b){ const P=MACRO_PREV; if(!P||!P.date||!MACRO) return "";
+  const now=b.picks.reduce((a,e,i)=>a+b.w[i]*e.mu,0), all=Object.values(MACRO_GROUPS).flatMap(g=>g.keys);
+  const total=now-muWith(b.picks,b.w,inputsWith(P,all)), f=x=>(x>=0?"+":"−")+Math.abs(x).toFixed(1);
+  const parts=Object.values(MACRO_GROUPS).map(g=>({g,d:now-muWith(b.picks,b.w,inputsWith(P,g.keys))})).filter(x=>Math.abs(x.d)>=0.01).sort((a,c)=>Math.abs(c.d)-Math.abs(a.d)).slice(0,3);
+  const f2=x=>(x>=0?"+":"−")+Math.abs(x).toFixed(Math.abs(x)<0.1?2:1);
+  const detail=[]; const mv=(k,l,unit="%")=>{ const a=P[k], z=k==="vix"||k==="move"||k==="gpr"?(MACRO[k]||{}).now:k.startsWith("sp_")?((MACRO.spreads||{})[k.slice(3)]||{}).now:k.startsWith("infl")?(MACRO.inflation||{})[k]:k.startsWith("pe_")?(MACRO.pe||{})[k.slice(3)]:(YIELDS||{})[k];
+    if(a!=null&&z!=null&&Math.abs(z-a)>=(unit?0.1:0.5)) detail.push(`${l} ${a.toFixed(1)}${unit} → ${z.toFixed(1)}${unit}`); };
+  mv("g10","10-year gilt"); mv("bank","Bank Rate"); mv("sp_ig","company bond spreads"); mv("infl5","implied inflation"); mv("pe_US","US P/E",""); mv("vix","VIX","");
+  const when=new Date(P.date+"T12:00:00").toLocaleDateString(LOCALE,{day:"numeric",month:"short"});
+  const vixUp=P.vix!=null&&MACRO.vix?MACRO.vix.now-P.vix:0;
+  const head=Math.abs(total)<0.05?`Since ${when}: market conditions haven't moved this mix's base case`
+    :`Since ${when}: base case ${f2(total)} from market conditions (${parts.map(x=>`${x.g.label} ${f2(x.d)}`).join(", ")||"several small moves"})`;
+  const range=Math.abs(vixUp)>=2?`; range ${vixUp>0?"wider":"narrower"} as the VIX ${vixUp>0?"rose":"fell"}`:"";
+  return `<p class="ol-chg">${head}${range}.${detail.length?` <span>${detail.join(" · ")}.</span>`:""}</p>`; }
+/* Market conditions panel: today's inputs in plain words, and what each one changes */
+function marketRow(b,money0,pct){ const M=MACRO; if(!M) return null;
+  const lvl=g=>g&&g.pct!=null?(g.pct>=75?"high":g.pct<=25?"low":"normal"):null, items=[], flags=[];
+  if(M.vix){ const l=lvl(M.vix); if(l!=="normal") flags.push(l==="high"?"turbulence above usual":"markets calm");
+    items.push(`<li><b>Fear gauge (VIX ${M.vix.now})</b>: ${l==="high"?"above":l==="low"?"below":"close to"} its typical ${M.vix.median}, higher than ${M.vix.pct}% of days in the last 10 years. ${b.risk&&b.risk.regime&&Math.abs(b.risk.regime.k-1)>=0.02?`This mix's strong-to-weak range is ${b.risk.regime.k>1?"widened":"narrowed"} by ${Math.round(Math.abs(b.risk.regime.k-1)*100)}%.`:"No change to this mix's range."}</li>`); }
+  if(M.move) items.push(`<li><b>Bond turbulence (MOVE ${M.move.now})</b>: typical ${M.move.median}; it scales the range for the bond part of the mix the same way.</li>`);
+  if(M.spreads){ const ig=M.spreads.ig, hy=creditSpread("hy"); if(lvl(ig)==="high") flags.push("credit stress");
+    items.push(`<li><b>Credit spreads</b>: investment-grade companies pay ${ig?`${ig.now.toFixed(2)} points`:"n/a"} over government bonds${ig?` (typical ${ig.median.toFixed(2)})`:""}${hy!=null?`, high yield ${hy.toFixed(2)}`:""}. Company bond base cases use these, less expected defaults. US and euro market data stand in for sterling.</li>`); }
+  const inf=inflationCPI();
+  if(inf!=null) items.push(`<li><b>Expected inflation</b>: markets price about ${M.inflation.infl5.toFixed(1)}% a year over 5 years on the RPI measure, roughly ${inf.toFixed(1)}% on CPI. Used in the share base case and for the after-inflation figure.</li>`);
+  if(M.pe){ const eqs=b.picks.map((e,i)=>({e,w:b.w[i]})).filter(x=>x.e.eqAnchor), ew=eqs.reduce((a,x)=>a+x.w,0), ey=ew?eqs.reduce((a,x)=>a+x.w*x.e.eqAnchor.ey,0)/ew:null;
+    items.push(`<li><b>Share valuations (P/E)</b>: ${["US","Europe","UK","Japan","Emerging"].filter(r=>M.pe[r]).map(r=>`${r} ${M.pe[r]}`).join(" · ")}. ${ey!=null?`This mix's shares earn about ${ey.toFixed(1)}% of their price a year; their base case is half the ${BASE_RETURN.eq}% long-run assumption and half this earnings yield plus inflation, kept within 5–9%.`:""}</li>`); }
+  if(M.gpr){ const l=lvl(M.gpr), geo=b.stress.find(x=>/Geopolitical/.test(x.name)); if(l==="high") flags.push("geopolitical risk elevated");
+    items.push(`<li><b>Geopolitical risk index ${M.gpr.now}</b>: ${l==="high"?"elevated":l==="low"?"quiet":"near normal"}, higher than ${M.gpr.pct}% of 30-day spells since 1985 (typical ${M.gpr.median}). It doesn't change the base case: news is usually priced in quickly, and no one forecasts its effect on a year reliably. ${geo?`If tension flares, the geopolitical stress test shows ${money0(geo.loss)} (${pct(geo.loss)}).`:""}</li>`); }
+  if(!items.length) return null;
+  const dates=[M.fetched?`updated ${new Date(M.fetched+"T12:00:00").toLocaleDateString(LOCALE,{day:"numeric",month:"short",year:"numeric"})}`:""].filter(Boolean).join("");
+  return {short:flags.length?flags.map(x=>x.charAt(0).toUpperCase()+x.slice(1)).join(" · "):"Conditions close to normal",
+    full:`<ul class="mc-list">${items.join("")}</ul><p class="st-note">Sources: Cboe VIX and ICE MOVE (Yahoo), ICE BofA spreads (FRED), Bank of England implied inflation, index-fund P/E ratios (Yahoo), Caldara–Iacoviello geopolitical risk index; ${dates}. These move the inputs, not a headline-driven forecast.</p>`}; }
 function oneYearScenarios(base,R,vol){
   let strong,weak,sD,wD;
   // Strong: best 1 in 5 twelve-month periods. Weak: worst ~1 in 7 (15th percentile), but never milder than
   // long-term volatility implies, because ten years of history can flatter (few bad 12-month spells).
   if(R&&R.q){ const lb=Math.log(1+base/100), gapHist=R.q.p50-R.q.p15, gapStat=1.04*R.vAll/100, useStat=gapStat>gapHist;
-    strong=(Math.exp(lb+R.q.p80-R.q.p50)-1)*100; weak=(Math.exp(lb-Math.max(gapHist,gapStat))-1)*100;
+    const k=R.regime?R.regime.k:1;
+    strong=(Math.exp(lb+(R.q.p80-R.q.p50)*k)-1)*100; weak=(Math.exp(lb-Math.max(gapHist,gapStat)*k)-1)*100;
     sD=`Base case plus the gap between a typical 12-month period and the best 1 in 5 for this mix since ${monthYear(R.start)}.`;
     wD=useStat?`About 1 year in 7. History since ${monthYear(R.start)} has been kinder than this mix's long-term volatility (${R.vAll.toFixed(1)}%) implies, so the more cautious, volatility-based figure is used.`
-      :`About 1 year in 7: base case minus the gap between a typical 12-month period and the worst 1 in 7 for this mix since ${monthYear(R.start)}.`; }
+      :`About 1 year in 7: base case minus the gap between a typical 12-month period and the worst 1 in 7 for this mix since ${monthYear(R.start)}.`;
+    sD+=regimeText(R); wD+=regimeText(R); }
   else { strong=base+0.84*vol; weak=base-1.04*vol;
     sD="Rough estimate: base case plus 0.84 × volatility (about 1 year in 5, if returns were normally distributed)."; wD="Rough estimate, about 1 year in 7: base case minus 1.04 × volatility."; }
   return {strong,weak,sD,wD};
@@ -1903,14 +1989,17 @@ function renderBundle(){
   const stressTable=`<ul class="stress-list">${b.stress.map(x=>`<li class="st-row"><span class="st-name">${x.name}${x.like?` · ${x.like}`:""}</span><span>${money0(x.loss)} (${pct(x.loss)})</span>
         <span class="st-why">${x.hist?"From this mix's own weekly prices, dividends included: what actually happened, not an assumed shock.":`${x.parts.map(g=>`${g.g} <b class="${g.pts<0?"neg":"pos"}">${g.pts>0?"+":"−"}${Math.abs(g.pts).toFixed(1)}</b>`).join(" · ")} <i>(percentage points of the basket)</i>`}</span></li>`).join("")}</ul>
       <p class="st-note">Shocks assumed: ${STRESS_NOTE}; short-dated gilts −5% and short corporate bonds −8% in the inflation shock. Illustrative, not forecasts.</p>`;
-  $("outlook").innerHTML=`<p class="ol-head">One-year scenarios</p>`
+  const mkt=marketRow(b,money0,pct), infl=inflationCPI();
+  const eqNote=b.picks.some(e=>e.eqAnchor)?`shares: half a ${BASE_RETURN.eq}% long-run assumption, half today's earnings yield plus expected inflation (5–9%)`:`long-run assumptions for shares (${BASE_RETURN.eq}%)`;
+  $("outlook").innerHTML=`<p class="ol-head">One-year scenarios</p>${whatChanged(b)}`
     +row("strong","Strong year",strong,"Best 1 in 5 years for this mix, historically",sD)
-    +row("base","Base case",base,"Central estimate, not a guarantee",`FndMngr central estimate, not a guaranteed return: long-run assumptions for shares (${BASE_RETURN.eq}%), gold and commodities (${BASE_RETURN.gold}%), a valuation tilt, and recent performance capped at ±2 points. ${bondNote(b)} Assumptions reviewed ${BASE_REVIEWED}.`)
+    +row("base","Base case",base,`Central estimate, not a guarantee${infl!=null?` · about ${pctTxt(base-infl)} after inflation`:""}`,`FndMngr central estimate, not a guaranteed return: ${eqNote}, gold and commodities (${BASE_RETURN.gold}%), a valuation tilt, and recent performance capped at ±2 points. ${bondNote(b)}${infl!=null?` After inflation uses markets' expectation of about ${infl.toFixed(1)}% a year (CPI basis).`:""} Assumptions reviewed ${BASE_REVIEWED}.`)
     +row("weak","Weak year",weak,"About 1 year in 7",wD)
     +`<p class="ol-head">Risk &amp; stress</p>`
     +(R?row("dd","Worst past fall",R.dd,$("needSel").value==="yes"?`If repeated: ${usd(amt*-R.dd/100)} short of the ${usd(amt)} you need`:`Worst fall since ${monthYear(R.start)}: ${monthYear(R.peakDate)} to ${monthYear(R.troughDate)}`,`Real history, not a model: the biggest peak-to-trough fall (maximum drawdown) of today's mix since ${monthYear(R.start)} (${monthYear(R.peakDate)} to ${monthYear(R.troughDate)}), dividends included, measured weekly.${standTxt(R.ddStand)}`)
        :row("dd","Worst past fall (rough)",b.dd,"Rough, upper-end estimate","Each fund's own worst drop, weighted. An upper-end guess: the funds didn't all fall at the same time."))
-    +row("stress","Severe stress test",worstS.loss,`${worstS.name}${worstS.like?` (${worstS.like})`:""}`,`A modelled loss, not history: the worst of four tests, three illustrative shocks applied to today's weights, plus a repeat of this mix's own worst past period, so it's never milder than real history. What drives each:${stressTable}`);
+    +row("stress","Severe stress test",worstS.loss,`${worstS.name}${worstS.like?` (${worstS.like})`:""}`,`A modelled loss, not history: the worst of four tests, three illustrative shocks applied to today's weights, plus a repeat of this mix's own worst past period, so it's never milder than real history. What drives each:${stressTable}`)
+    +(mkt?`<p class="ol-head">Market conditions</p><details class="scen mc" data-k="macro"${wasOpen.has("macro")?" open":""}><summary><span>Today's inputs</span><span class="v mc-v">${mkt.short}</span><span class="d">What the outlook is using today<span class="why" aria-hidden="true">Why?</span></span></summary><div class="d full">${mkt.full}</div></details>`:"");
   syncOlToggle();
   const yCov=b.picks.reduce((a,e,i)=>a+(e.y!=null?b.w[i]:0),0);
   $("pstats").innerHTML=(R?`<span title="Annualised from every week since ${monthYear(R.start)}"><b>${R.vAll.toFixed(1)}%</b>Long-term volatility<small>since ${monthYear(R.start)}</small></span>`:"")

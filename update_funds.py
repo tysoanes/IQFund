@@ -28,17 +28,19 @@ Data comes from Yahoo Finance via the free `yfinance` library. It's unofficial
 and meant for personal use; for a public or commercial site, swap in a
 licensed data provider.
 
-Run:  pip install yfinance pandas
+Run:  pip install yfinance pandas xlrd
       python update_funds.py
 """
 import csv
 import datetime as dt
+import io
 import json
 import math
 import os
 import sys
 import threading
 import time
+import urllib.parse
 import urllib.request
 
 import pandas as pd
@@ -67,6 +69,16 @@ BOE_SERIES = {"g5": "IUDSNPY", "g10": "IUDMNPY", "g20": "IUDLNPY", "bank": "IUDB
 US_YIELDS = {"us5": "^FVX", "us10": "^TNX", "us30": "^TYX"}
 BOE_URL = ("https://www.bankofengland.co.uk/boeapps/database/_iadb-fromshowcolumns.asp?csv.x=yes"
            "&Datefrom={start}&Dateto=now&SeriesCodes={codes}&CSVF=TN&UsingCodes=Y&VPD=Y&VFD=N")
+# Market conditions that move a one-year outlook (all free; each one is optional and falls back to
+# the last good value). The site uses them as inputs, never as a headline-driven forecast.
+BOE_INFLATION = {"infl5": "IUDSIZC", "infl10": "IUDMIZC"}        # market-implied inflation (RPI), zero coupon
+FRED_URL = "https://fred.stlouisfed.org/graph/fredgraph.csv?id={code}"   # no key needed for this endpoint
+FRED_SPREADS = {"ig": "BAMLC0A0CM", "hy_us": "BAMLH0A0HYM2", "hy_eu": "BAMLHE00EHYIOAS"}  # ICE BofA OAS, %
+VOL_INDEXES = {"vix": "^VIX", "move": "^MOVE"}                  # expected share / bond turbulence
+PE_PROXIES = {"US": "SPY", "Europe": "VGK", "UK": "EWU", "Japan": "EWJ", "Asia Pacific": "EPP",
+              "Emerging": "EEM", "World": "ACWI"}                 # broad index funds: market P/E by region
+GPR_PAGE = "https://www.matteoiacoviello.com/gpr.htm"            # Caldara-Iacoviello geopolitical risk index
+MACRO_KEEP_DAYS = 60
 
 
 def yahoo(sym):
@@ -301,6 +313,124 @@ def market_yields(cache):
     return merged
 
 
+def http_text(url, timeout=CALL_TIMEOUT):
+    req = urllib.request.Request(url, headers={"User-Agent": "Mozilla/5.0 (fund-data-bot)"})
+    with urllib.request.urlopen(req, timeout=timeout) as r:
+        return r.read()
+
+
+def pct_rank(series, value):
+    s = [x for x in series if x == x]
+    return round(100 * sum(1 for x in s if x <= value) / len(s)) if s else None
+
+
+def market_macro(cache, yields):
+    """Fear gauges, credit spreads, implied inflation, market valuations and geopolitical risk.
+    Every part is optional: a source that fails keeps its last good value from info_cache.json."""
+    old = cache.get("_macro", {})
+    out = {}
+    today = dt.date.today().isoformat()
+    # 1. VIX (shares) and MOVE (bonds): today vs their own 10-year history
+    try:
+        raw = download(list(VOL_INDEXES.values()), period="10y")
+        for key, sym in VOL_INDEXES.items():
+            if sym in raw:
+                c = raw[sym]["Close"].dropna()
+                now = float(c.iloc[-5:].mean())                       # a 1-week average, so one spike day doesn't rule
+                out[key] = {"now": round(now, 1), "median": round(float(c.median()), 1),
+                            "pct": pct_rank(c.tolist(), now), "as_of": c.index[-1].date().isoformat()}
+    except Exception as e:
+        print(f"  volatility indexes unavailable: {e}", flush=True)
+    # 2. credit spreads (FRED, ICE BofA option-adjusted spreads)
+    spreads = {}
+    for key, code in FRED_SPREADS.items():
+        try:
+            rows = list(csv.reader(http_text(FRED_URL.format(code=code)).decode("utf-8", "replace").splitlines()))
+            vals = [(r[0], float(r[1])) for r in rows[1:] if len(r) > 1 and r[1] not in ("", ".")]
+            if vals:
+                hist = [v for _, v in vals[-260 * 10:]]
+                spreads[key] = {"now": vals[-1][1], "median": round(float(pd.Series(hist).median()), 2),
+                                "pct": pct_rank(hist, vals[-1][1]), "as_of": vals[-1][0]}
+        except Exception as e:
+            print(f"  credit spread {code} unavailable: {e}", flush=True)
+    if spreads:
+        out["spreads"] = spreads
+    # 3. market-implied inflation (Bank of England)
+    try:
+        start = (dt.date.today() - dt.timedelta(days=60)).strftime("%d/%b/%Y")
+        rows = list(csv.reader(http_text(BOE_URL.format(start=start, codes=",".join(BOE_INFLATION.values())))
+                               .decode("utf-8", "replace").splitlines()))
+        head = [h.strip().upper() for h in rows[0]]
+        infl = {}
+        for key, code in BOE_INFLATION.items():
+            if code in head:
+                i = head.index(code)
+                vals = [(r[0], r[i]) for r in rows[1:] if len(r) > i and r[i].strip() not in ("", "n/a")]
+                if vals and 0 < float(vals[-1][1]) < 10:
+                    infl[key] = float(vals[-1][1])
+                    infl["as_of"] = dt.datetime.strptime(vals[-1][0].strip(), "%d %b %Y").date().isoformat()
+        if infl:
+            out["inflation"] = infl
+    except Exception as e:
+        print(f"  implied inflation unavailable: {e}", flush=True)
+    # 4. market valuations: trailing P/E of broad regional index funds
+    pe = {}
+    for region, sym in PE_PROXIES.items():
+        info = with_timeout(lambda sym=sym: yf.Ticker(sym).info or {})
+        v = (info or {}).get("trailingPE")
+        if isinstance(v, (int, float)) and 5 < v < 60:
+            pe[region] = round(float(v), 1)
+        time.sleep(0.3)
+    if pe:
+        out["pe"] = {**old.get("pe", {}), **pe, "as_of": today}
+    # 5. geopolitical risk (daily index; the file name changes, so find it on the page)
+    try:
+        import re
+        page = http_text(GPR_PAGE).decode("utf-8", "replace")
+        links = re.findall(r'href="([^"]*data_gpr_daily_recent[^"]*\.xls)"', page)
+        if links:
+            url = urllib.parse.urljoin(GPR_PAGE, links[0])
+            df = pd.read_excel(io.BytesIO(http_text(url, timeout=60)))
+            cols = {c.upper(): c for c in df.columns}
+            dcol = cols.get("DATE") or cols.get("DAY")
+            g = df[cols["GPRD"]].astype(float)
+            d = pd.to_datetime(df[dcol].astype(str), errors="coerce")
+            ok = d.notna() & g.notna()
+            g, d = g[ok], d[ok]
+            now = float(g.iloc[-30:].mean())                         # 30-day average: daily counts are noisy
+            roll = g.rolling(30).mean().dropna()
+            out["gpr"] = {"now": round(now, 1), "median": round(float(roll.median()), 1),
+                          "pct": pct_rank(roll.tolist(), now), "as_of": d.iloc[-1].date().isoformat()}
+    except Exception as e:
+        print(f"  geopolitical risk index unavailable: {e}", flush=True)
+    merged = {**old, **out}
+    if out:
+        merged["fetched"] = today
+    cache["_macro"] = merged
+    # a small daily snapshot, so the site can say what changed since last week
+    snap = {k: v for k, v in (yields or {}).items() if isinstance(v, (int, float))}
+    for k in ("vix", "move", "gpr"):
+        if k in merged:
+            snap[k] = merged[k]["now"]
+    for k, v in merged.get("spreads", {}).items():
+        snap["sp_" + k] = v["now"]
+    for k, v in merged.get("inflation", {}).items():
+        if isinstance(v, (int, float)):
+            snap[k] = v
+    for k, v in merged.get("pe", {}).items():
+        if isinstance(v, (int, float)):
+            snap["pe_" + k] = v
+    hist = cache.get("_macro_hist", {})
+    hist[today] = snap
+    cutoff = (dt.date.today() - dt.timedelta(days=MACRO_KEEP_DAYS)).isoformat()
+    cache["_macro_hist"] = {d: v for d, v in sorted(hist.items()) if d >= cutoff}
+    week_ago = (dt.date.today() - dt.timedelta(days=7)).isoformat()
+    older = [d for d in cache["_macro_hist"] if d <= week_ago]
+    prev = {"date": older[-1], **cache["_macro_hist"][older[-1]]} if older else None
+    print("Market conditions: " + ", ".join(f"{k} {v}" for k, v in snap.items()), flush=True)
+    return merged, prev
+
+
 def back_return(adj, months):
     """% change from the last close on or before `months` ago to the latest close."""
     start = adj.index[-1] - pd.DateOffset(months=months)
@@ -475,6 +605,7 @@ def main():
     risk = build_risk(hist, rows, as_of, stand_ins_for(hist, rows, fx))
     if risk:
         risk["yields"] = market_yields(cache)
+        risk["macro"], risk["macro_prev"] = market_macro(cache, risk["yields"])
         with open(INFO_CACHE, "w", encoding="utf-8") as f:   # keep the last good yields
             json.dump(cache, f, indent=1, sort_keys=True)
         with open(RISK_FILE, "w", encoding="utf-8") as f:
