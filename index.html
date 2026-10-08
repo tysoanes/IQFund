@@ -120,6 +120,7 @@ details.scen .full{padding:0 0 10px;line-height:1.5}
 .ol-head:first-child{margin-top:0}
 .ol-chg{margin:2px 0 6px;font-size:12.5px;line-height:1.45;color:var(--muted)}.ol-chg span{opacity:.85}
 .scen.mc .mc-v{font:600 13px var(--body,inherit);text-align:right;max-width:60%}
+.mc-sub{margin:4px 0 0;padding-left:16px}.mc-sub li{margin:0 0 4px}
 .mc-list{margin:4px 0 6px;padding-left:18px}.mc-list li{margin:0 0 6px}
 .stress-more{font-size:13px;padding:2px 0 8px}.stress-more summary{cursor:pointer;opacity:.85;font-weight:600}
 .stress-more ul{list-style:none;margin:6px 0 0;padding:0}.stress-more li{display:flex;flex-wrap:wrap;justify-content:space-between;gap:2px 10px;padding:6px 0;border-top:1px solid rgba(127,127,127,.25)}
@@ -720,7 +721,7 @@ const BOND_CURVE={"Bonds: UK gilts":["g10",0],"Bonds: short UK gilts":["g5",0],"
 BOND_CURVE["Bonds: high yield"]=["us5",2.0];
 // Market conditions, refreshed daily in risk.json (each part optional): VIX/MOVE fear gauges, credit
 // spreads, market-implied inflation, regional P/E ratios and the geopolitical risk index.
-var MACRO=null, MACRO_PREV=null, SPLITS=null;
+var MACRO=null, MACRO_PREV=null, SPLITS=null, BOND_RULES=null;
 // Credit bonds: today's spread over government bonds, less expected default losses. [spread, share of it, loss]
 const BOND_CREDIT={"Bonds: sterling corporate":["ig",1,0.2],"Bonds: short sterling corporate":["ig",0.8,0.1],"Bonds: US corporate":["ig",1,0.2],
   "Bonds: high yield (GBP hedged)":["hy",1,2.0],"Bonds: high yield":["hy",1,2.0]};
@@ -1010,7 +1011,8 @@ function horizonOverlay(ignoreOff){
   if(need!=="yes") return null;
   return h===1?OVERLAYS.pres1:h===2?OVERLAYS.pres2:h===5?OVERLAYS.prot5:null;
 }
-function sleevePrefs(key,style,risk,ov){
+function sleevePrefs(key,style,risk,ov){ const L=sleevePrefsBase(key,style,risk,ov); return key==="bonds"&&L?bondOrder(L):L; }
+function sleevePrefsBase(key,style,risk,ov){
   if(ov){   // eligible funds under the overlay: short-dated bonds; for near dates, broad or quality shares only
     if(key==="bonds") return ["Bonds: short UK gilts","Bonds: short sterling corporate"].concat(ov.strict?[]:["Bonds: UK gilts","Bonds: global aggregate (GBP hedged)"]);
     if(ov.strict&&key==="core") return ["Developed world","Global stocks","UK large cap (FTSE 100)"];
@@ -1074,6 +1076,54 @@ function assetMixBase(risk,style,real,ov){
   }
   return {eq,bonds,cash,gold,comm,sleeves:{core,factor,thematic:them,bonds,cash,gold,comm}};
 }
+/* Bond choices from bond-market conditions. These change WHICH bond funds fill the bond slice, never how
+   much is in bonds. Three rules, each only switched on if it would have helped over the last ten years:
+   - credit: company bonds when they pay well above their usual extra over government bonds, gilts when they don't
+   - curve: short-dated gilts when longer ones pay little more (or Bank Rate beats short gilts), longer when the curve is steep
+   - inflation: index-linked gilts when markets expect little inflation, ordinary gilts when they expect a lot
+   Each signal uses a 4-week average with a dead band, so picks don't flip on day-to-day noise. */
+const BOND_GROUP=c=>/corporate/.test(c)?"corp":/index-linked|Bonds: inflation/.test(c)?"linker":/short UK gilts|^Bonds: short$|short US Treasury/.test(c)?"short":/UK gilts|^Bonds: long$|long US Treasury/.test(c)?"long":"other";
+const BOND_TESTS={credit:[["IS15","IGLS"],["SLXX","VGOV"]],curve:[["VGOV","IGLS"]],inflation:[["INXG","VGOV"]]};
+function bondSignals(M,t){ const avg=(k,n=4)=>{ const a=M[k]; if(!a) return null; const v=[]; for(let i=Math.max(0,t-n+1);i<=t;i++) if(a[i]!=null) v.push(a[i]); return v.length?v.reduce((x,y)=>x+y,0)/v.length:null; };
+  const out={};
+  const baa=avg("baa"); if(baa!=null&&t>=52){ const h=M.baa.slice(Math.max(0,t-156),t+1).filter(x=>x!=null).sort((a,b)=>a-b), med=h[Math.floor(h.length/2)];
+    if(med>0){ const r=baa/med; out.credit={sig:r>1.15?1:r<0.87?-1:0,now:baa,med}; } }
+  const g5=avg("g5"), g10=avg("g10"), bank=avg("bank");
+  if(g5!=null&&g10!=null){ const slope=g10-g5, cashBeats=bank!=null&&bank-g5>0.25; out.curve={sig:slope>1.0?1:(slope<0.2||cashBeats)?-1:0,slope,cashBeats,bank,g5}; }
+  const inf=avg("infl10"); if(inf!=null){ const be=inf-0.8; out.inflation={sig:be<2.25?1:be>2.75?-1:0,be,rpi:inf}; }
+  return out; }
+function bondRules(M){ const n=RISKDATA?RISKDATA.dates.length:0, F=RISKDATA?RISKDATA.funds:{}, tests={};
+  for(const [rule,pairs] of Object.entries(BOND_TESTS)){ const ok=pairs.filter(([a,b])=>F[a]&&F[b]); if(!ok.length||!n) continue;
+    let sum=0,act=0,hit=0,weeks=0,first=null,prev=0;
+    for(let t=1;t<n;t++){ const s=prev; const sig=(bondSignals(M,t)[rule]||{}).sig; if(sig!=null&&first==null&&t>=52) first=t;
+      if(first!=null&&t>first){ const d=ok.reduce((a,[x,y])=>a+F[x].r[t]-F[y].r[t],0)/ok.length, ex=0.5*s*d; sum+=ex; weeks++; if(s){ act++; if(ex>0) hit++; } }
+      prev=sig||0; }
+    if(weeks>=104) tests[rule]={annual:sum/weeks*52*100,active:act/weeks,hit:act?hit/act:null,from:RISKDATA.dates[first],on:sum>0}; }
+  return {now:bondSignals(M,n-1),tests}; }
+// favoured kinds of bond move up the bond preference list and disfavoured ones down (a stable sort, so the
+// usual order holds within each group); the amount in bonds is untouched
+function bondOrder(list){ const B=BOND_RULES; if(!B) return list;
+  const sig=r=>B.tests[r]&&B.tests[r].on&&B.now[r]?B.now[r].sig:0, c=sig("credit"), k=sig("curve"), inf=sig("inflation");
+  if(!c&&!k&&!inf) return list;
+  const pen=cat=>{ const g=BOND_GROUP(cat); let p=0;
+    if(g==="corp") p-=c; if(g==="long") p-=k; if(g==="short") p+=k; if(g==="linker") p-=inf; return p; };
+  return list.map((cat,i)=>({cat,i,p:pen(cat)})).sort((a,b)=>a.p-b.p||a.i-b.i).map(x=>x.cat); }
+function bondRuleNote(cat){ const B=BOND_RULES; if(!B) return ""; const g=BOND_GROUP(cat), on=r=>B.tests[r]&&B.tests[r].on&&B.now[r];
+  const out=[], c=on("credit"), k=on("curve"), i=on("inflation"), f=x=>x.toFixed(2);
+  if(c&&c.sig<0&&(g==="short"||g==="long")) out.push(`Preferred over company bonds: they pay ${f(c.now)} points extra, below their usual ${f(c.med)}, so the extra risk is poorly rewarded.`);
+  if(c&&c.sig>0&&g==="corp") out.push(`Company bonds favoured: they pay ${f(c.now)} points extra, well above their usual ${f(c.med)}.`);
+  if(k&&k.sig<0&&g==="short") out.push(k.cashBeats?`Short-dated preferred: Bank Rate (${k.bank.toFixed(2)}%) pays more than short gilts.`:`Short-dated preferred: longer gilts pay only ${f(k.slope)} points more.`);
+  if(k&&k.sig>0&&g==="long") out.push(`Longer gilts favoured: they pay ${f(k.slope)} points more than short ones.`);
+  if(i&&i.sig>0&&g==="linker") out.push(`Index-linked favoured: markets expect only about ${i.be.toFixed(1)}% inflation (CPI basis), so the protection is cheap.`);
+  if(i&&i.sig<0&&g==="long") out.push(`Ordinary gilts preferred over index-linked: markets already expect about ${i.be.toFixed(1)}% inflation.`);
+  return out.join(" "); }
+function bondRulesHTML(){ const B=BOND_RULES; if(!B) return ""; const name={credit:"Gilts or company bonds",curve:"Short or longer gilts",inflation:"Index-linked or ordinary gilts"};
+  const sp=x=>`Baa company bonds pay ${x.now.toFixed(2)} points over Treasuries, usual ${x.med.toFixed(2)}`;
+  const st={credit:x=>`${x.sig>0?"company bonds favoured":x.sig<0?"gilts favoured":"neutral"} (${sp(x)})`,
+    curve:x=>x.sig>0?`longer favoured (10y − 5y = ${x.slope.toFixed(2)})`:x.sig<0?(x.cashBeats?"short favoured (Bank Rate beats short gilts)":`short favoured (10y − 5y = ${x.slope.toFixed(2)})`):`neutral (10y − 5y = ${x.slope.toFixed(2)})`,
+    inflation:x=>x.sig>0?`index-linked favoured (expected inflation ${x.be.toFixed(1)}%)`:x.sig<0?`ordinary gilts favoured (expected inflation ${x.be.toFixed(1)}%)`:`neutral (expected inflation ${x.be.toFixed(1)}%)`};
+  return Object.keys(name).map(r=>{ const t=B.tests[r], x=B.now[r]; if(!x) return "";
+    return `<li><b>${name[r]}</b>: ${st[r](x)}. ${t?`Tested since ${monthYear(t.from)}: ${t.annual>=0?"+":"−"}${Math.abs(t.annual).toFixed(2)}% a year against a fixed split${t.hit!=null?`, right in ${Math.round(t.hit*100)}% of the weeks it acted`:""}, so it's <b>${t.on?"on":"off"}</b>.`:"Not enough history to test it, so it's <b>off</b>."}</li>`; }).join(""); }
 function fundScore(e,k,style,risk,ov){
   const prefs=sleevePrefs(k,style,risk,ov);
   let sc=1-prefs.indexOf(e.cat)*0.12+0.12*e.score-(e.signal==="Sell"?0.4:0)-(e.er||0)*0.3;
@@ -1283,6 +1333,7 @@ function loadRisk(j){ if(!j||!Array.isArray(j.dates)||!j.funds) return; const u=
   for(const t in j.funds) f[t]={r:Float64Array.from(j.funds[t].r,x=>x*u),from:j.funds[t].from,proxy:j.funds[t].proxy||null};
   RISKDATA={dates:j.dates,funds:f,asOf:j.as_of};
   if(j.macro&&typeof j.macro==="object"){ MACRO=j.macro; MACRO_PREV=j.macro_prev||null; }
+  BOND_RULES=j.macro_weekly&&typeof j.macro_weekly==="object"?bondRules(j.macro_weekly):null;
   if(j.splits&&typeof j.splits==="object"){ SPLITS=j.splits; if(typeof applySplits==="function") applySplits(); }
   if(j.yields&&Object.keys(j.yields).some(k=>typeof j.yields[k]==="number")) YIELDS=j.yields;
   if(YIELDS||MACRO){ DATA=DATA.map(analyze); if(typeof renderTable==="function") renderTable(); } }
@@ -1533,12 +1584,13 @@ function marketRow(b,money0,pct){ const M=MACRO; if(!M) return null;
   if(inf!=null) items.push(`<li><b>Expected inflation</b>: markets price about ${M.inflation.infl5.toFixed(1)}% a year over 5 years on the RPI measure, roughly ${inf.toFixed(1)}% on CPI. Used in the share base case and for the after-inflation figure.</li>`);
   if(M.pe){ const eqs=b.picks.map((e,i)=>({e,w:b.w[i]})).filter(x=>x.e.eqAnchor), ew=eqs.reduce((a,x)=>a+x.w,0), ey=ew?eqs.reduce((a,x)=>a+x.w*x.e.eqAnchor.ey,0)/ew:null;
     items.push(`<li><b>Share valuations (P/E)</b>: ${["US","Europe","UK","Japan","Emerging"].filter(r=>M.pe[r]).map(r=>`${r} ${M.pe[r]}`).join(" · ")}. ${ey!=null?`This mix's shares earn about ${ey.toFixed(1)}% of their price a year; their base case is half the ${BASE_RETURN.eq}% long-run assumption and half this earnings yield plus inflation, kept within 5–9%.`:""}</li>`); }
+  const br=bondRulesHTML(); if(br) items.push(`<li><b>Bond choices</b> (which bond funds, not how much in bonds):<ul class="mc-sub">${br}</ul></li>`);
   if(M.gpr){ const l=lvl(M.gpr), geo=b.stress.find(x=>/Geopolitical/.test(x.name)); if(l==="high") flags.push("geopolitical risk elevated");
     items.push(`<li><b>Geopolitical risk index ${M.gpr.now}</b>: ${l==="high"?"elevated":l==="low"?"quiet":"near normal"}, higher than ${M.gpr.pct}% of 30-day spells since 1985 (typical ${M.gpr.median}). It doesn't change the base case: news is usually priced in quickly, and no one forecasts its effect on a year reliably. ${geo?`If tension flares, the geopolitical stress test shows ${money0(geo.loss)} (${pct(geo.loss)}).`:""}</li>`); }
   if(!items.length) return null;
   const dates=[M.fetched?`updated ${new Date(M.fetched+"T12:00:00").toLocaleDateString(LOCALE,{day:"numeric",month:"short",year:"numeric"})}`:""].filter(Boolean).join("");
   return {short:flags.length?flags.map(x=>x.charAt(0).toUpperCase()+x.slice(1)).join(" · "):"Conditions close to normal",
-    full:`<ul class="mc-list">${items.join("")}</ul><p class="st-note">Sources: Cboe VIX and ICE MOVE (Yahoo), ICE BofA spreads (FRED), Bank of England implied inflation, index-fund P/E ratios (Yahoo), Caldara–Iacoviello geopolitical risk index; ${dates}. These move the inputs, not a headline-driven forecast.</p>`}; }
+    full:`<ul class="mc-list">${items.join("")}</ul><p class="st-note">Sources: Cboe VIX and ICE MOVE (Yahoo), ICE BofA and Moody's Baa spreads (FRED), Bank of England yields and implied inflation, index-fund P/E ratios (Yahoo), Caldara–Iacoviello geopolitical risk index; ${dates}. These move the inputs, not a headline-driven forecast.</p>`}; }
 function oneYearScenarios(base,R,vol){
   let strong,weak,sD,wD;
   // Strong: best 1 in 5 twelve-month periods. Weak: worst ~1 in 7 (15th percentile), but never milder than
@@ -1963,7 +2015,8 @@ function fundReason(b,i){
         :`Second core fund: ranked well in its category and adds little overlap.`; }
   } else if(k==="factor") why=`Adds a ${lcCat(cat.replace(/ factor$/i,""))} tilt: a different return driver from the broad market.`;
   else if(k==="thematic") why=`A small ${lcCat(cat)} satellite, kept down by the theme limit.`;
-  else if(k==="cash"||k==="bonds") why=(BOND_ROLE[cat]?BOND_ROLE[cat].replace(/^./,c=>c.toUpperCase()):`${cat.replace(/^Bonds: /,"")} bonds`)+".";
+  else if(k==="cash"||k==="bonds"){ why=(BOND_ROLE[cat]?BOND_ROLE[cat].replace(/^./,c=>c.toUpperCase()):`${cat.replace(/^Bonds: /,"")} bonds`)+".";
+    if(k==="bonds"){ const note=bondRuleNote(cat); if(note) why+=" "+note; } }
   else if(k==="gold"||(k==="real"&&/^Gold/.test(cat)&&!/miners/i.test(cat))) why="Gold: has tended to hold up when shares fall sharply.";
   else if(k==="comm"||(k==="real"&&/^Commodit/.test(cat))) why="Commodities: a hedge against inflation and supply shocks.";
   else if(k==="real") why=/Property|Real estate/i.test(cat)?"Property: rental income and some protection from inflation.":`Real assets: ${lcCat(cat)}.`;
@@ -2566,6 +2619,7 @@ async function runAudit(){
     <div class="au-scroll"><table class="au-t"><thead><tr>${head.map(x=>`<th>${x}</th>`).join("")}</tr></thead><tbody>
     ${rows.map(r=>`<tr class="${r.flags.length?"au-row-bad":""}" title="${esc(r.funds)}"><td>${r.risk}</td><td>${r.hl}</td><td>${r.nl}</td><td>${r.ov||"—"}</td><td>${r.mix}</td><td>${r.n}</td><td>${f(r.mu)}</td><td>${f(r.weak)}</td><td>${f(r.dd)}</td><td>${f(r.stress)}</td><td>${r.vol.toFixed(1)}%</td><td>${r.top}</td>
       <td>${r.flags.map(x=>`<span class="au-bad">${esc(x)}</span>`).join("<br>")}${r.info.length?`${r.flags.length?"<br>":""}<span class="au-info">${r.info.map(esc).join(" · ")}</span>`:""}</td></tr>`).join("")}</tbody></table></div>
+    ${BOND_RULES?`<p class="au-note"><b>Bond-choice rules</b>: ${Object.entries(BOND_RULES.tests).map(([r,t])=>`${r} ${t.annual>=0?"+":"−"}${Math.abs(t.annual).toFixed(2)}%/yr since ${monthYear(t.from)} (${t.on?"on":"off"})`).join(" · ")||"not enough history to test"}</p>`:""}
     ${(()=>{ const sus=DATA.map(e=>({e,w:dataSuspect(e)})).filter(x=>x.w); return sus.length?`<p class="au-note"><b class="au-bad">Data checks: ${sus.length} fund${sus.length>1?"s":""}</b> · ${sus.map(x=>`${x.e.t} ${esc(x.w)}`).join(" · ")}</p>`:`<p class="au-note"><b class="au-ok">Data checks: no implausible prices found</b></p>`; })()}
     <p class="au-note">Red rows break a rule or look inconsistent; grey notes are worth a glance but not necessarily wrong. Hover a row to see its holdings.</p>`;
   $("auCopy").onclick=()=>{ (navigator.clipboard?navigator.clipboard.writeText(csv):Promise.reject()).then(()=>{$("auCopy").textContent="Copied";})

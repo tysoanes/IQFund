@@ -79,6 +79,9 @@ PE_PROXIES = {"US": "SPY", "Europe": "VGK", "UK": "EWU", "Japan": "EWJ", "Asia P
               "Emerging": "EEM", "World": "ACWI"}                 # broad index funds: market P/E by region
 GPR_PAGE = "https://www.matteoiacoviello.com/gpr.htm"            # Caldara-Iacoviello geopolitical risk index
 MACRO_KEEP_DAYS = 60
+# weekly history of the inputs the bond-choice rules use, so the site can test the rules over ten years
+BOE_HISTORY = {"g5": "IUDSNPY", "g10": "IUDMNPY", "bank": "IUDBEDR", "infl10": "IUDMIZC"}
+FRED_HISTORY = {"baa": "BAA10Y"}    # Moody's Baa company bonds over 10-year Treasuries: decades of history
 
 
 def yahoo(sym):
@@ -480,6 +483,40 @@ def market_macro(cache, yields):
     return merged, prev
 
 
+def macro_weekly(dates):
+    """Weekly (Friday) values of gilt yields, Bank Rate, implied inflation and a long-history credit spread,
+    aligned with risk.json's weeks. Missing weeks are carried forward; anything unavailable is left out."""
+    out = {}
+    idx = pd.to_datetime(dates)
+    try:
+        start = (dt.date.fromisoformat(dates[0]) - dt.timedelta(days=30)).strftime("%d/%b/%Y")
+        rows = list(csv.reader(http_text(BOE_URL.format(start=start, codes=",".join(BOE_HISTORY.values())), timeout=60)
+                               .decode("utf-8", "replace").splitlines()))
+        head = [h.strip().upper() for h in rows[0]]
+        when = pd.to_datetime([r[0].strip() for r in rows[1:]], format="%d %b %Y", errors="coerce")
+        for key, code in BOE_HISTORY.items():
+            if code in head:
+                i = head.index(code)
+                v = pd.Series([float(r[i]) if len(r) > i and r[i].strip() not in ("", "n/a") else float("nan") for r in rows[1:]], index=when)
+                out[key] = v[v.index.notna()].sort_index()
+    except Exception as e:
+        print(f"  Bank of England history unavailable: {e}", flush=True)
+    for key, code in FRED_HISTORY.items():
+        try:
+            rows = list(csv.reader(http_text(FRED_URL.format(code=code), timeout=60).decode("utf-8", "replace").splitlines()))
+            vals = [(r[0], float(r[1])) for r in rows[1:] if len(r) > 1 and r[1] not in ("", ".")]
+            out[key] = pd.Series([v for _, v in vals], index=pd.to_datetime([d for d, _ in vals])).sort_index()
+        except Exception as e:
+            print(f"  {code} history unavailable: {e}", flush=True)
+    res = {}
+    for key, ser in out.items():
+        wk = ser.dropna().resample("W-FRI").last().ffill().reindex(idx, method="ffill")
+        if wk.notna().sum() > 52:
+            res[key] = [None if v != v else round(float(v), 3) for v in wk]
+    print(f"Weekly market history: {', '.join(f'{k} {sum(x is not None for x in v)} weeks' for k, v in res.items()) or 'none'}", flush=True)
+    return res
+
+
 def back_return(adj, months):
     """% change from the last close on or before `months` ago to the latest close."""
     start = adj.index[-1] - pd.DateOffset(months=months)
@@ -672,6 +709,7 @@ def main():
     if risk:
         risk["yields"] = market_yields(cache)
         risk["macro"], risk["macro_prev"] = market_macro(cache, risk["yields"])
+        risk["macro_weekly"] = macro_weekly(risk["dates"])
         # splits are remembered for good, so the site can adjust baskets saved before one
         known = cache.get("_splits", {})
         for sym, lst in SPLITS.items():
