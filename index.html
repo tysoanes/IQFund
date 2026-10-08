@@ -720,7 +720,7 @@ const BOND_CURVE={"Bonds: UK gilts":["g10",0],"Bonds: short UK gilts":["g5",0],"
 BOND_CURVE["Bonds: high yield"]=["us5",2.0];
 // Market conditions, refreshed daily in risk.json (each part optional): VIX/MOVE fear gauges, credit
 // spreads, market-implied inflation, regional P/E ratios and the geopolitical risk index.
-var MACRO=null, MACRO_PREV=null;
+var MACRO=null, MACRO_PREV=null, SPLITS=null;
 // Credit bonds: today's spread over government bonds, less expected default losses. [spread, share of it, loss]
 const BOND_CREDIT={"Bonds: sterling corporate":["ig",1,0.2],"Bonds: short sterling corporate":["ig",0.8,0.1],"Bonds: US corporate":["ig",1,0.2],
   "Bonds: high yield (GBP hedged)":["hy",1,2.0],"Bonds: high yield":["hy",1,2.0]};
@@ -1276,6 +1276,7 @@ function loadRisk(j){ if(!j||!Array.isArray(j.dates)||!j.funds) return; const u=
   for(const t in j.funds) f[t]={r:Float64Array.from(j.funds[t].r,x=>x*u),from:j.funds[t].from,proxy:j.funds[t].proxy||null};
   RISKDATA={dates:j.dates,funds:f,asOf:j.as_of};
   if(j.macro&&typeof j.macro==="object"){ MACRO=j.macro; MACRO_PREV=j.macro_prev||null; }
+  if(j.splits&&typeof j.splits==="object"){ SPLITS=j.splits; if(typeof applySplits==="function") applySplits(); }
   if(j.yields&&Object.keys(j.yields).some(k=>typeof j.yields[k]==="number")) YIELDS=j.yields;
   if(YIELDS||MACRO){ DATA=DATA.map(analyze); if(typeof renderTable==="function") renderTable(); } }
 function annVol(a){ const n=a.length; if(n<8) return null; let m=0; for(const x of a) m+=x; m/=n; let v=0; for(const x of a) v+=(x-m)*(x-m); return Math.sqrt(v/(n-1)*52)*100; }
@@ -1590,14 +1591,18 @@ function sweetRows(risk,style,real,ov,custom){
   const OV=horizonOverlay(), key=[risk,style,real,ov,OV?OV.id:"",custom?JSON.stringify(custom):""].join("|");
   if(SWEET_CACHE.key===key&&SWEET_CACHE.data===DATA) return SWEET_CACHE.rows;
   const rows=[]; for(let n=3;n<=10;n++){ const b=buildBundle(risk,n,ov,style,real,{probe:true,overlay:OV,custom:custom||null});
-    rows.push({n,b,eff:breadthOf(b),ov:b.ov.avg,maxW:Math.max(...b.w),minW:Math.min(...b.w),er:b.er,ok:!b.unresolved.length&&!b.overCap.length}); }
+    rows.push({n,b,eff:breadthOf(b),ov:b.ov.avg,maxW:Math.max(...b.w),minW:Math.min(...b.w),er:b.er,ok:!b.unresolved.length&&!b.overCap.length,
+      broken:b.overCap.length>0||b.hard.some(x=>!x.ok),excess:b.unresolved.reduce((a,u)=>a+Math.max(0,u.exp-u.cap)/u.cap,0)}); }
   SWEET_CACHE={key,data:DATA,rows}; return rows;
 }
 const SWEET_PENALTY=0.04;
 function sweetSpot(rows,amt,cur){
   const sizeOK=r=>amt*r.minW>=MIN_POSITION*rateOf(cur)||r.n===3;    // MIN_POSITION is in the data's base currency
   let pool=rows.filter(sizeOK); if(!pool.length) pool=[rows[0]];
-  const limitPool=pool.filter(r=>r.ok), use=limitPool.length?limitPool:pool;
+  // when no count meets every limit, never settle on one that breaks a fund cap or a hard rule (Risk 10 once
+  // picked 3 funds with 65% in one); among the rest, keep those closest to meeting the limits
+  const limitPool=pool.filter(r=>r.ok), sound=pool.filter(r=>!r.broken).length?pool.filter(r=>!r.broken):pool;
+  const minEx=Math.min(...sound.map(r=>r.excess)), use=limitPool.length?limitPool:sound.filter(r=>r.excess<=minEx*1.15+0.02);
   // score = breadth minus a complexity penalty: each extra fund has to add at least 4% of the best
   // breadth on offer to earn its place, so "more funds" doesn't automatically win
   const max=Math.max(...use.map(r=>r.eff)), score=r=>r.eff-SWEET_PENALTY*max*r.n;
@@ -2479,7 +2484,15 @@ function renderNotif(){ const btn=$("notifBtn");
   else if(Notification.permission==="denied"){ btn.hidden=true; $("notifMsg").textContent="Notifications are blocked in your browser settings."; } }
 $("notifBtn").addEventListener("click",()=>Notification.requestPermission().then(()=>{renderNotif(); notifyNew();}));
 renderNotif();
-Store.load().then(v=>{ BASKETS=Array.isArray(v)?v:[]; renderBaskets(); notifyNew(); });
+Store.load().then(v=>{ BASKETS=Array.isArray(v)?v:[]; applySplits(); renderBaskets(); notifyNew(); });
+/* Share splits: when a fund splits (GILS went 20-for-1 in July 2026), holdings bought before it get the
+   matching number of new shares at the matching price, so the basket's value doesn't appear to collapse. */
+function applySplits(){ if(!SPLITS||!Array.isArray(BASKETS)) return; let changed=false;
+  BASKETS.forEach(b=>(b.versions||[]).forEach(v=>(v.holdings||[]).forEach(h=>{
+    (SPLITS[h.t]||[]).forEach(sp=>{ if(!(sp.ratio>0)||h.since>=sp.date||(h.splitAdj||[]).includes(sp.date)) return;
+      h.units/=sp.ratio; h.entry*=sp.ratio; h.splitAdj=(h.splitAdj||[]).concat(sp.date); changed=true;
+      if(!b.log.some(l=>l.x.includes(`${h.t} share split`))) b.log.push({d:sp.date,x:`${h.t} share split: holding adjusted to the new share count (value unchanged)`}); }); })));
+  if(changed){ Store.save(); renderBaskets(); } }
 fetch("risk.json",{cache:"no-store"}).then(r=>r.ok?r.json():Promise.reject()).then(j=>{ loadRisk(j); renderBundle(); riskReport(); }).catch(()=>{});
 
 /* ---------- Audit matrix: open the page with ?audit (or ?audit=290000 for a specific amount; default
@@ -2490,6 +2503,12 @@ if(new URLSearchParams(location.search).has("audit")){
   const waitFor=(ok,ms=20000)=>new Promise(res=>{ const t0=Date.now(); (function poll(){ if(ok()||Date.now()-t0>ms) res(); else setTimeout(poll,200); })(); });
   waitFor(()=>RISKDATA&&!/^Sample/.test(SOURCE)).then(()=>setTimeout(runAudit,300));
 }
+// fund data that can't be right: a bond fund as volatile as shares, or a fall no fund like it could have
+function dataSuspect(e){ const crypto=/crypto|bitcoin|blockchain/i.test(e.cat||"");
+  if((e.cls==="bond"||e.cls==="hy")&&e.vol>20) return `volatility ${e.vol.toFixed(0)}% is implausible for a bond fund`;
+  if(!crypto&&e.dd<-75) return `worst fall ${e.dd.toFixed(0)}% looks like a price glitch or split`;
+  const R=RISKDATA&&RISKDATA.funds[e.t]; if(R&&!crypto){ let mx=0; for(const x of R.r) mx=Math.max(mx,Math.abs(x)); if(mx>=0.35) return `has a ${Math.round(mx*100)}% week in its price history`; }
+  return ""; }
 async function runAudit(){
   let el=document.getElementById("audit");
   if(!el){ el=document.createElement("section"); el.id="audit"; el.className="audit"; document.querySelector("header.top").after(el); }
@@ -2516,6 +2535,8 @@ async function runAudit(){
       if(worst.loss>dd+0.1) flags.push("stress test milder than worst past fall");
       if(sc.weak<dd-0.1) flags.push("weak year worse than worst past fall");
       if(prev&&b.mu<prev.mu-0.2) flags.push(`base case below Risk ${prev.risk}'s ${prev.mu.toFixed(1)}%`);
+      if(prev&&prev.vol>vol+1.5) flags.push(`less volatile than Risk ${prev.risk} (${vol.toFixed(1)}% vs ${prev.vol.toFixed(1)}%)`);
+      b.picks.forEach(e=>{ const bad=dataSuspect(e); if(bad) flags.push(`check data: ${e.t} ${bad}`); });
       if(prev&&dd>prev.dd+3&&!OV) info.push(`shallower worst fall than Risk ${prev.risk}`);
       const cashLike=["cash","bonds"].includes(b.sleeveOf[top]);
       if(b.w[top]>(cashLike?0.5:0.35)+1e-9) flags.push(`${b.picks[top].t} is ${r1(b.w[top]*100)}% of the basket`);
@@ -2523,7 +2544,7 @@ async function runAudit(){
       if(OV){ const w=assetMix(risk,style,real,null,null); if(Math.abs(w.eq-mx.eq)<0.1&&Math.abs((w.cash||0)-(mx.cash||0))<0.1) info.push("overlay changes nothing"); }
       rows.push({risk,hl,nl,ov:OV?OV.name:"",mix:`${r1(mx.eq)}/${r1(mx.cash||0)}/${r1(mx.bonds)}/${r1(mx.gold+mx.comm+(mx.real||0))}`,n,funds:b.picks.map((e,i)=>`${e.t} ${r1(b.w[i]*100)}`).join(", "),
         mu:b.mu,weak:sc.weak,dd,stress:worst.loss,vol,top:`${b.picks[top].t} ${r1(b.w[top]*100)}%`,flags,info});
-      prev={risk,mu:b.mu,dd};
+      prev={risk,mu:b.mu,dd,vol};
       await new Promise(r=>setTimeout(r,0));
     } }
   } finally {
@@ -2538,6 +2559,7 @@ async function runAudit(){
     <div class="au-scroll"><table class="au-t"><thead><tr>${head.map(x=>`<th>${x}</th>`).join("")}</tr></thead><tbody>
     ${rows.map(r=>`<tr class="${r.flags.length?"au-row-bad":""}" title="${esc(r.funds)}"><td>${r.risk}</td><td>${r.hl}</td><td>${r.nl}</td><td>${r.ov||"—"}</td><td>${r.mix}</td><td>${r.n}</td><td>${f(r.mu)}</td><td>${f(r.weak)}</td><td>${f(r.dd)}</td><td>${f(r.stress)}</td><td>${r.vol.toFixed(1)}%</td><td>${r.top}</td>
       <td>${r.flags.map(x=>`<span class="au-bad">${esc(x)}</span>`).join("<br>")}${r.info.length?`${r.flags.length?"<br>":""}<span class="au-info">${r.info.map(esc).join(" · ")}</span>`:""}</td></tr>`).join("")}</tbody></table></div>
+    ${(()=>{ const sus=DATA.map(e=>({e,w:dataSuspect(e)})).filter(x=>x.w); return sus.length?`<p class="au-note"><b class="au-bad">Data checks: ${sus.length} fund${sus.length>1?"s":""}</b> · ${sus.map(x=>`${x.e.t} ${esc(x.w)}`).join(" · ")}</p>`:`<p class="au-note"><b class="au-ok">Data checks: no implausible prices found</b></p>`; })()}
     <p class="au-note">Red rows break a rule or look inconsistent; grey notes are worth a glance but not necessarily wrong. Hover a row to see its holdings.</p>`;
   $("auCopy").onclick=()=>{ (navigator.clipboard?navigator.clipboard.writeText(csv):Promise.reject()).then(()=>{$("auCopy").textContent="Copied";})
     .catch(()=>{ const a=document.createElement("a"); a.href=URL.createObjectURL(new Blob([csv],{type:"text/csv"})); a.download="fndmngr-audit.csv"; a.click(); }); };

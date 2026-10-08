@@ -215,9 +215,58 @@ def fix_unit_glitches(s):
     return s
 
 
-def to_pounds(h, currency, fx):
-    """Convert a Close/Adj Close frame from its quote currency to pounds."""
+SPLITS = {}          # symbol -> [{"date", "ratio"}] found this run (ratio = new price / old price)
+
+
+def fix_splits(s, sym=None):
+    """A share split or consolidation shows up as a permanent jump in the price (GILS fell from 100.5 to
+    4.99 overnight in July 2026: a 20-for-1 split Yahoo didn't adjust). ETFs don't move 45% in a day, so
+    a jump that big which STAYS is rescaled away: earlier prices are multiplied by the ratio."""
+    s = s.copy()
+    v = s.to_numpy(dtype=float, copy=True)
+    for i in range(1, len(v)):
+        a, b = v[i - 1], v[i]
+        if not (a > 0 and b > 0):
+            continue
+        r = b / a
+        if 1 / 1.8 < r < 1.8:
+            continue
+        before = pd.Series(v[max(0, i - 5):i]).median()
+        after = pd.Series(v[i:i + 5]).median()
+        if before > 0 and abs((after / before) / r - 1) < 0.1:      # the new level holds: a split, not a spike
+            v[:i] = v[:i] * r
+            if sym:
+                SPLITS.setdefault(sym, [])
+                d = s.index[i].date().isoformat()
+                if not any(x["date"] == d for x in SPLITS[sym]):
+                    SPLITS[sym].append({"date": d, "ratio": round(float(r), 6)})
+    return pd.Series(v, index=s.index)
+
+
+def fix_spikes(s):
+    """One-day bad prints that snap straight back (on 24 Oct 2025 Yahoo priced several London funds 34%
+    too high for a single day). A price more than 20% away from the days either side of it is replaced."""
+    med = s.rolling(5, center=True, min_periods=3).median()
+    ratio = s / med
+    bad = (ratio > 1.25) | (ratio < 0.8)
+    bad.iloc[-2:] = False       # the latest days can't be checked against what comes next yet
+    if bad.any():
+        s = s.mask(bad).interpolate(limit_direction="both")
+    return s
+
+
+def clean_prices(h, sym=None):
     h = h.apply(fix_unit_glitches)
+    h = h.apply(lambda c: fix_splits(c, sym if c.name == "Close" else None))
+    h = h.apply(fix_spikes)
+    if len(h) > 60:
+        h = h.iloc[3:]          # a fund's first few trading days are often mispriced; similar funds stand in
+    return h
+
+
+def to_pounds(h, currency, fx, sym=None):
+    """Convert a Close/Adj Close frame from its quote currency to pounds."""
+    h = clean_prices(h, sym)
     if currency in ("GBp", "GBX"):
         return h / 100
     if currency == "GBP":
@@ -459,6 +508,17 @@ def update_history(hist):
     for s, h in hist.items():
         for d, c in h["Close"].iloc[-recent:].items():
             rows[(d.date().isoformat(), s)] = f"{float(c):.4f}"
+    # rows already in the file are refreshed from today's cleaned download, so a split or bad print
+    # corrected this run is corrected in the saved history too
+    closes = {s: {d.date().isoformat(): float(c) for d, c in h["Close"].items()} for s, h in hist.items()}
+    fixed = 0
+    for (d, s), old in list(rows.items()):
+        new = closes.get(s, {}).get(d)
+        if new is not None and abs(float(old) / new - 1) > 0.001:
+            rows[(d, s)] = f"{new:.4f}"
+            fixed += 1
+    if fixed:
+        print(f"history.csv: corrected {fixed} earlier prices (splits or bad prints)")
     cutoff = (dt.date.today() - dt.timedelta(days=HIST_KEEP_DAYS)).isoformat()
     with open(HIST_FILE, "w", newline="", encoding="utf-8") as f:
         w = csv.writer(f)
@@ -570,7 +630,7 @@ def main():
     hist, unknown = {}, []
     for s, h in raw.items():
         cur = cache.get(s, {}).get("currency")
-        conv = to_pounds(h, cur, fx) if cur else None
+        conv = to_pounds(h, cur, fx, s) if cur else None
         if conv is None:
             unknown.append(f"{s} ({cur or 'currency unknown'})")
         else:
@@ -606,6 +666,15 @@ def main():
     if risk:
         risk["yields"] = market_yields(cache)
         risk["macro"], risk["macro_prev"] = market_macro(cache, risk["yields"])
+        # splits are remembered for good, so the site can adjust baskets saved before one
+        known = cache.get("_splits", {})
+        for sym, lst in SPLITS.items():
+            for x in lst:
+                if not any(k["date"] == x["date"] for k in known.get(sym, [])):
+                    known.setdefault(sym, []).append(x)
+                    print(f"Share split found: {sym} on {x['date']}, price ratio {x['ratio']}", flush=True)
+        cache["_splits"] = known
+        risk["splits"] = known
         with open(INFO_CACHE, "w", encoding="utf-8") as f:   # keep the last good yields
             json.dump(cache, f, indent=1, sort_keys=True)
         with open(RISK_FILE, "w", encoding="utf-8") as f:
