@@ -515,6 +515,15 @@ html[data-theme="nightdesk"] dialog::backdrop{background:rgba(0,0,0,.6)}
 @media (prefers-reduced-motion:reduce){.mix-bar div{transition:none}}
 .style-pick{margin-top:6px}
 .use-set{display:flex;flex-wrap:wrap;gap:6px 12px;align-items:center;margin:0 0 12px}.use-set span{font-size:12.5px;color:var(--muted);flex:1 1 240px}
+.mkt-badge{all:unset;cursor:pointer;display:inline-flex;align-items:center;gap:6px;margin:0 12px 4px 0;padding:3px 10px;border:1px solid var(--line);border-radius:999px;font-size:12.5px;color:var(--ink);background:var(--panel);vertical-align:middle}
+.mkt-badge:hover{background:var(--hover)}.mkt-badge:focus-visible{outline:3px solid var(--cobalt);outline-offset:2px}
+.mkt-badge{white-space:nowrap}@media (max-width:600px){.mkt-badge .mkt-pre{display:none}.mkt-badge{margin:0 0 6px}}
+@media (max-width:600px){.mkt-t{font-size:12px}.mkt-t th,.mkt-t td{padding:5px 3px}.mkt-t th:nth-child(2),.mkt-t td:nth-child(2),.mkt-t th:nth-child(3),.mkt-t td:nth-child(3){display:none}}
+h3 .mkt-dot{width:14px;height:14px;vertical-align:middle;position:relative;top:-3px}
+.mkt-dot{width:9px;height:9px;border-radius:50%;flex:none}.mkt-up{background:#2E8B57}.mkt-mixed{background:#D9A21B}.mkt-down{background:#C0392B}
+.mkt-read{margin:6px 0 12px;padding-left:18px;font-size:14px;line-height:1.5}.mkt-read li{margin:0 0 4px}
+.mkt-t{width:100%;border-collapse:collapse;font-size:13.5px;font-variant-numeric:tabular-nums;margin:6px 0 10px}.mkt-t th,.mkt-t td{padding:6px 6px;border-bottom:1px solid var(--line);text-align:right}.mkt-t th:first-child,.mkt-t td:first-child{text-align:left}
+.mkt-note{font-size:12.5px;color:var(--muted);line-height:1.5;margin:6px 0}
 .from-basket{margin:-4px 0 12px;padding:8px 12px;font-size:13px;line-height:1.45;border-left:3px solid var(--cobalt);background:var(--hover,rgba(0,0,0,.04))}
 .from-basket button{all:unset;cursor:pointer;margin-left:6px;font-weight:600;text-decoration:underline;text-underline-offset:2px}
 .visitors{display:block;margin:2px 0 6px;font-size:13px;color:var(--muted)}.visitors b{color:var(--ink);font-variant-numeric:tabular-nums}
@@ -536,7 +545,7 @@ html[data-theme="nightdesk"] dialog::backdrop{background:rgba(0,0,0,.6)}
 <div class="wrap">
   <header class="top">
     <div class="brand">Fnd<span>Mngr</span></div>
-    <div class="asof"><label for="cur">Currency</label> <select id="cur"></select><br><span id="rateNote">Sample data — not live prices</span><br>
+    <div class="asof"><button type="button" id="mktBadge" class="mkt-badge" hidden></button><label for="cur">Currency</label> <select id="cur"></select><br><span id="rateNote">Sample data — not live prices</span><br>
       <details class="hdr-opts" id="hdrOpts"><summary>Options</summary><div class="hdr-opts-body">
       <span class="style-pick"><label for="themeSel">Style</label> <select id="themeSel"><option value="monograph">Monograph</option><option value="broadsheet">Broadsheet</option><option value="ledger">Ledger</option><option value="harbour">Harbour</option><option value="nightdesk">Night desk</option><option value="classic">Classic</option></select></span><br>
       <span id="visitors" class="visitors" hidden></span><label class="upload">Load CSV<input type="file" id="csvFile" accept=".csv,text/csv" hidden></label></div></details>
@@ -721,7 +730,7 @@ const BOND_CURVE={"Bonds: UK gilts":["g10",0],"Bonds: short UK gilts":["g5",0],"
 BOND_CURVE["Bonds: high yield"]=["us5",2.0];
 // Market conditions, refreshed daily in risk.json (each part optional): VIX/MOVE fear gauges, credit
 // spreads, market-implied inflation, regional P/E ratios and the geopolitical risk index.
-var MACRO=null, MACRO_PREV=null, SPLITS=null, BOND_RULES=null;
+var MACRO=null, MACRO_PREV=null, SPLITS=null, BOND_RULES=null, MW=null;
 // Credit bonds: today's spread over government bonds, less expected default losses. [spread, share of it, loss]
 const BOND_CREDIT={"Bonds: sterling corporate":["ig",1,0.2],"Bonds: short sterling corporate":["ig",0.8,0.1],"Bonds: US corporate":["ig",1,0.2],
   "Bonds: high yield (GBP hedged)":["hy",1,2.0],"Bonds: high yield":["hy",1,2.0]};
@@ -1333,7 +1342,8 @@ function loadRisk(j){ if(!j||!Array.isArray(j.dates)||!j.funds) return; const u=
   for(const t in j.funds) f[t]={r:Float64Array.from(j.funds[t].r,x=>x*u),from:j.funds[t].from,proxy:j.funds[t].proxy||null};
   RISKDATA={dates:j.dates,funds:f,asOf:j.as_of};
   if(j.macro&&typeof j.macro==="object"){ MACRO=j.macro; MACRO_PREV=j.macro_prev||null; }
-  BOND_RULES=j.macro_weekly&&typeof j.macro_weekly==="object"?bondRules(j.macro_weekly):null;
+  MW=j.macro_weekly&&typeof j.macro_weekly==="object"?j.macro_weekly:null;
+  BOND_RULES=MW?bondRules(MW):null;
   if(j.splits&&typeof j.splits==="object"){ SPLITS=j.splits; if(typeof applySplits==="function") applySplits(); }
   if(j.yields&&Object.keys(j.yields).some(k=>typeof j.yields[k]==="number")) YIELDS=j.yields;
   if(YIELDS||MACRO){ DATA=DATA.map(analyze); if(typeof renderTable==="function") renderTable(); } }
@@ -2212,7 +2222,7 @@ setCurrency(CUR,false);
 renderPresets();
 $("csvFile").addEventListener("change",ev=>{const f=ev.target.files[0]; if(!f) return;
   f.text().then(t=>{try{loadFunds(t,f.name);$("csvMsg").textContent="";}catch(err){$("csvMsg").textContent=err.message+" Check the column headers.";}});});
-fetch("funds.csv",{cache:"no-store"}).then(r=>r.ok?r.text():Promise.reject()).then(t=>{ loadFunds(t,"funds.csv"); notifyNew(); }).catch(()=>{});
+fetch("funds.csv",{cache:"no-store"}).then(r=>r.ok?r.text():Promise.reject()).then(t=>{ loadFunds(t,"funds.csv"); notifyNew(); if(RISKDATA) try{ renderMarketBadge(); }catch(e){} }).catch(()=>{});
 /* ---------- Saved baskets ----------
    Stored on this device: Claude's artifact storage when available, otherwise the browser's localStorage. */
 let BASKETS=[], MEM=[], HIST={};
@@ -2545,6 +2555,51 @@ function renderNotif(){ const btn=$("notifBtn");
 $("notifBtn").addEventListener("click",()=>Notification.requestPermission().then(()=>{renderNotif(); notifyNew();}));
 renderNotif();
 Store.load().then(v=>{ BASKETS=Array.isArray(v)?v:[]; applySplits(); renderBaskets(); notifyNew(); });
+/* ---------- Markets today ----------
+   Describes what markets are doing NOW from four readings (trend, breadth, stress, distance from the high),
+   with how weeks like this turned out historically. It is not a forecast and changes no basket. */
+const MKT_WORLD=["VWRL","VWRP","SWDA","HMWO","VHVG"], MKT_FWD=13;
+const MKT_LABEL={up:"Uptrend, calm",mixed:"Mixed",down:"Downtrend, stressed"};
+function marketHistory(){
+  if(!RISKDATA) return null; const F=RISKDATA.funds, D=RISKDATA.dates, n=D.length, wt=MKT_WORLD.find(t=>F[t]); if(!wt||n<120) return null;
+  const navOf=t=>{ const r=F[t].r, a=new Float64Array(n); let v=1; for(let i=0;i<n;i++){ v*=1+r[i]; a[i]=v; } return a; };
+  const ma=a=>{ const m=new Float64Array(n); let s=0; for(let i=0;i<n;i++){ s+=a[i]; if(i>=40) s-=a[i-40]; m[i]=i>=39?s/40:NaN; } return m; };
+  const W=navOf(wt), WM=ma(W);
+  const eq=DATA.filter(e=>e.cls==="eq"&&F[e.t]&&!/crypto|bitcoin/i.test(e.cat||"")).map(e=>{ const a=navOf(e.t); return {a,m:ma(a)}; });
+  const vix=MW&&MW.vix, vixMed=vix?(()=>{ const v=vix.filter(x=>x!=null).sort((a,b)=>a-b); return v[Math.floor(v.length/2)]; })():null;
+  const baa=MW&&MW.baa;
+  const at=t=>{ const trend=W[t]/WM[t]-1; let hi=0; for(let i=Math.max(0,t-51);i<=t;i++) hi=Math.max(hi,W[i]); const dd=W[t]/hi-1;
+    const breadth=eq.filter(x=>x.a[t]>x.m[t]).length/(eq.length||1);
+    const v=t===n-1&&MACRO&&MACRO.vix?MACRO.vix.now:vix?vix[t]:null, vm=t===n-1&&MACRO&&MACRO.vix?MACRO.vix.median:vixMed;
+    let b=null,bm=null; if(baa&&baa[t]!=null){ const h=baa.slice(Math.max(0,t-156),t+1).filter(x=>x!=null).sort((a,c)=>a-c); b=baa[t]; bm=h[Math.floor(h.length/2)]; }
+    const vixHigh=v!=null&&vm?v>1.25*vm:false, credHigh=b!=null&&bm?b>1.15*bm:false, stress=vixHigh||credHigh;
+    const state=trend>0&&breadth>=0.55&&!stress&&dd>-0.08?"up":trend<0&&(stress||breadth<0.35||dd<-0.12)?"down":"mixed";
+    return {t,state,trend,dd,breadth,vix:v,vixMed:vm,baa:b,baaMed:bm,vixHigh,credHigh}; };
+  const rows=[]; for(let t=51;t<n;t++) rows.push(at(t));
+  const stats={}; for(const k of ["up","mixed","down"]){ const f=[]; let spells=0, prev=null;
+    rows.forEach(r=>{ if(r.state===k&&prev!==k) spells++; prev=r.state; if(r.state===k&&r.t+MKT_FWD<n) f.push(W[r.t+MKT_FWD]/W[r.t]-1); });
+    f.sort((a,b)=>a-b); stats[k]={weeks:f.length,spells,pos:f.length?f.filter(x=>x>0).length/f.length:null,med:f.length?f[Math.floor(f.length/2)]:null,p10:f.length?f[Math.floor(f.length*0.1)]:null}; }
+  return {now:rows[rows.length-1],stats,world:wt,from:D[51],n}; }
+var MKT=null;
+function renderMarketBadge(){ MKT=marketHistory(); const el=$("mktBadge"); if(!el) return; if(!MKT){ el.hidden=true; return; }
+  el.innerHTML=`<span class="mkt-dot mkt-${MKT.now.state}" aria-hidden="true"></span><span class="mkt-pre">Markets today: </span>${MKT_LABEL[MKT.now.state]}`;
+  el.setAttribute("aria-label",`Markets today: ${MKT_LABEL[MKT.now.state]}. Show details`); el.hidden=false; }
+function openMarket(){ const M=MKT; if(!M) return; const x=M.now, p=v=>(v>=0?"+":"−")+Math.abs(v*100).toFixed(1)+"%", e=$("dlgBody");
+  const statRow=k=>{ const s=M.stats[k]; return `<tr${x.state===k?' style="font-weight:700"':""}><td><span class="mkt-dot mkt-${k}" style="display:inline-block;margin-right:6px"></span>${MKT_LABEL[k]}</td><td>${s.weeks}</td><td>${s.spells}</td><td>${s.pos!=null?Math.round(s.pos*100)+"%":"–"}</td><td>${s.med!=null?p(s.med):"–"}</td><td>${s.p10!=null?p(s.p10):"–"}</td></tr>`; };
+  e.innerHTML=`<div class="dlg-h"><div><h3 id="dTitle"><span class="mkt-dot mkt-${x.state}" style="display:inline-block;margin-right:8px"></span>Markets today: ${MKT_LABEL[x.state]}</h3><p>What markets are doing now, as of ${fmtDate(RISKDATA.asOf||ASOF)}. A description, not a forecast.</p></div><button class="close" onclick="dlg.close()">Close</button></div>
+  <ul class="mkt-read">
+   <li><b>Trend</b>: world shares (${M.world}) are ${Math.abs(x.trend*100).toFixed(1)}% ${x.trend>=0?"above":"below"} their 40-week (about 200-day) average.</li>
+   <li><b>Breadth</b>: ${Math.round(x.breadth*100)}% of the site's share funds are above their own 40-week average${x.breadth>=0.55?", so the rise is broad":x.breadth<0.35?", so weakness is widespread":""}.</li>
+   <li><b>From the high</b>: world shares are ${x.dd>-0.005?"at":`${Math.abs(x.dd*100).toFixed(1)}% below`} their 52-week high.</li>
+   <li><b>Stress</b>: ${x.vix!=null?`fear gauge (VIX) ${x.vix.toFixed(1)} against a typical ${x.vixMed.toFixed(1)}`:"fear gauge not available"}${x.baa!=null?`; company bonds pay ${x.baa.toFixed(2)} points over Treasuries, usual ${x.baaMed.toFixed(2)}`:""}. ${x.vixHigh||x.credHigh?"Above normal.":"Normal."}</li>
+  </ul>
+  <h4>How weeks like this turned out</h4>
+  <p class="mkt-note">World shares ${MKT_FWD} weeks (about 3 months) later, every week since ${monthYear(M.from)}: how often they were higher, the typical change, and the worst 1 in 10.</p>
+  <div style="overflow-x:auto"><table class="mkt-t"><thead><tr><th>Markets</th><th>Weeks</th><th>Spells</th><th>Higher</th><th>Typical</th><th>Worst 1 in 10</th></tr></thead><tbody>${["up","mixed","down"].map(statRow).join("")}</tbody></table></div>
+  <p class="mkt-note">Read this with care: ten years hold only a handful of separate spells of each kind, and just two big falls, in 2020 and 2022. Shares rose in most 3-month spells whatever the badge said, and turning points can't be seen in advance. That's why this badge never changes a basket: your risk setting decides how much is in shares.</p>
+  <p class="mkt-note">How it's decided: <b>Uptrend, calm</b> when world shares are above their average, at least 55% of funds are too, stress is normal and the fall from the high is under 8%. <b>Downtrend, stressed</b> when world shares are below their average and stress is high, fewer than 35% of funds are above theirs, or the fall from the high is over 12%. Otherwise <b>Mixed</b>. Weekly prices in pounds, dividends included.</p>`;
+  e.onclick=null; if(!dlg.open) dlg.showModal(); }
+document.addEventListener("click",ev=>{ if(ev.target.closest("#mktBadge")) openMarket(); });
 /* Share splits: when a fund splits (GILS went 20-for-1 in July 2026), holdings bought before it get the
    matching number of new shares at the matching price, so the basket's value doesn't appear to collapse. */
 function applySplits(){ if(!SPLITS||!Array.isArray(BASKETS)) return; let changed=false;
@@ -2553,7 +2608,7 @@ function applySplits(){ if(!SPLITS||!Array.isArray(BASKETS)) return; let changed
       h.units/=sp.ratio; h.entry*=sp.ratio; h.splitAdj=(h.splitAdj||[]).concat(sp.date); changed=true;
       if(!b.log.some(l=>l.x.includes(`${h.t} share split`))) b.log.push({d:sp.date,x:`${h.t} share split: holding adjusted to the new share count (value unchanged)`}); }); })));
   if(changed){ Store.save(); renderBaskets(); } }
-fetch("risk.json",{cache:"no-store"}).then(r=>r.ok?r.json():Promise.reject()).then(j=>{ loadRisk(j); renderBundle(); riskReport(); }).catch(()=>{});
+fetch("risk.json",{cache:"no-store"}).then(r=>r.ok?r.json():Promise.reject()).then(j=>{ loadRisk(j); renderBundle(); riskReport(); try{ renderMarketBadge(); }catch(e){ console.error(e); } }).catch(()=>{});
 
 /* ---------- Audit matrix: open the page with ?audit (or ?audit=290000 for a specific amount; default
    is the amount box or £100,000, whichever is larger, since small amounts force very few funds) ----------

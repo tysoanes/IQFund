@@ -79,6 +79,7 @@ PE_PROXIES = {"US": "SPY", "Europe": "VGK", "UK": "EWU", "Japan": "EWJ", "Asia P
               "Emerging": "EEM", "World": "ACWI"}                 # broad index funds: market P/E by region
 GPR_PAGE = "https://www.matteoiacoviello.com/gpr.htm"            # Caldara-Iacoviello geopolitical risk index
 MACRO_KEEP_DAYS = 60
+VOL_HISTORY = {}                    # daily VIX / MOVE closes from this run, for the weekly history
 # weekly history of the inputs the bond-choice rules use, so the site can test the rules over ten years
 BOE_HISTORY = {"g5": "IUDSNPY", "g10": "IUDMNPY", "bank": "IUDBEDR", "infl10": "IUDMIZC"}
 FRED_HISTORY = {"baa": "BAA10Y"}    # Moody's Baa company bonds over 10-year Treasuries: decades of history
@@ -388,6 +389,7 @@ def market_macro(cache, yields):
         for key, sym in VOL_INDEXES.items():
             if sym in raw:
                 c = raw[sym]["Close"].dropna()
+                VOL_HISTORY[key] = c
                 now = float(c.iloc[-5:].mean())                       # a 1-week average, so one spike day doesn't rule
                 out[key] = {"now": round(now, 1), "median": round(float(c.median()), 1),
                             "pct": pct_rank(c.tolist(), now), "as_of": c.index[-1].date().isoformat()}
@@ -508,6 +510,9 @@ def macro_weekly(dates):
             out[key] = pd.Series([v for _, v in vals], index=pd.to_datetime([d for d, _ in vals])).sort_index()
         except Exception as e:
             print(f"  {code} history unavailable: {e}", flush=True)
+    for key in ("vix",):
+        if key in VOL_HISTORY:
+            out[key] = VOL_HISTORY[key]
     res = {}
     for key, ser in out.items():
         wk = ser.dropna().resample("W-FRI").last().ffill().reindex(idx, method="ffill")
