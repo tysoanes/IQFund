@@ -554,6 +554,12 @@ def build_risk(hist, rows, as_of, stand_ins=None):
     start_ok = counts[counts >= min(MIN_FUNDS_FOR_START, len(weekly))]
     if len(start_ok):
         rets = rets[rets.index >= start_ok.index[0]]
+    # a fund's first weeks are often mispriced (FWRG showed +60% in its first full week), so for funds that
+    # launched inside the window, the first two weekly returns come from its stand-in or similar funds instead
+    for s in rets:
+        first = rets[s].first_valid_index()
+        if first is not None and first > rets.index[0]:
+            rets.loc[rets.index[rets.index.get_loc(first):rets.index.get_loc(first) + 2], s] = float("nan")
     real_from = {s: rets[s].first_valid_index() for s in rets}
     groups = {}
     for s in rets:

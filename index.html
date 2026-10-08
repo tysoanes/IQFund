@@ -976,6 +976,13 @@ const THEME_SETS={semiconductors:["US_SEMI","INTL_SEMI"],"artificial intelligenc
   defence:["DEF_US","DEF_EU"],uranium:["URANIUM"],"clean energy":["CLEAN"],"crypto stocks":["CRYPTO_EQ"],"gold miners":["MINERS","JUNIOR_MINERS"],"healthcare innovation":["HEALTH_INNOV"]};
 const FACTOR_SETS={quality:["QUALITY"],value:["VALUE"],momentum:["MOMENTUM"],"minimum volatility":["MINVOL"],"small-cap":["US_SMALL","INTL_SMALL"]};
 const shareIn=(e,dims)=>{ const pr=profileOf(e), t=Object.values(pr).reduce((a,v)=>a+v,0)||1; return dims.reduce((a,d)=>a+(pr[d]||0),0)/t; };
+// Technology is about a quarter of a world index fund by itself, so a fixed 25% limit would flag almost any
+// all-equity basket. Its limit is the world weight plus an allowance that grows with risk (+5, +10, +15
+// points of equities), never tighter than the general 25% of the basket.
+const TECH_ALLOW=r=>r<=6?5:r<=8?10:15;
+function worldShare(dims){ const pr=PROFILES["Global stocks"]||{}, t=Object.values(pr).reduce((a,v)=>a+v,0)||1; return dims.reduce((a,d)=>a+(pr[d]||0),0)/t*100; }
+function sectorCap(name,risk,eqW){ if(name!=="technology") return 25;
+  return Math.max(25,(worldShare(SECTOR_SETS.technology)+TECH_ALLOW(risk))*eqW/100); }
 function exposureLimits(risk,eqPct){
   const emLim=emShareLimit(risk), eqW=eqPct==null?100:eqPct;
   // look-through, not labels: EM held inside global, international and dividend funds counts too
@@ -984,7 +991,7 @@ function exposureLimits(risk,eqPct){
   // quietly create a concentration in another (e.g. EM out, UK in)
   for(const [reg,pct] of Object.entries(REGION_LIMITS)) L.push({id:"region:"+reg,label:reg+" exposure",cap:pct*eqW/100,regPct:pct,group:"Regions",
     share:e=>e.cls==="eq"?regionShare(e,reg):0});
-  for(const [n,d] of Object.entries(SECTOR_SETS)) L.push({id:"sector:"+n,label:n+" sector",cap:25,share:e=>shareIn(e,d),group:"Sectors"});
+  for(const [n,d] of Object.entries(SECTOR_SETS)) L.push({id:"sector:"+n,label:n+" sector",cap:sectorCap(n,risk,eqW),share:e=>shareIn(e,d),group:"Sectors"});
   for(const [n,d] of Object.entries(THEME_SETS)) L.push({id:"theme:"+n,label:n,cap:risk>=8?15:10,share:e=>shareIn(e,d),group:"Themes"});
   for(const [n,d] of Object.entries(FACTOR_SETS)) L.push({id:"factor:"+n,label:n+" factor",cap:20,share:e=>shareIn(e,d),group:"Factors"});
   return L;
