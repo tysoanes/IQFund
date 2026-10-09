@@ -288,6 +288,10 @@ dialog::backdrop{background:rgba(20,33,61,.45)}
 .trk{display:inline-flex;align-items:center;gap:5px;margin-top:8px;font-size:13px;font-weight:600}
 .trk-ok{color:var(--buy)}.trk-behind{color:#8A6A1F}.trk-well{color:var(--sell)}.trk-early{color:var(--muted);font-weight:500}
 .trk-note{margin:10px 0 0;font-size:14px;line-height:1.5}.trk-note .trk{margin:0 6px 0 0}
+.bwrap{position:relative}
+.bfav{position:absolute;top:10px;right:10px;width:34px;height:34px;border:0;background:none;cursor:pointer;font-size:22px;line-height:1;color:var(--muted);border-radius:6px}
+.bfav:hover{background:var(--hover)}.bfav.on{color:#C9971C}.bfav:focus-visible{outline:3px solid var(--cobalt);outline-offset:1px}
+.bwrap .badge{right:50px}.bwrap .bcard h3{padding-right:44px}.bwrap .bcard:has(.badge) h3{padding-right:120px}
 .badge{position:absolute;top:14px;right:14px;background:var(--sell-bg);color:var(--sell);font:700 12px var(--body);padding:3px 9px;border-radius:99px}
 .bnums{display:grid;grid-template-columns:repeat(3,1fr);gap:10px;margin:16px 0}
 .bnums div{background:var(--soft);border-radius:8px;padding:10px}
@@ -2485,7 +2489,12 @@ function basketOutlookHTML(b,s){
 function renderBaskets(){
   const el=$("basketList"); if(!el) return;
   if(!BASKETS.length){ el.innerHTML=`<p class="lead" style="grid-column:1/-1">No saved baskets yet. Build one above and tap “Save basket”.</p>`; return; }
-  el.innerHTML=BASKETS.map(b=>{ const s=basketStats(b), n=alertsFor(b).length, old=(b.base||"USD")!==BASE&&LIVE;
+  // favourites first; otherwise the order they were saved in
+  const list=BASKETS.map((b,i)=>({b,i})).sort((x,y)=>(!!y.b.fav-!!x.b.fav)||x.i-y.i).map(x=>x.b);
+  const star=b=>`<button type="button" class="bfav${b.fav?" on":""}" data-fav="${b.id}" aria-pressed="${!!b.fav}" aria-label="${b.fav?"Remove "+esc(b.name)+" from favourites":"Mark "+esc(b.name)+" as a favourite"}" title="${b.fav?"Favourite: kept at the top":"Mark as favourite"}">${b.fav?"★":"☆"}</button>`;
+  el.innerHTML=list.map(b=>`<div class="bwrap">${cardOf(b)}${star(b)}</div>`).join("");
+}
+function cardOf(b){ { const s=basketStats(b), n=alertsFor(b).length, old=(b.base||"USD")!==BASE&&LIVE;
     if(old) return `<button class="bcard" data-id="${b.id}" aria-label="${esc(b.name)}, saved with the old US fund list">
       <h3>${esc(b.name)}</h3><div class="meta">Saved ${fmtDate(b.created)} · old US fund list</div>
       <div class="val" style="font-size:17px">Prices no longer update</div><div class="meta">Save it again with the London funds</div></button>`;
@@ -2494,7 +2503,7 @@ function renderBaskets(){
       ${n?`<span class="badge">${n} alert${n>1?"s":""}</span>`:""}
       <h3>${esc(b.name)}</h3><div class="meta">Saved ${fmtDate(b.created)} · ${s.hs.length} funds${(b.base||"USD")!==BASE&&LIVE?" · old US fund list":""}</div>
       <div class="val">${moneyIn(s.localNow,b.cur)}</div>
-      <div class="ret ${Math.round(s.ret*1000)>=0?"pos":"neg"}">${pct(s.ret*100)} <span class="meta">on ${moneyIn(b.invested,b.cur)}</span></div>${trackBadge(b,s)}</button>`;}).join("");
+      <div class="ret ${Math.round(s.ret*1000)>=0?"pos":"neg"}">${pct(s.ret*100)} <span class="meta">on ${moneyIn(b.invested,b.cur)}</span></div>${trackBadge(b,s)}</button>`;}
 }
 function openBasket(id){
   const b=BASKETS.find(x=>x.id===id); if(!b) return;
@@ -2614,7 +2623,9 @@ async function importBaskets(file){
 }
 $("exportBtn").addEventListener("click",exportBaskets);
 $("importFile").addEventListener("change",ev=>{ const f=ev.target.files[0]; if(f) importBaskets(f); ev.target.value=""; });
-$("basketList").addEventListener("click",ev=>{const c=ev.target.closest(".bcard"); if(c) openBasket(c.dataset.id);});
+$("basketList").addEventListener("click",ev=>{
+  const f=ev.target.closest("[data-fav]"); if(f){ const b=BASKETS.find(x=>x.id===f.dataset.fav); if(b){ b.fav=!b.fav; Store.save(); renderBaskets(); const again=document.querySelector(`[data-fav="${b.id}"]`); if(again) again.focus(); } return; }
+  const c=ev.target.closest(".bcard"); if(c) openBasket(c.dataset.id);});
 function renderNotif(){ const btn=$("notifBtn");
   if(!("Notification" in window)){ btn.hidden=true; $("notifMsg").textContent="This browser can't show notifications, so alerts appear on your baskets instead."; return; }
   if(Notification.permission==="granted"){ btn.hidden=true; $("notifMsg").textContent="Notifications on — you'll be alerted when you open FndMngr."; }
