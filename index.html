@@ -514,6 +514,8 @@ html[data-theme="nightdesk"] dialog::backdrop{background:rgba(0,0,0,.6)}
 .mix-stats div{margin:0}.mix-stats dt{font-size:12px;color:var(--muted)}.mix-stats dd{margin:0;font-weight:600;font-size:15px}
 @media (prefers-reduced-motion:reduce){.mix-bar div{transition:none}}
 .style-pick{margin-top:6px}
+.adv{margin:0 0 14px;padding:10px 12px;border-left:3px solid var(--line);background:var(--hover,rgba(0,0,0,.03));font-size:14px;line-height:1.5}.adv p{margin:0 0 6px}
+.adv-list{margin:4px 0 6px;padding-left:18px}.adv-list li{margin:0 0 10px}.adv-acts{margin-top:6px}.adv-note{font-size:12.5px;color:var(--muted)}
 .use-set{display:flex;flex-wrap:wrap;gap:6px 12px;align-items:center;margin:0 0 12px}.use-set span{font-size:12.5px;color:var(--muted);flex:1 1 240px}
 .mkt-badge{all:unset;cursor:pointer;display:inline-flex;align-items:center;gap:6px;margin:0 12px 4px 0;padding:3px 10px;border:1px solid var(--line);border-radius:999px;font-size:12.5px;color:var(--ink);background:var(--panel);vertical-align:middle}
 .mkt-badge:hover{background:var(--hover)}.mkt-badge:focus-visible{outline:3px solid var(--cobalt);outline-offset:2px}
@@ -2392,6 +2394,67 @@ function trackDetail(b,s){
   const need=b.plan&&b.plan.need==="yes"&&tr.status==="well"&&s.localNow<b.invested?` It's ${moneyIn(b.invested-s.localNow,b.cur)} below the ${moneyIn(b.invested,b.cur)} you said you'd need.`:"";
   return `<p class="trk-note">${trackBadge(b,s)} ${f(tr.actual)} since saving vs a planned ${f(tr.expected)} by now (normal range ${f(tr.lo)} to ${f(tr.hi)}). ${why}${need}${tr.plan.estimated?" <i>Plan estimated from today's figures: this basket was saved before plans were recorded.</i>":""}</p>`;
 }
+/* ---------- Behind plan: reassure with evidence, or diagnose and suggest ----------
+   "Behind" gets the basket's own history: how often a mix like this, this far behind after this long,
+   was back on plan a year later. "Well behind" gets a diagnosis and only the suggestions that fit:
+   rebalance, replace a lagging fund, protect a near goal, or a small hedge while stress is high.
+   Nothing changes unless the user chooses it, and selling shares just because markets fell is never suggested. */
+function holdWeights(b,hs,useEntry){ const v=hs.map(h=>h.units*(useEntry?h.entry:priceNow(h))), t=v.reduce((a,c)=>a+c,0)||1; return v.map(x=>x/t); }
+function recoveryOdds(b,tr){
+  if(!RISKDATA||!tr||!tr.plan) return null; const hs=b.versions[0].holdings, F=RISKDATA.funds;
+  if(hs.some(h=>!F[h.t])) return null;
+  const w=holdWeights(b,hs,true), n=RISKDATA.dates.length, nav=new Float64Array(n+1); nav[0]=1;
+  for(let t=0;t<n;t++){ let r=0; hs.forEach((h,i)=>r+=w[i]*F[h.t].r[t]); nav[t+1]=nav[t]*(1+r); }
+  const k=Math.max(4,Math.round(tr.days/7)), base=tr.plan.base/100, vol=tr.plan.vol/100;
+  const exp=x=>Math.pow(1+base,x/52)-1, sd=x=>vol*Math.sqrt(x/52);
+  const zNow=(tr.actual/100-exp(k))/sd(k); let cases=0, back=0;
+  for(let s0=0;s0+k+52<=n;s0+=2){ const z=(nav[s0+k]/nav[s0]-1-exp(k))/sd(k);
+    if(z<=zNow+0.25&&z>=zNow-0.5){ cases++; if(nav[s0+k+52]/nav[s0]-1>=exp(k+52)-0.5*sd(k+52)) back++; } }
+  return cases>=15?{cases,back,share:back/cases}:null; }
+function peerReturn(cat,since,skip){ const v=DATA.filter(x=>x.cat===cat&&!skip.has(x.t)).map(x=>{ const p0=priceOn(x.t,since,null); return p0?x.p/p0-1:null; }).filter(x=>x!=null);
+  return v.length?{r:v.reduce((a,c)=>a+c,0)/v.length,n:v.length}:null; }
+function basketAdvice(b,s){
+  const tr=trackStatus(b,s); if(!tr||tr.status==="early"||tr.status==="ok") return "";
+  const pc=x=>(x>=0?"+":"−")+Math.abs(x*100).toFixed(1)+"%";
+  if(tr.status==="behind"){ const o=recoveryOdds(b,tr);
+    return `<div class="adv"><p><b>No action suggested.</b> Being this far behind is within this mix's normal ups and downs.${o?` In its own history since ${monthYear(RISKDATA.dates[0])}, a mix like this, this far behind after this long, was back on plan a year later in ${Math.round(o.share*10)} of 10 cases (${o.cases} periods checked).`:""} Selling now would lock in the dip.</p></div>`; }
+  // well behind: what caused it
+  const hs=s.hs, inB=new Set(hs.map(h=>h.t)), since=b.versions[b.versions.length-1].from;
+  const contrib=hs.map(h=>{ const now=h.units*priceNow(h), was=h.units*h.entry; return {h,ret:priceNow(h)/h.entry-1,pts:(now-was)/(b.usdInvested||1)}; }).sort((a,c)=>a.pts-c.pts);
+  const losers=contrib.filter(x=>x.pts<-0.002).slice(0,3), fine=contrib.filter(x=>x.ret>=-0.01).map(x=>x.h.t);
+  const sug=[];
+  // 1. rebalance when weights have drifted
+  const wT=holdWeights(b,hs,true), wN=holdWeights(b,hs,false), drift=wT.reduce((a,x,i)=>a+Math.abs(x-wN[i]),0)/2;
+  if(drift>=0.03){ const big=hs.map((h,i)=>({t:h.t,d:wN[i]-wT[i]})).sort((a,c)=>a.d-c.d), under=big.filter(x=>x.d<-0.01).slice(0,2), over=big.filter(x=>x.d>0.01).slice(-2);
+    sug.push(`<li><b>Rebalance back to the plan weights.</b> The fall has moved ${Math.round(drift*100)}% of the basket away from its plan${under.length?`: ${under.map(x=>{ const v=Math.round(x.d*-100); return `${x.t} ${v} point${v===1?"":"s"} under`; }).join(", ")}`:""}${over.length?`, ${over.map(x=>`${x.t} ${Math.round(x.d*100)} over`).join(", ")}`:""}. Topping up what fell from what held up is rules-based buying low, and the one response here with good evidence behind it.
+      <div class="adv-acts"><button class="ghost" data-rebal="1">Rebalance (adds a new version)</button></div></li>`); }
+  // 2. a fund lagging funds like it
+  let reps=0;
+  for(const x of contrib){ const e=DATA.find(d=>d.t===x.h.t); if(!e||reps>=2) continue; const peer=peerReturn(e.cat,x.h.since||since,inB);
+    if(peer&&x.ret<=-0.05&&x.ret<peer.r-0.08){ reps++; const rep=DATA.filter(d=>d.cat===e.cat&&!inB.has(d.t)&&d.signal!=="Sell").sort((a,c)=>c.score-a.score)[0];
+      if(rep) sug.push(`<li><b>Replace ${x.h.t}.</b> It's ${pc(x.ret)} since you added it, while similar ${esc(e.cat.replace(/^Bonds: /,""))} funds averaged ${pc(peer.r)}: that's a fund problem, not the market. ${rep.t} does the same job.
+        <div class="adv-acts"><button class="ghost" data-swap="${x.h.t}" data-rep="${rep.t}">Replace with ${rep.t}</button></div></li>`); } }
+  // 3. a near goal: secure what's left
+  const pl=b.plan||{}, h=+(pl.horizon||0), yrsGone=tr.days/365.25, left=h?Math.max(0,(h===11?10:h)-yrsGone):null;
+  const eqNow=hs.reduce((a,x,i)=>{ const e=DATA.find(d=>d.t===x.t); return a+(e&&(e.cls==="eq"||e.cls==="reit")?wN[i]:0); },0);
+  if(h&&h<=5){ const capEq=h<=1?10:h<=2?15:40;
+    if(pl.need==="yes"&&(b.overlayOff||eqNow*100>capEq+3)) sug.push(`<li><b>Protect the goal.</b> You said you'd need all of this ${left!=null?`in about ${left<1?"under a year":Math.round(left)+" year"+(Math.round(left)===1?"":"s")}`:"soon"}, and it's ${Math.round(eqNow*100)}% in shares, above the ${capEq}% the capital-protection limits allow for that. With little time to recover, securing what's left can matter more than waiting.
+      <div class="adv-acts"><button class="ghost" data-preview='{"overlayOff":false}'>Preview the protected version</button></div></li>`);
+    else if(pl.need!=="yes") sug.push(`<li><b>If you'll need all of it ${h<=2?"within 2 years":"in 3–5 years"}</b>, the protected version shows what securing it would look like. If not, waiting usually serves better.
+      <div class="adv-acts"><button class="ghost" data-preview='{"need":"yes","overlayOff":false}'>Preview the protected version</button></div></li>`); }
+  // 4. a small hedge, only while stress is high and the basket has none
+  const hedge=hs.reduce((a,x,i)=>{ const e=DATA.find(d=>d.t===x.t); return a+(e&&(e.cls==="gold"||/short UK gilts|ultra-short|cash/i.test(e.cat))?wN[i]:0); },0);
+  if(MKT&&MKT.now.state==="down"&&hedge<0.05&&eqNow>0.4&&(b.real||3)<5) sug.push(`<li><b>A small hedge.</b> Markets are in a stressed downtrend and this basket holds ${Math.round(hedge*100)}% in gold or short-dated gilts. One step up in Real assets adds some. Be aware hedges bought after a fall usually cost money: weeks like this were often followed by rebounds.
+      <div class="adv-acts"><button class="ghost" data-preview='{"real":${Math.min(5,(b.real||3)+1)}}'>Preview with more real assets</button></div></li>`);
+  return `<div class="adv"><p><b>Why it's behind:</b> ${losers.length?losers.map(x=>`${x.h.t} ${pc(x.ret)}`).join(", ")+` account${losers.length===1?"s":""} for most of the shortfall`:"small falls across the basket"}${fine.length?`; ${fine.slice(0,3).join(", ")} ${fine.length===1?"is":"are"} on or above plan`:""}.</p>
+    ${sug.length?`<p><b>Options that fit this basket</b> (nothing changes unless you choose it):</p><ul class="adv-list">${sug.join("")}</ul>`:`<p>No change fits better than waiting: the weights are still close to plan and no fund is lagging others like it. Falls like this are part of the risk level chosen.</p>`}
+    <p class="adv-note">Not suggested: selling shares because markets fell. Over a few months that has mostly done harm in this data. General information, not personal advice.</p></div>`;
+}
+function rebalance(b){ const hs=holdingsOf(b), wT=holdWeights(b,hs,true), tot=hs.reduce((a,h)=>a+h.units*priceNow(h),0);
+  const out=hs.map((h,i)=>{ const p=priceNow(h), units=tot*wT[i]/p; return {...h,units,entry:units>h.units?(h.units*h.entry+(units-h.units)*p)/units:h.entry}; });
+  b.log.push({d:ASOF,x:"Rebalanced back to the plan weights"});
+  if(b.versions[b.versions.length-1].from===ASOF) b.versions[b.versions.length-1].holdings=out; else b.versions.push({from:ASOF,holdings:out});
+  Store.save(); renderBaskets(); openBasket(b.id); }
 /* Outlook & risk for a saved basket: same engine as the builder, from today's value, funds and weights */
 function basketOutlookHTML(b,s){
   const picks=[], w=[];
@@ -2449,7 +2512,7 @@ function openBasket(id){
     <div><small>Invested</small><b>${moneyIn(b.invested,b.cur)}</b></div>
     <div><small>Fund return</small><b class="${Math.round(s.ret*1000)>=0?"pos":"neg"}">${pct(s.ret*100)}</b></div>
   </div>
-  ${(b.base||"USD")===BASE||!LIVE?trackDetail(b,s)+basketOutlookHTML(b,s):""}
+  ${(b.base||"USD")===BASE||!LIVE?trackDetail(b,s)+basketAdvice(b,s)+basketOutlookHTML(b,s):""}
   ${(b.base||"USD")!==BASE&&LIVE?`<p class="alertbox" style="font-size:14px">This basket was saved with the old US fund list, so its prices no longer update. Build and save it again to track the London-listed funds.</p>`:""}
   ${b.cur!==(b.base||"USD")?`<p style="font-size:13px;color:var(--muted);margin:-6px 0 10px">Value includes a ${pct(s.fxMove*100)} move in the ${b.base||"USD"}/${b.cur} rate since you saved.</p>`:""}
   <div class="chart">${chartSVG(days)}</div>
@@ -2470,6 +2533,8 @@ function openBasket(id){
     const f=ev.target.closest("[data-fund]"); if(f){ openDetail(f.dataset.fund,`In ${b.name}`,null,()=>openBasket(b.id)); return; }
     const sw=ev.target.closest("[data-swap]"); if(sw){ swap(b,sw.dataset.swap,sw.dataset.rep||null); return; }
     if(ev.target.closest("#useSettings")){ loadBasketSettings(b); return; }
+    const rb=ev.target.closest("[data-rebal]"); if(rb){ if(rb.dataset.confirm){ rebalance(b); } else { rb.dataset.confirm=1; rb.textContent="Tap again to rebalance"; } return; }
+    const pv=ev.target.closest("[data-preview]"); if(pv){ let o={}; try{ o=JSON.parse(pv.dataset.preview); }catch(e){} loadBasketSettings(b,o); return; }
     if(ev.target.id==="delBasket"){ if(ev.target.dataset.confirm){ BASKETS=BASKETS.filter(x=>x.id!==b.id); Store.save(); renderBaskets(); dlg.close(); }
       else { ev.target.dataset.confirm=1; ev.target.textContent="Tap again to delete"; } }
   };
@@ -2480,7 +2545,7 @@ dlg.addEventListener("close",()=>{ $("dlgBody").onclick=null; });
    today's data, so they can differ a little from what was saved. Older baskets didn't store every setting;
    the gaps keep their current values. */
 var FROM_BASKET=null;
-function loadBasketSettings(b){
+function loadBasketSettings(b,ov){ ov=ov||{};
   if(b.cur&&b.cur!==CUR&&[...$("cur").options].some(o=>o.value===b.cur)){ $("cur").value=b.cur; setCurrency(b.cur,false); }
   const amt=b.cur===CUR?b.invested:niceRound(b.invested*rateOf(CUR,b.cur));
   if(amt>0){ $("amount").value=Math.round(amt).toLocaleString(LOCALE); amountTouched=true; sizeAmount(); }
@@ -2490,8 +2555,10 @@ function loadBasketSettings(b){
   if(b.plan){ $("horizonSel").value=b.plan.horizon||""; $("needSel").value=b.plan.need||""; }
   if(typeof b.low==="boolean") $("overlapToggle").checked=b.low;
   OVERLAY_OFF=!!b.overlayOff;
+  if(ov.need!=null) $("needSel").value=ov.need; if(ov.overlayOff!=null) OVERLAY_OFF=ov.overlayOff; if(ov.real!=null){ $("realSlider").value=ov.real; }
   CUSTOM_MIX=b.custom&&typeof b.custom.eq==="number"?{eq:b.custom.eq,cash:b.custom.cash||0,bonds:b.custom.bonds||0,gold:b.custom.gold||0,comm:b.custom.comm||0}:null;
   AIM.active=null; AIM.target=""; $("aimSel").value=""; $("aimPills").innerHTML=""; $("aimTag").hidden=true;
+  if(ov.real!=null&&CUSTOM_MIX) CUSTOM_MIX=null;   // more real assets: back to the risk level's mix so the setting applies
   FROM_BASKET=b.name; NAME_EDITED=true; $("basketName").value=uniqueName(b.name.replace(/ \(\d+\)$/,"")+" v2");
   remember(); renderBundle(); if($("amountPreset").options.length) renderPresets();
   const fb=$("fromBasket"); fb.innerHTML=`Started from “${esc(b.name)}”${b.one?" (a one-fund basket, so the builder suggests a full basket at the same settings)":""}. Funds are picked from today's data, so they may differ a little from what was saved. Change anything, then save as a new basket.<button type="button" id="fromClear">Clear</button>`; fb.hidden=false;
