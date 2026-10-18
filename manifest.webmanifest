@@ -1,0 +1,15 @@
+{
+  "name": "FndMngr: ETF baskets",
+  "short_name": "FndMngr",
+  "description": "Build a diversified basket of London-listed ETFs and see the risk before you invest.",
+  "start_url": "./",
+  "scope": "./",
+  "display": "standalone",
+  "background_color": "#FAFAF7",
+  "theme_color": "#1C1C1E",
+  "icons": [
+    {"src": "icon-192.png", "sizes": "192x192", "type": "image/png"},
+    {"src": "icon-512.png", "sizes": "512x512", "type": "image/png"},
+    {"src": "icon-maskable-512.png", "sizes": "512x512", "type": "image/png", "purpose": "maskable"}
+  ]
+}
