@@ -1,100 +1,100 @@
 ticker,name,category,class,expense_ratio,price,low_52w,high_52w,ma_200,return_3m,return_6m,return_1y,return_5y,volatility,max_drawdown,pe,pe_10y_avg,yield,rsi,currency,quote_currency,as_of
-VWRL,Vanguard FTSE All-World UCITS ETF,Global stocks,eq,,137.06,119.02,142.2,132.9068,0.59,6.56,14.76,11.0,11.7,-17.5,,,1.41,37.0,GBP,GBP,2026-10-22
-VWRP,Vanguard FTSE All-World UCITS ETF USD Accumulation,Global stocks,eq,,141.9,122.26,147.18,136.7921,0.58,6.56,14.79,11.0,11.8,-17.6,,,0.0,37.0,GBP,GBP,2026-10-22
-FWRG,Invesco FTSE All-World UCITS ETF USD Accumulation,Global stocks,eq,,6.998,6.026,7.247,6.7374,0.76,6.71,14.91,,12.5,-18.9,,,0.0,38.0,GBP,GBp,2026-10-22
-SSAC,iShares MSCI All Country World UCITS ETF USD Acc,Global stocks,eq,0.2,90.91,78.22,94.27,87.5836,0.53,6.65,14.93,11.1,12.0,-18.0,,,0.0,37.0,GBP,GBp,2026-10-22
-SWDA,iShares Core MSCI World UCITS ETF USD (Acc),Developed world,eq,0.2,108.82,93.18,111.83,104.0503,1.24,7.53,14.57,11.5,12.0,-18.5,,,0.0,40.0,GBP,GBp,2026-10-22
-IWRD,iShares MSCI World UCITS ETF USD (Dist),Developed world,eq,0.5,78.005,67.26,80.13,74.9195,1.05,6.75,13.27,9.9,12.0,-19.1,,,0.01,40.0,GBP,GBp,2026-10-22
-HMWO,HSBC MSCI World UCITS ETF,Developed world,eq,0.15,36.7825,31.705,37.8225,35.3046,0.87,6.82,13.23,10.0,12.1,-19.0,,,0.01,40.0,GBP,GBp,2026-10-22
-VEVE,Vanguard FTSE Developed World UCITS ETF USD Distributing,Developed world,eq,,106.8,91.92,110.42,102.8863,1.0,7.48,15.75,11.7,12.0,-18.3,,,1.36,39.0,GBP,GBP,2026-10-22
-VHVG,Vanguard FTSE Developed World UCITS ETF USD Accumulation,Developed world,eq,,112.86,96.47,116.76,108.2106,0.91,7.41,15.61,11.7,11.8,-18.0,,,0.0,39.0,GBP,GBP,2026-10-22
-WLDS,iShares MSCI World Small Cap UCITS ETF USD (Acc),Global small cap,eq,0.35,7.561,6.465,7.974,7.4988,-2.48,2.19,15.16,6.7,14.3,-21.6,,,0.0,39.0,GBP,GBP,2026-10-22
-AVGS,Avantis Global Small Cap Value UCITS ETF USD Acc,Global small value,eq,0.39,21.1835,16.8134,22.1374,20.5647,-1.86,4.68,25.53,,17.2,-22.0,11.9,,0.0,44.0,GBP,USD,2026-10-22
-MVOL,iShares Edge MSCI World Minimum Volatility UCITS ETF USD (Acc),Global min volatility,eq,0.3,59.5958,53.2718,59.5958,56.0509,6.53,9.12,7.99,6.7,10.8,-11.2,20.7,,0.0,67.0,GBP,USD,2026-10-22
-IWFQ,iShares Edge MSCI World Quality Factor UCITS ETF USD (Acc),Global quality factor,eq,0.3,67.34,57.73,68.93,63.7936,2.31,8.37,16.06,10.4,11.7,-18.0,,,0.0,46.0,GBP,GBp,2026-10-22
-IWFV,iShares Edge MSCI World Value Factor UCITS ETF USD (Acc),Global value factor,eq,0.3,58.58,41.33,62.18,54.8919,-0.83,16.46,41.74,16.9,13.4,-13.8,,,0.0,30.0,GBP,GBp,2026-10-22
-IWFM,iShares Edge MSCI World Momentum Factor UCITS ETF USD (Acc),Global momentum factor,eq,0.3,81.78,68.88,93.9,81.851,-6.65,4.58,16.41,10.8,18.3,-20.4,,,0.0,29.0,GBP,GBp,2026-10-22
-VUSA,Vanguard S&P 500 UCITS ETF,US large cap blend,eq,,108.6425,91.4475,112.015,102.9619,2.26,9.19,15.47,13.0,13.0,-20.9,,,0.94,41.0,GBP,GBP,2026-10-22
-VUAG,Vanguard S&P 500 UCITS ETF USD Accumulation,US large cap blend,eq,,110.92,92.98,114.36,104.7651,2.23,9.13,15.41,13.0,13.1,-20.9,,,0.0,41.0,GBP,GBP,2026-10-22
-CSP1,iShares Core S&P 500 UCITS ETF USD (Acc),US large cap blend,eq,0.07,618.46,518.44,637.82,584.2118,2.21,9.11,15.35,13.0,12.9,-20.8,,,0.0,41.0,GBP,GBp,2026-10-22
-IUSA,iShares Core S&P 500 UCITS ETF USD Dist,US large cap blend,eq,0.07,57.075,48.0525,58.865,54.1103,1.98,8.64,14.31,11.7,13.1,-21.4,,,0.01,41.0,GBP,GBp,2026-10-22
-SPXP,Invesco S&P 500 UCITS ETF,US large cap blend,eq,0.05,11.522,9.653,11.882,10.8797,2.25,9.21,15.51,13.2,13.0,-20.8,,,0.0,41.0,GBP,GBp,2026-10-22
-HSPX,HSBC S&P 500 UCITS ETF,US large cap blend,eq,0.09,57.888,48.738,59.706,54.8797,1.74,8.64,14.37,11.7,12.9,-21.2,,,0.01,41.0,GBP,GBp,2026-10-22
-IGUS,iShares S&P 500 GBP Hedged UCITS ETF (Acc),US large cap (GBP hedged),eq,0.2,175.77,146.61,179.74,167.1405,2.09,7.84,14.75,11.1,14.0,-25.7,24.4,,0.0,44.0,GBP,GBp,2026-10-22
-VNRT,Vanguard FTSE North America UCITS ETF,US total market,eq,,139.8,117.7025,144.105,132.4798,2.26,9.18,15.3,12.6,13.1,-21.1,,,0.96,41.0,GBP,GBP,2026-10-22
-XDEW,Xtrackers S&P 500 Equal Weight UCITS ETF 1C,US equal weight,eq,0.2,90.4644,77.1172,91.9446,85.7484,2.04,8.63,15.17,8.6,19.7,-19.3,20.7,,0.0,57.0,GBP,USD,2026-10-22
-SPY4,State Street SPDR S&P 400 US Mid Cap UCITS ETF,US mid cap,eq,0.3,84.1818,74.0413,90.4413,84.3736,-4.54,0.67,11.91,6.9,17.9,-26.3,19.5,,0.0,41.0,GBP,USD,2026-10-22
-R2US,State Street SPDR Russell 2000 US Small Cap UCITS ETF,US small cap,eq,0.3,60.4912,51.7932,67.0307,60.8702,-6.66,0.77,13.76,5.5,20.9,-30.0,16.1,,0.0,41.0,GBP,USD,2026-10-22
-IUQA,iShares Edge MSCI USA Quality Factor UCITS ETF USD (Acc),US quality factor,eq,0.2,14.136,11.9004,14.5225,13.295,3.01,9.88,15.55,11.6,14.4,-20.6,26.9,,0.0,45.0,GBP,USD,2026-10-22
-MOGB,VanEck Morningstar US ESG Wide Moat UCITS ETF,US wide moat,eq,0.49,53.095,43.89,53.095,47.8201,12.39,14.99,10.89,5.7,13.8,-22.7,,,0.0,72.0,GBP,GBP,2026-10-22
-EQQQ,Invesco EQQQ NASDAQ-100 UCITS ETF,US growth (Nasdaq 100),eq,0.3,532.39,428.81,576.62,507.1421,-0.01,9.62,17.06,14.3,17.9,-28.2,,,0.0,36.0,GBP,GBp,2026-10-22
-CNX1,iShares NASDAQ 100 UCITS ETF USD (Acc),US growth (Nasdaq 100),eq,0.3,1252.0,1006.3,1355.3,1191.0595,0.08,9.77,17.44,14.7,18.0,-27.6,,,0.0,36.0,GBP,GBp,2026-10-22
-IITU,iShares S&P 500 Information Technology Sector UCITS ETF USD (Acc),Sector: tech,eq,0.15,37.99,27.92,41.83,34.8126,2.65,15.19,23.06,21.3,22.3,-28.0,,,0.0,36.0,GBP,GBp,2026-10-22
-IUFS,iShares S&P 500 Financials Sector UCITS ETF USD (Acc),Sector: financials,eq,0.15,12.487,10.6632,12.8118,11.8008,0.64,9.51,8.48,9.1,17.0,-19.1,15.7,,0.0,56.0,GBP,USD,2026-10-22
-IUHC,iShares S&P 500 Health Care Sector UCITS ETF USD (Acc),Sector: health,eq,0.15,10.976,8.4698,10.976,9.4693,13.57,25.98,25.38,8.8,15.8,-19.7,31.3,,0.0,64.0,GBP,USD,2026-10-22
-IUES,iShares S&P 500 Energy Sector UCITS ETF USD (Acc),Sector: energy,eq,0.15,10.5507,6.8102,10.8394,9.0945,12.88,20.44,55.51,22.7,22.8,-24.6,19.5,,0.0,56.0,GBP,USD,2026-10-22
-USDV,State Street SPDR S&P US Dividend Aristocrats UCITS ETF Dis,US dividend growth,eq,0.35,65.48,57.12,66.35,62.2225,3.31,9.5,15.11,8.0,11.4,-16.3,,,2.17,76.0,GBP,GBP,2026-10-22
-FUSD,Fidelity US Quality Income UCITS ETF Inc,US dividend income,eq,0.3,10.3045,8.841,10.4591,9.7453,3.05,9.99,17.88,12.7,13.7,-20.2,22.6,,1.41,50.0,GBP,USD,2026-10-22
-JEGP,JPM Global Equity Premium Income Active UCITS ETF - USD (dist),Covered-call income,eq,0.35,20.07,18.816,21.005,19.6367,6.37,8.53,7.53,,15.3,-21.0,,,8.26,65.0,GBP,GBp,2026-10-22
-SMGB,VanEck Semiconductor UCITS ETF,Sector: semiconductors,eq,0.35,72.53,41.9,94.19,70.541,-13.26,17.12,68.11,31.2,34.0,-36.2,,,0.0,31.0,GBP,GBP,2026-10-22
-SEMI,iShares MSCI Global Semiconductors UCITS ETF USD Acc,Sector: semiconductors,eq,0.35,13.412,7.478,18.366,13.2204,-13.87,14.26,74.54,21.2,35.9,-45.2,,,0.0,30.0,GBP,GBP,2026-10-22
-INRG,iShares Global Clean Energy Transition UCITS ETF USD (Dist),Clean energy,eq,0.65,6.94,6.8875,10.055,8.078,-13.63,-17.99,0.66,-6.6,33.6,-58.5,,,0.01,32.0,GBP,GBp,2026-10-22
-HEAL,iShares Healthcare Innovation UCITS ETF USD (Acc),Healthcare innovation,eq,0.4,8.2898,6.2091,8.345,7.0785,15.65,26.15,29.09,2.9,18.0,-33.8,25.3,,0.0,59.0,GBP,USD,2026-10-22
-RBOT,iShares Automation & Robotics UCITS ETF USD (Acc),Robotics & automation,eq,0.4,15.7067,11.2401,17.3884,14.4087,4.84,16.33,28.24,9.7,23.5,-33.6,33.5,,0.0,39.0,GBP,USD,2026-10-22
-ISPY,L&G Cyber Security UCITS ETF,Cyber security,eq,0.69,35.96,20.26,38.86,28.6891,11.68,49.4,49.4,12.9,25.7,-31.8,,,0.0,49.0,GBP,GBp,2026-10-22
-AIAG,L&G Artificial Intelligence UCITS ETF,Artificial intelligence,eq,0.49,29.185,19.098,33.71,26.0201,2.75,24.67,37.8,14.8,25.8,-41.6,,,0.0,35.0,GBP,GBp,2026-10-22
-ESGB,VanEck Video Gaming and eSports UCITS ETF A USD,Video gaming,eq,0.55,49.3,42.67,57.01,46.3399,11.53,7.03,-11.71,9.8,19.0,-37.6,,,0.0,53.0,GBP,GBP,2026-10-22
-DFNG,VanEck Defense ETF A USD Acc,Defence,eq,0.55,42.64,42.045,55.55,47.9736,-2.5,-15.14,-8.64,,21.9,-24.3,,,0.0,41.0,GBP,GBP,2026-10-22
-WDEP,WisdomTree Europe Defence UCITS ETF - EUR Acc,Defence,eq,0.4,25.64,24.41,31.8846,27.6485,-2.36,-6.13,-7.08,,32.5,-23.4,,,0.0,45.0,GBP,GBp,2026-10-22
-NUCG,VanEck Uranium and Nuclear Technologies UCITS ETF A USD Acc,Uranium & nuclear,eq,0.55,32.33,32.33,51.28,42.5366,-15.11,-30.03,-26.3,,35.6,-37.8,,,0.0,28.0,GBP,GBP,2026-10-22
-DAGB,VanEck Crypto& Blockchain Innovators ETF A USD Acc,Crypto & blockchain stocks,eq,0.65,8.1375,7.65,13.998,9.7696,-20.48,-20.59,-31.27,-9.0,67.2,-91.2,,,0.0,29.0,GBP,GBP,2026-10-22
-IB1T,iShares Bitcoin ETP,Crypto: bitcoin,eq,,6.0805,4.3865,8.667,5.4608,23.39,4.02,,,40.8,-49.4,,,,48.0,GBP,GBP,2026-10-22
-ISF,iShares Core FTSE 100 UCITS ETF GBP (Dist),UK large cap (FTSE 100),eq,0.07,10.448,9.284,10.676,10.2686,0.14,1.69,12.66,8.2,11.3,-13.2,16.7,,3.09,53.0,GBP,GBp,2026-10-22
-CUKX,iShares VII PLC - iShares Core FTSE 100 ETF GBP Acc,UK large cap (FTSE 100),eq,0.07,221.35,190.0,224.65,214.312,1.0,3.92,16.5,12.2,11.2,-12.9,16.7,,0.0,53.0,GBP,GBp,2026-10-22
-VUKE,Vanguard FTSE 100 UCITS ETF,UK large cap (FTSE 100),eq,,46.475,41.455,47.595,45.6936,0.98,3.94,15.87,12.1,11.2,-12.8,16.7,,3.15,52.0,GBP,GBP,2026-10-22
-VUKG,Vanguard FTSE 100 UCITS ETF GBP Accumulation,UK large cap (FTSE 100),eq,,57.82,49.9,58.64,56.0003,1.0,3.94,15.94,12.3,11.4,-12.2,16.7,,1.25,53.0,GBP,GBP,2026-10-22
-VMID,Vanguard FTSE 250 UCITS ETF,UK mid cap (FTSE 250),eq,,36.795,31.905,38.305,35.6921,2.06,7.11,12.75,4.3,13.1,-28.8,15.8,,3.41,46.0,GBP,GBP,2026-10-22
-VMIG,Vanguard FTSE 250 UCITS ETF GBP Accumulation,UK mid cap (FTSE 250),eq,,46.03,38.99,47.42,43.9017,2.15,7.4,12.83,4.4,13.1,-28.8,16.0,,1.22,48.0,GBP,GBP,2026-10-22
-MIDD,iShares FTSE 250 UCITS ETF GBP (Dist),UK mid cap (FTSE 250),eq,0.4,22.315,19.376,23.2,21.6519,0.85,4.93,8.7,0.7,13.4,-30.5,15.5,,3.12,46.0,GBP,GBp,2026-10-22
-IUKD,iShares UK Dividend UCITS ETF GBP (Dist),UK dividend,eq,0.4,10.124,8.774,10.508,9.9716,-1.89,2.22,16.16,6.8,12.2,-24.0,14.5,,4.67,53.0,GBP,GBp,2026-10-22
-UKDV,State Street SPDR S&P UK Dividend Aristocrats UCITS ETF,UK dividend,eq,0.3,13.372,11.5,13.942,12.8359,1.13,10.56,17.85,8.2,13.4,-18.6,16.4,,3.73,58.0,GBP,GBP,2026-10-22
-VEUR,Vanguard FTSE Developed Europe UCITS ETF,Europe,eq,,41.345,38.235,43.8,41.8315,-2.71,2.12,10.58,9.2,11.9,-16.4,,,2.77,42.0,GBP,GBP,2026-10-22
-VERX,Vanguard FTSE Developed Europe ex UK UCITS ETF Distributing,Europe ex UK,eq,,41.005,38.085,43.985,41.8833,-3.82,1.57,8.91,8.3,12.7,-20.3,,,2.63,39.0,GBP,GBP,2026-10-22
-IMEU,iShares Core MSCI Europe UCITS ETF EUR (Dist),Europe,eq,0.12,33.355,30.67,35.365,33.6414,-3.48,0.41,7.8,6.4,11.9,-17.5,,,0.02,42.0,GBP,GBp,2026-10-22
-VJPN,Vanguard FTSE Japan UCITS ETF USD Distributing,Japan,eq,,38.3275,32.6525,40.575,37.2053,2.34,9.05,19.58,10.0,17.1,-15.9,,,1.88,37.0,GBP,GBP,2026-10-22
-IJPN,iShares MSCI Japan UCITS ETF USD (Dist),Japan,eq,0.59,18.48,15.63,19.66,17.8981,2.38,8.78,18.18,8.1,17.6,-17.5,,,0.02,36.0,GBP,GBp,2026-10-22
-VAPX,Vanguard FTSE Developed Asia Pacific ex Japan UCITS ETF USD Distributing,Asia Pacific ex Japan,eq,,30.5075,22.9425,38.145,31.7065,-6.89,0.54,33.81,10.7,20.5,-19.8,,,2.29,33.0,GBP,GBP,2026-10-22
-IAPD,iShares Asia Pacific Dividend UCITS ETF USD (Dist),Asia Pacific dividend,eq,0.59,23.62,20.1225,24.46,23.3519,0.13,0.71,17.43,6.4,12.3,-18.4,,,0.04,40.0,GBP,GBp,2026-10-22
-VFEM,Vanguard FTSE Emerging Markets UCITS ETF USD Distributing,Emerging markets,eq,,58.285,54.605,63.625,60.036,-3.34,-1.62,6.47,5.6,14.3,-19.2,,,2.22,27.0,GBP,GBP,2026-10-22
-EMIM,iShares Core MSCI EM IMI UCITS ETF USD (Acc),Emerging markets,eq,0.18,38.0,32.42,43.76,38.9124,-4.55,-1.07,15.08,7.3,16.5,-21.0,,,0.0,29.0,GBP,GBp,2026-10-22
-IEEM,iShares MSCI EM UCITS ETF USD (Dist),Emerging markets,eq,0.18,45.8475,39.455,53.6675,47.4196,-5.61,-1.97,13.93,4.9,17.1,-24.0,,,0.02,29.0,GBP,GBp,2026-10-22
-FRIN,Franklin FTSE India UCITS ETF,India,eq,0.19,29.36,28.63,34.895,30.7083,-3.66,-5.11,-15.03,2.6,14.3,-22.4,,,0.0,42.0,GBP,GBP,2026-10-22
-HMCH,HSBC MSCI China UCITS ETF,China,eq,0.3,5.03,5.03,6.7825,5.7459,-9.28,-15.67,-22.03,-6.5,23.4,-44.9,,,0.02,25.0,GBP,GBp,2026-10-22
-VHYL,Vanguard FTSE All-World High Dividend Yield UCITS ETF USD Distributing,Global dividend income,eq,0.29,68.83,58.825,70.67,66.8287,0.58,7.48,20.15,11.9,9.6,-12.8,,,2.69,48.0,GBP,GBP,2026-10-22
-VHYG,Vanguard FTSE All-World High Dividend Yield UCITS ETF USD Accumulation,Global dividend income,eq,,79.61,65.92,81.22,76.3413,0.58,7.46,20.77,12.0,9.8,-12.8,,,0.0,49.0,GBP,GBP,2026-10-22
-GBDV,State Street SPDR S&P Global Dividend Aristocrats UCITS ETF,Global dividend growth,eq,0.45,29.36,26.755,30.96,29.0736,-1.62,4.87,12.59,7.8,10.5,-16.2,,,4.13,55.0,GBP,GBP,2026-10-22
-IGLT,iShares Core UK Gilts UCITS ETF GBP (Dist),Bonds: UK gilts,bond,0.07,9.605,9.46,10.16,9.7291,0.42,0.32,-0.53,-3.6,7.2,-33.5,,,4.55,60.0,GBP,GBP,2026-10-22
-VGOV,Vanguard U.K. Gilt UCITS ETF,Bonds: UK gilts,bond,,15.265,15.073,16.368,15.6289,0.23,0.09,-0.95,-5.1,7.5,-37.4,,,4.69,56.0,GBP,GBP,2026-10-22
-GILS,Amundi Core UK Government Bond UCITS ETF Dist,Bonds: UK gilts,bond,0.05,5.0113,4.8787,5.2031,5.0028,0.31,1.0,-3.09,-6.0,7.0,-34.7,,,3.2,60.0,GBP,GBp,2026-10-22
-IGLS,iShares UK Gilts 0-5yr UCITS ETF GBP (Dist),Bonds: short UK gilts,bond,0.07,125.31,124.57,129.37,126.2656,0.38,1.05,1.74,1.7,2.1,-8.4,,,3.99,56.0,GBP,GBP,2026-10-22
-INXG,iShares £ Index-Linked Gilts UCITS ETF GBP (Dist),Bonds: index-linked gilts,bond,0.1,11.012,10.676,11.844,11.1115,2.42,0.78,1.03,-9.5,10.6,-50.9,,,7.65,64.0,GBP,GBP,2026-10-22
-SLXX,iShares Core £ Corp Bond UCITS ETF GBP (Dist),Bonds: sterling corporate,bond,0.2,117.39,116.68,124.87,120.6792,-0.34,0.02,0.08,-0.8,5.6,-28.8,,,5.23,48.0,GBP,GBP,2026-10-22
-IS15,iShares £ Corp Bond 0-5yr UCITS ETF GBP (Dist),Bonds: short sterling corporate,bond,0.2,99.72,99.27,104.14,101.8711,0.1,1.21,2.26,2.6,2.8,-11.7,15.2,,4.75,43.0,GBP,GBP,2026-10-22
-ERNS,iShares £ Ultrashort Bond UCITS ETF GBP (Dist),Bonds: ultra-short,bond,0.09,100.98,100.39,102.8,101.0603,1.16,2.18,4.12,3.9,0.8,-0.4,,,5.31,56.0,GBP,GBP,2026-10-22
-CSH2,Multi Units Luxembourg - Amundi Smart Overnight Return GBP Hedged UCITS ETF Acc,Bonds: cash / overnight,bond,0.1,1257.3,1206.3106,1257.3,1237.1447,1.07,2.1,4.28,,0.5,-0.2,28.4,,0.0,95.0,GBP,GBp,2026-10-22
-VAGP,Vanguard Global Aggregate Bond UCITS ETF GBP Hedged Income,Bonds: global aggregate (GBP hedged),bond,,21.7725,21.53,22.91,22.3025,-0.71,-1.24,-1.27,-0.5,4.1,-16.9,,,3.71,54.0,GBP,GBP,2026-10-22
-VAGS,Vanguard Global Aggregate Bond UCITS ETF GBP Hedged Accumulation,Bonds: global aggregate (GBP hedged),bond,,25.57,25.18,26.23,25.7784,-0.68,-1.3,-1.25,-0.4,4.3,-16.9,,,1.82,60.0,GBP,GBP,2026-10-22
-IDTG,iShares $ Treasury Bond 20+yr UCITS ETF GBP Hedged (Dist),Bonds: long US Treasury,bond,0.1,2.79,2.6375,3.144,2.8956,-1.66,-4.14,-7.25,-8.1,12.8,-44.3,,,5.08,64.0,GBP,GBP,2026-10-22
-IBTS,iShares $ Treasury Bond 1-3yr UCITS ETF USD (Dist),Bonds: short US Treasury,bond,0.07,94.07,93.39,98.36,95.1278,0.56,1.65,1.77,2.7,6.3,-16.3,,,3.94,46.0,GBP,GBP,2026-10-22
-VUCP,Vanguard USD Corporate Bond UCITS ETF,Bonds: US corporate,bond,,34.053,33.77,36.955,34.9567,-0.77,-0.78,-1.24,0.8,6.8,-12.6,,,5.2,50.0,GBP,GBP,2026-10-22
-GHYS,iShares Global High Yield Corp Bond GBP Hedged UCITS ETF (Dist),Bonds: high yield (GBP hedged),hy,0.55,84.91,84.91,92.2,88.7557,-2.16,-1.33,-0.78,2.8,4.6,-14.5,10.3,,7.39,23.0,GBP,GBP,2026-10-22
-SEMB,iShares J.P. Morgan $ EM Bond UCITS ETF USD (Dist),Bonds: emerging markets,hy,0.45,65.815,65.61,71.435,68.3434,-3.89,-4.28,-5.27,-3.5,7.0,-21.7,,,0.06,41.0,GBP,GBp,2026-10-22
-SGLN,iShares Physical Gold ETC,Gold,gold,,58.82,57.76,76.9,65.2007,-2.47,-13.45,0.41,18.3,19.2,-24.9,,,0.0,32.0,GBP,GBp,2026-10-22
-PHGP,WisdomTree Physical Gold,Gold,gold,,280.98,276.19,368.02,311.6291,-2.56,-13.58,0.1,17.9,19.0,-25.0,,,0.0,32.0,GBP,GBp,2026-10-22
-PHSP,WisdomTree Physical Silver,Silver,gold,,37.55,31.8875,75.375,48.698,-8.29,-28.61,14.23,17.8,39.7,-50.2,,,0.0,29.0,GBP,GBp,2026-10-22
-ICOM,iShares Diversified Commodity Swap UCITS ETF,Commodities (broad),gold,0.19,7.9317,5.7492,8.2694,7.2794,5.96,7.37,38.62,11.1,15.8,-28.5,,,0.0,43.0,GBP,USD,2026-10-22
-GDGB,VanEck Gold Miners UCITS ETF,Gold miners,eq,0.53,69.465,58.69,96.75,76.5625,5.52,-12.49,16.03,22.1,37.5,-38.1,,,0.0,33.0,GBP,GBP,2026-10-22
-GJGB,VanEck Junior Gold Miners UCITS ETF,Junior gold miners,eq,0.55,70.34,61.38,105.39,81.7033,-0.24,-18.44,11.97,20.6,42.1,-40.2,,,0.0,30.0,GBP,GBP,2026-10-22
-IWDP,iShares Developed Markets Property Yield UCITS ETF USD (Dist),Global property,reit,0.59,18.01,17.69,20.325,18.9239,-9.08,-6.16,-2.75,-3.4,12.7,-30.3,,,0.03,43.0,GBP,GBp,2026-10-22
-IUKP,iShares UK Property UCITS ETF GBP (Dist),UK property,reit,0.4,4.335,3.7645,4.7285,4.3044,-4.68,4.07,1.02,-7.4,19.3,-45.6,14.1,,4.4,55.0,GBP,GBp,2026-10-22
-IUSP,iShares US Property Yield UCITS ETF USD (Dist),US property,reit,0.4,23.07,21.37,26.2,23.8218,-9.5,-3.62,1.19,-1.5,15.1,-31.3,,,0.03,45.0,GBP,GBp,2026-10-22
+VWRL,Vanguard FTSE All-World UCITS ETF,Global stocks,eq,,137.0,119.02,142.2,132.966,1.61,6.33,13.79,10.9,11.7,-17.5,,,1.41,37.0,GBP,GBP,2026-10-23
+VWRP,Vanguard FTSE All-World UCITS ETF USD Accumulation,Global stocks,eq,,141.78,122.26,147.18,136.8602,1.56,6.35,13.81,10.9,11.8,-17.6,,,0.0,37.0,GBP,GBP,2026-10-23
+FWRG,Invesco FTSE All-World UCITS ETF USD Accumulation,Global stocks,eq,,6.99,6.026,7.247,6.7408,1.73,6.39,13.97,,12.5,-18.9,,,0.0,38.0,GBP,GBp,2026-10-23
+SSAC,iShares MSCI All Country World UCITS ETF USD Acc,Global stocks,eq,0.2,90.85,78.22,94.27,87.6275,1.53,6.37,14.0,11.0,12.0,-18.0,,,0.0,37.0,GBP,GBp,2026-10-23
+SWDA,iShares Core MSCI World UCITS ETF USD (Acc),Developed world,eq,0.2,108.71,93.18,111.83,104.1024,2.25,7.16,13.67,11.5,11.9,-18.5,,,0.0,40.0,GBP,GBp,2026-10-23
+IWRD,iShares MSCI World UCITS ETF USD (Dist),Developed world,eq,0.5,77.865,67.26,80.13,74.9533,1.99,6.32,12.26,9.8,12.0,-19.1,,,0.01,39.0,GBP,GBp,2026-10-23
+HMWO,HSBC MSCI World UCITS ETF,Developed world,eq,0.15,36.7325,31.705,37.8225,35.3207,1.85,6.74,12.35,9.9,12.1,-19.0,,,0.01,39.0,GBP,GBp,2026-10-23
+VEVE,Vanguard FTSE Developed World UCITS ETF USD Distributing,Developed world,eq,,106.63,91.92,110.42,102.9356,1.92,7.04,14.72,11.6,12.0,-18.3,,,1.36,38.0,GBP,GBP,2026-10-23
+VHVG,Vanguard FTSE Developed World UCITS ETF USD Accumulation,Developed world,eq,,112.82,96.47,116.76,108.2684,1.93,7.12,14.79,11.7,11.8,-18.0,,,0.0,39.0,GBP,GBP,2026-10-23
+WLDS,iShares MSCI World Small Cap UCITS ETF USD (Acc),Global small cap,eq,0.35,7.561,6.465,7.974,7.5017,-1.77,2.33,13.73,6.6,14.3,-21.6,,,0.0,39.0,GBP,GBP,2026-10-23
+AVGS,Avantis Global Small Cap Value UCITS ETF USD Acc,Global small value,eq,0.39,21.3235,16.8134,22.1374,20.5792,0.13,4.74,25.06,,17.1,-22.0,11.9,,0.0,47.0,GBP,USD,2026-10-23
+MVOL,iShares Edge MSCI World Minimum Volatility UCITS ETF USD (Acc),Global min volatility,eq,0.3,59.7222,53.2718,59.7222,56.0767,7.18,9.3,8.92,6.7,10.8,-11.2,20.7,,0.0,68.0,GBP,USD,2026-10-23
+IWFQ,iShares Edge MSCI World Quality Factor UCITS ETF USD (Acc),Global quality factor,eq,0.3,67.12,57.73,68.93,63.8271,2.66,7.72,14.97,10.2,11.7,-18.0,,,0.0,44.0,GBP,GBp,2026-10-23
+IWFV,iShares Edge MSCI World Value Factor UCITS ETF USD (Acc),Global value factor,eq,0.3,58.67,41.57,62.18,54.9577,-0.03,16.39,41.14,16.9,13.4,-13.8,,,0.0,31.0,GBP,GBp,2026-10-23
+IWFM,iShares Edge MSCI World Momentum Factor UCITS ETF USD (Acc),Global momentum factor,eq,0.3,82.12,68.88,93.9,81.894,-5.91,3.92,15.35,10.8,18.3,-20.4,,,0.0,31.0,GBP,GBp,2026-10-23
+VUSA,Vanguard S&P 500 UCITS ETF,US large cap blend,eq,,108.49,91.4475,112.015,103.0164,3.24,8.62,14.45,12.9,13.0,-20.9,,,0.94,40.0,GBP,GBP,2026-10-23
+VUAG,Vanguard S&P 500 UCITS ETF USD Accumulation,US large cap blend,eq,,110.82,92.98,114.36,104.8243,3.26,8.65,14.48,12.9,13.1,-20.9,,,0.0,41.0,GBP,GBP,2026-10-23
+CSP1,iShares Core S&P 500 UCITS ETF USD (Acc),US large cap blend,eq,0.07,617.94,518.44,637.82,584.5417,3.29,8.64,14.49,12.9,12.9,-20.8,,,0.0,41.0,GBP,GBp,2026-10-23
+IUSA,iShares Core S&P 500 UCITS ETF USD Dist,US large cap blend,eq,0.07,57.03,48.0525,58.865,54.139,3.06,8.2,13.4,11.6,13.1,-21.4,,,0.01,41.0,GBP,GBp,2026-10-23
+SPXP,Invesco S&P 500 UCITS ETF,US large cap blend,eq,0.05,11.508,9.653,11.882,10.8858,3.27,8.67,14.59,13.1,12.9,-20.8,,,0.0,40.0,GBP,GBp,2026-10-23
+HSPX,HSBC S&P 500 UCITS ETF,US large cap blend,eq,0.09,57.835,48.738,59.706,54.9083,2.79,8.18,13.44,11.6,12.9,-21.2,,,0.01,41.0,GBP,GBp,2026-10-23
+IGUS,iShares S&P 500 GBP Hedged UCITS ETF (Acc),US large cap (GBP hedged),eq,0.2,175.61,146.61,179.74,167.2217,3.63,7.41,14.18,11.0,14.0,-25.7,24.4,,0.0,44.0,GBP,GBp,2026-10-23
+VNRT,Vanguard FTSE North America UCITS ETF,US total market,eq,,139.675,117.7025,144.105,132.5495,3.35,8.74,14.35,12.5,13.1,-21.1,,,0.96,40.0,GBP,GBP,2026-10-23
+XDEW,Xtrackers S&P 500 Equal Weight UCITS ETF 1C,US equal weight,eq,0.2,90.679,77.1172,91.9446,85.7963,2.84,8.81,15.67,8.5,19.7,-19.3,20.7,,0.0,58.0,GBP,USD,2026-10-23
+SPY4,State Street SPDR S&P 400 US Mid Cap UCITS ETF,US mid cap,eq,0.3,84.5385,74.0413,90.4413,84.3984,-3.32,0.83,11.96,6.8,17.9,-26.3,19.5,,0.0,44.0,GBP,USD,2026-10-23
+R2US,State Street SPDR Russell 2000 US Small Cap UCITS ETF,US small cap,eq,0.3,60.7244,51.7932,67.0307,60.89,-4.96,0.64,13.19,5.3,20.9,-30.0,16.1,,0.0,42.0,GBP,USD,2026-10-23
+IUQA,iShares Edge MSCI USA Quality Factor UCITS ETF USD (Acc),US quality factor,eq,0.2,14.1172,11.9004,14.5225,13.302,3.98,9.63,14.93,11.4,14.4,-20.6,26.9,,0.0,44.0,GBP,USD,2026-10-23
+MOGB,VanEck Morningstar US ESG Wide Moat UCITS ETF,US wide moat,eq,0.49,52.825,43.89,53.095,47.8402,12.35,15.34,10.1,5.6,13.8,-22.7,,,0.0,68.0,GBP,GBP,2026-10-23
+EQQQ,Invesco EQQQ NASDAQ-100 UCITS ETF,US growth (Nasdaq 100),eq,0.3,532.11,428.81,576.62,507.4867,2.17,8.83,15.8,14.2,17.8,-28.2,,,0.0,36.0,GBP,GBp,2026-10-23
+CNX1,iShares NASDAQ 100 UCITS ETF USD (Acc),US growth (Nasdaq 100),eq,0.3,1251.1,1006.3,1355.3,1191.8825,2.21,8.99,16.13,14.6,18.0,-27.6,,,0.0,36.0,GBP,GBp,2026-10-23
+IITU,iShares S&P 500 Information Technology Sector UCITS ETF USD (Acc),Sector: tech,eq,0.15,38.22,27.92,41.83,34.8499,4.54,15.47,21.8,21.4,22.3,-28.0,,,0.0,38.0,GBP,GBp,2026-10-23
+IUFS,iShares S&P 500 Financials Sector UCITS ETF USD (Acc),Sector: financials,eq,0.15,12.4493,10.6632,12.8118,11.802,1.16,9.63,8.25,8.8,17.0,-19.1,15.7,,0.0,55.0,GBP,USD,2026-10-23
+IUHC,iShares S&P 500 Health Care Sector UCITS ETF USD (Acc),Sector: health,eq,0.15,10.8637,8.4698,10.9812,9.4767,11.56,25.19,24.83,8.4,15.8,-19.7,31.3,,0.0,60.0,GBP,USD,2026-10-23
+IUES,iShares S&P 500 Energy Sector UCITS ETF USD (Acc),Sector: energy,eq,0.15,11.0768,6.8102,11.0768,9.1136,16.57,25.93,60.58,23.3,23.0,-24.6,19.5,,0.0,68.0,GBP,USD,2026-10-23
+USDV,State Street SPDR S&P US Dividend Aristocrats UCITS ETF Dis,US dividend growth,eq,0.35,65.49,57.12,66.35,62.256,2.9,8.44,15.91,8.0,11.4,-16.3,,,2.17,76.0,GBP,GBP,2026-10-23
+FUSD,Fidelity US Quality Income UCITS ETF Inc,US dividend income,eq,0.3,10.3233,8.841,10.4591,9.7505,4.45,9.99,17.85,12.7,13.7,-20.2,22.6,,1.41,51.0,GBP,USD,2026-10-23
+JEGP,JPM Global Equity Premium Income Active UCITS ETF - USD (dist),Covered-call income,eq,0.35,19.968,18.816,21.005,19.6363,6.0,7.99,7.49,,15.3,-21.0,,,8.26,61.0,GBP,GBp,2026-10-23
+SMGB,VanEck Semiconductor UCITS ETF,Sector: semiconductors,eq,0.35,73.07,41.9,94.19,70.6646,-11.54,14.6,65.32,31.4,34.0,-36.2,,,0.0,32.0,GBP,GBP,2026-10-23
+SEMI,iShares MSCI Global Semiconductors UCITS ETF USD Acc,Sector: semiconductors,eq,0.35,13.482,7.478,18.366,13.2424,-11.77,12.46,72.03,21.3,35.9,-45.2,,,0.0,31.0,GBP,GBP,2026-10-23
+INRG,iShares Global Clean Energy Transition UCITS ETF USD (Dist),Clean energy,eq,0.65,6.875,6.875,10.055,8.0756,-13.17,-20.17,-1.99,-7.0,33.6,-58.5,,,0.01,30.0,GBP,GBp,2026-10-23
+HEAL,iShares Healthcare Innovation UCITS ETF USD (Acc),Healthcare innovation,eq,0.4,8.2497,6.2091,8.345,7.0848,15.12,27.76,28.23,2.5,18.0,-33.8,25.3,,0.0,57.0,GBP,USD,2026-10-23
+RBOT,iShares Automation & Robotics UCITS ETF USD (Acc),Robotics & automation,eq,0.4,15.8524,11.2401,17.3884,14.4252,7.92,16.79,28.59,9.8,23.5,-33.6,33.5,,0.0,42.0,GBP,USD,2026-10-23
+ISPY,L&G Cyber Security UCITS ETF,Cyber security,eq,0.69,37.28,20.26,38.86,28.7622,18.46,58.13,53.38,13.6,25.8,-31.8,,,0.0,56.0,GBP,GBp,2026-10-23
+AIAG,L&G Artificial Intelligence UCITS ETF,Artificial intelligence,eq,0.49,29.37,19.098,33.71,26.0598,5.72,26.46,35.0,14.8,25.8,-41.6,,,0.0,37.0,GBP,GBp,2026-10-23
+ESGB,VanEck Video Gaming and eSports UCITS ETF A USD,Video gaming,eq,0.55,48.85,42.67,57.01,46.3292,12.0,7.99,-13.3,9.6,19.0,-37.6,,,0.0,48.0,GBP,GBP,2026-10-23
+DFNG,VanEck Defense ETF A USD Acc,Defence,eq,0.55,42.455,42.045,55.55,47.9267,-5.32,-15.03,-11.27,,21.9,-24.3,,,0.0,40.0,GBP,GBP,2026-10-23
+WDEP,WisdomTree Europe Defence UCITS ETF - EUR Acc,Defence,eq,0.4,25.34,24.41,31.8846,27.6266,-4.86,-7.87,-8.91,,32.4,-23.4,,,0.0,42.0,GBP,GBp,2026-10-23
+NUCG,VanEck Uranium and Nuclear Technologies UCITS ETF A USD Acc,Uranium & nuclear,eq,0.55,32.035,32.035,51.28,42.4689,-14.87,-33.43,-29.8,,35.6,-38.4,,,0.0,27.0,GBP,GBP,2026-10-23
+DAGB,VanEck Crypto& Blockchain Innovators ETF A USD Acc,Crypto & blockchain stocks,eq,0.65,8.021,7.65,13.998,9.7596,-19.09,-22.74,-34.25,-10.4,67.1,-91.2,,,0.0,28.0,GBP,GBP,2026-10-23
+IB1T,iShares Bitcoin ETP,Crypto: bitcoin,eq,,6.078,4.3865,8.667,5.4575,25.02,4.83,-26.18,,40.7,-49.4,,,0.0,48.0,GBP,GBP,2026-10-23
+ISF,iShares Core FTSE 100 UCITS ETF GBP (Dist),UK large cap (FTSE 100),eq,0.07,10.408,9.284,10.676,10.2714,0.41,1.46,11.39,8.1,11.3,-13.2,16.7,,3.09,50.0,GBP,GBp,2026-10-23
+CUKX,iShares VII PLC - iShares Core FTSE 100 ETF GBP Acc,UK large cap (FTSE 100),eq,0.07,220.65,190.36,224.65,214.4057,1.42,3.64,15.38,12.0,11.2,-12.9,16.7,,0.0,51.0,GBP,GBp,2026-10-23
+VUKE,Vanguard FTSE 100 UCITS ETF,UK large cap (FTSE 100),eq,,46.3,41.455,47.595,45.7048,1.28,3.59,14.67,12.0,11.2,-12.8,16.7,,3.15,49.0,GBP,GBP,2026-10-23
+VUKG,Vanguard FTSE 100 UCITS ETF GBP Accumulation,UK large cap (FTSE 100),eq,,57.61,49.9,58.64,56.0214,1.32,3.62,14.78,12.2,11.4,-12.2,16.7,,1.25,51.0,GBP,GBP,2026-10-23
+VMID,Vanguard FTSE 250 UCITS ETF,UK mid cap (FTSE 250),eq,,36.86,31.905,38.305,35.7011,3.38,8.19,12.12,4.2,13.1,-28.8,15.8,,3.41,47.0,GBP,GBP,2026-10-23
+VMIG,Vanguard FTSE 250 UCITS ETF GBP Accumulation,UK mid cap (FTSE 250),eq,,46.06,38.99,47.42,43.9185,3.26,8.2,12.05,4.4,13.1,-28.8,16.0,,1.22,48.0,GBP,GBP,2026-10-23
+MIDD,iShares FTSE 250 UCITS ETF GBP (Dist),UK mid cap (FTSE 250),eq,0.4,22.355,19.376,23.2,21.6574,2.23,5.84,8.08,0.7,13.4,-30.5,15.5,,3.12,48.0,GBP,GBp,2026-10-23
+IUKD,iShares UK Dividend UCITS ETF GBP (Dist),UK dividend,eq,0.4,10.126,8.819,10.508,9.9754,-1.06,2.29,15.46,6.7,12.2,-24.0,14.5,,4.67,54.0,GBP,GBp,2026-10-23
+UKDV,State Street SPDR S&P UK Dividend Aristocrats UCITS ETF,UK dividend,eq,0.3,13.372,11.5,13.942,12.8408,1.69,11.47,17.71,8.3,13.4,-18.6,16.4,,3.73,58.0,GBP,GBP,2026-10-23
+VEUR,Vanguard FTSE Developed Europe UCITS ETF,Europe,eq,,41.185,38.235,43.8,41.8351,-2.1,1.73,9.39,9.2,11.9,-16.4,,,2.77,40.0,GBP,GBP,2026-10-23
+VERX,Vanguard FTSE Developed Europe ex UK UCITS ETF Distributing,Europe ex UK,eq,,40.845,38.085,43.985,41.8841,-3.17,1.09,7.83,8.3,12.7,-20.3,,,2.63,38.0,GBP,GBP,2026-10-23
+IMEU,iShares Core MSCI Europe UCITS ETF EUR (Dist),Europe,eq,0.12,33.225,30.67,35.365,33.645,-2.8,-0.07,6.74,6.3,11.9,-17.5,,,0.02,40.0,GBP,GBp,2026-10-23
+VJPN,Vanguard FTSE Japan UCITS ETF USD Distributing,Japan,eq,,38.2125,32.6575,40.575,37.2276,3.06,8.59,18.91,9.9,17.1,-15.9,,,1.88,36.0,GBP,GBP,2026-10-23
+IJPN,iShares MSCI Japan UCITS ETF USD (Dist),Japan,eq,0.59,18.435,15.63,19.66,17.9088,3.19,8.35,17.61,8.1,17.6,-17.5,,,0.02,36.0,GBP,GBp,2026-10-23
+VAPX,Vanguard FTSE Developed Asia Pacific ex Japan UCITS ETF USD Distributing,Asia Pacific ex Japan,eq,,30.77,22.9425,38.145,31.7344,-5.54,1.31,34.49,10.7,20.5,-19.8,,,2.29,36.0,GBP,GBP,2026-10-23
+IAPD,iShares Asia Pacific Dividend UCITS ETF USD (Dist),Asia Pacific dividend,eq,0.59,23.535,20.34,24.46,23.3632,0.46,0.48,15.76,6.3,12.3,-18.4,,,0.04,37.0,GBP,GBp,2026-10-23
+VFEM,Vanguard FTSE Emerging Markets UCITS ETF USD Distributing,Emerging markets,eq,,58.27,54.605,63.625,60.0415,-2.37,-1.1,5.1,5.5,14.3,-19.2,,,2.22,27.0,GBP,GBP,2026-10-23
+EMIM,iShares Core MSCI EM IMI UCITS ETF USD (Acc),Emerging markets,eq,0.18,38.08,32.42,43.76,38.9296,-3.5,-0.37,14.15,7.2,16.5,-21.0,,,0.0,30.0,GBP,GBp,2026-10-23
+IEEM,iShares MSCI EM UCITS ETF USD (Dist),Emerging markets,eq,0.18,45.985,39.455,53.6675,47.4382,-4.29,-1.26,12.94,4.8,17.1,-24.0,,,0.02,31.0,GBP,GBp,2026-10-23
+FRIN,Franklin FTSE India UCITS ETF,India,eq,0.19,28.95,28.63,34.895,30.6867,-3.63,-5.96,-15.66,2.4,14.3,-22.4,,,0.0,37.0,GBP,GBP,2026-10-23
+HMCH,HSBC MSCI China UCITS ETF,China,eq,0.3,5.045,5.03,6.7825,5.7391,-8.97,-14.12,-23.32,-6.4,23.4,-44.9,,,0.02,27.0,GBP,GBp,2026-10-23
+VHYL,Vanguard FTSE All-World High Dividend Yield UCITS ETF USD Distributing,Global dividend income,eq,0.29,68.88,59.11,70.67,66.8641,0.79,7.32,19.66,11.9,9.6,-12.8,,,2.69,49.0,GBP,GBP,2026-10-23
+VHYG,Vanguard FTSE All-World High Dividend Yield UCITS ETF USD Accumulation,Global dividend income,eq,,79.69,66.59,81.22,76.39,0.94,7.36,19.67,11.9,9.8,-12.8,,,0.0,50.0,GBP,GBP,2026-10-23
+GBDV,State Street SPDR S&P Global Dividend Aristocrats UCITS ETF,Global dividend growth,eq,0.45,29.43,26.755,30.96,29.0811,-1.22,4.7,12.71,7.9,10.5,-16.2,,,4.13,57.0,GBP,GBP,2026-10-23
+IGLT,iShares Core UK Gilts UCITS ETF GBP (Dist),Bonds: UK gilts,bond,0.07,9.5775,9.46,10.16,9.7269,0.55,0.42,-0.82,-3.7,7.2,-33.5,,,4.55,56.0,GBP,GBP,2026-10-23
+VGOV,Vanguard U.K. Gilt UCITS ETF,Bonds: UK gilts,bond,,15.217,15.073,16.368,15.6238,0.44,0.15,-1.24,-5.2,7.5,-37.4,,,4.69,52.0,GBP,GBP,2026-10-23
+GILS,Amundi Core UK Government Bond UCITS ETF Dist,Bonds: UK gilts,bond,0.05,4.999,4.8787,5.2031,5.0024,0.48,1.02,-3.28,-6.1,7.0,-34.7,,,3.2,56.0,GBP,GBp,2026-10-23
+IGLS,iShares UK Gilts 0-5yr UCITS ETF GBP (Dist),Bonds: short UK gilts,bond,0.07,125.28,124.57,129.37,126.2457,0.51,1.12,1.66,1.7,2.1,-8.4,,,3.99,55.0,GBP,GBP,2026-10-23
+INXG,iShares £ Index-Linked Gilts UCITS ETF GBP (Dist),Bonds: index-linked gilts,bond,0.1,10.984,10.676,11.844,11.1092,2.88,1.22,0.81,-9.5,10.6,-50.9,,,7.65,61.0,GBP,GBP,2026-10-23
+SLXX,iShares Core £ Corp Bond UCITS ETF GBP (Dist),Bonds: sterling corporate,bond,0.2,117.19,116.68,124.87,120.6439,-0.12,0.24,-0.29,-0.8,5.6,-28.8,,,5.23,45.0,GBP,GBP,2026-10-23
+IS15,iShares £ Corp Bond 0-5yr UCITS ETF GBP (Dist),Bonds: short sterling corporate,bond,0.2,99.56,99.27,104.14,101.8512,0.17,1.1,1.94,2.5,2.8,-11.7,15.2,,4.75,41.0,GBP,GBP,2026-10-23
+ERNS,iShares £ Ultrashort Bond UCITS ETF GBP (Dist),Bonds: ultra-short,bond,0.09,101.02,100.39,102.8,101.0608,1.15,2.11,4.07,4.0,0.8,-0.4,,,5.31,59.0,GBP,GBP,2026-10-23
+CSH2,Multi Units Luxembourg - Amundi Smart Overnight Return GBP Hedged UCITS ETF Acc,Bonds: cash / overnight,bond,0.1,1257.6,1206.6,1257.6,1237.3447,1.05,2.1,4.27,,0.5,-0.2,28.4,,0.0,95.0,GBP,GBp,2026-10-23
+VAGP,Vanguard Global Aggregate Bond UCITS ETF GBP Hedged Income,Bonds: global aggregate (GBP hedged),bond,,21.7925,21.53,22.91,22.298,-0.29,-1.2,-1.13,-0.5,4.1,-16.9,,,3.71,56.0,GBP,GBP,2026-10-23
+VAGS,Vanguard Global Aggregate Bond UCITS ETF GBP Hedged Accumulation,Bonds: global aggregate (GBP hedged),bond,,25.565,25.18,26.23,25.7769,-0.45,-1.18,-1.31,-0.4,4.3,-16.9,,,1.82,59.0,GBP,GBP,2026-10-23
+IDTG,iShares $ Treasury Bond 20+yr UCITS ETF GBP Hedged (Dist),Bonds: long US Treasury,bond,0.1,2.7915,2.6375,3.144,2.8947,-0.87,-4.12,-6.85,-8.2,12.8,-44.3,,,5.08,64.0,GBP,GBP,2026-10-23
+IBTS,iShares $ Treasury Bond 1-3yr UCITS ETF USD (Dist),Bonds: short US Treasury,bond,0.07,94.05,93.39,98.36,95.1166,0.05,1.57,1.39,2.7,6.3,-16.3,,,3.94,45.0,GBP,GBP,2026-10-23
+VUCP,Vanguard USD Corporate Bond UCITS ETF,Bonds: US corporate,bond,,33.9985,33.77,36.955,34.9479,-0.92,-0.94,-1.83,0.8,6.8,-12.6,,,5.2,48.0,GBP,GBP,2026-10-23
+GHYS,iShares Global High Yield Corp Bond GBP Hedged UCITS ETF (Dist),Bonds: high yield (GBP hedged),hy,0.55,84.66,84.66,92.2,88.7293,-2.39,-1.79,-1.17,2.7,4.6,-14.5,10.3,,7.39,22.0,GBP,GBP,2026-10-23
+SEMB,iShares J.P. Morgan $ EM Bond UCITS ETF USD (Dist),Bonds: emerging markets,hy,0.45,65.805,65.61,71.435,68.3261,-3.72,-4.38,-5.55,-3.5,7.0,-21.7,,,0.06,40.0,GBP,GBp,2026-10-23
+SGLN,iShares Physical Gold ETC,Gold,gold,,57.97,57.76,76.9,65.1646,-1.75,-14.76,-3.99,17.8,19.2,-24.9,,,0.0,28.0,GBP,GBp,2026-10-23
+PHGP,WisdomTree Physical Gold,Gold,gold,,276.95,276.19,368.02,311.47,-1.82,-14.91,-4.32,17.5,19.1,-25.0,,,0.0,28.0,GBP,GBp,2026-10-23
+PHSP,WisdomTree Physical Silver,Silver,gold,,36.7725,31.8875,75.375,48.6238,-6.36,-28.45,8.94,17.3,39.7,-51.2,,,0.0,27.0,GBP,GBp,2026-10-23
+ICOM,iShares Diversified Commodity Swap UCITS ETF,Commodities (broad),gold,0.19,8.0402,5.7492,8.2694,7.2891,6.58,8.82,37.76,10.8,15.8,-28.5,,,0.0,51.0,GBP,USD,2026-10-23
+GDGB,VanEck Gold Miners UCITS ETF,Gold miners,eq,0.53,68.185,58.69,96.75,76.5232,8.16,-12.65,9.46,21.3,37.5,-38.1,,,0.0,31.0,GBP,GBP,2026-10-23
+GJGB,VanEck Junior Gold Miners UCITS ETF,Junior gold miners,eq,0.55,68.76,61.38,105.39,81.6396,2.96,-18.73,5.58,19.5,42.1,-40.2,,,0.0,28.0,GBP,GBP,2026-10-23
+IWDP,iShares Developed Markets Property Yield UCITS ETF USD (Dist),Global property,reit,0.59,18.145,17.69,20.325,18.9237,-8.6,-5.58,-2.4,-3.3,12.7,-30.3,,,0.03,49.0,GBP,GBp,2026-10-23
+IUKP,iShares UK Property UCITS ETF GBP (Dist),UK property,reit,0.4,4.35,3.7645,4.7285,4.3043,-5.48,4.71,1.07,-7.3,19.3,-45.6,14.1,,4.4,57.0,GBP,GBp,2026-10-23
+IUSP,iShares US Property Yield UCITS ETF USD (Dist),US property,reit,0.4,23.2,21.37,26.2,23.8279,-9.32,-3.57,2.0,-1.4,15.1,-31.3,,,0.03,48.0,GBP,GBp,2026-10-23
