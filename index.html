@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
 <meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <link rel="manifest" href="manifest.webmanifest">
 <meta name="theme-color" content="#1C1C1E">
 <link rel="icon" type="image/png" href="favicon.png">
@@ -40,7 +40,9 @@ iqApplyTheme(iqSaved||"monograph");   // Monograph is the default style
 }
 *{box-sizing:border-box}
 body{margin:0;background:var(--paper);color:var(--ink);font:16px/1.55 var(--body);font-variant-numeric:tabular-nums}
-.wrap{max-width:1120px;margin:0 auto;padding:0 20px}
+.wrap{max-width:1120px;margin:0 auto;padding:0 max(20px,env(safe-area-inset-right)) 0 max(20px,env(safe-area-inset-left))}
+@media (display-mode: standalone){ body{padding-top:env(safe-area-inset-top)}
+  body::before{content:"";position:fixed;top:0;left:0;right:0;height:env(safe-area-inset-top);background:var(--paper);z-index:1000} }
 header.top{display:flex;justify-content:space-between;align-items:baseline;padding:22px 0 8px}
 .brand{font:800 22px/1 var(--display);font-stretch:112%;letter-spacing:-.01em}
 .brand span{color:var(--cobalt)}
@@ -296,7 +298,7 @@ dialog::backdrop{background:rgba(20,33,61,.45)}
 .trk{display:inline-flex;align-items:center;gap:5px;margin-top:8px;font-size:13px;font-weight:600}
 .trk-ok{color:var(--buy)}.trk-behind{color:#8A6A1F}.trk-well{color:var(--sell)}.trk-early{color:var(--muted);font-weight:500}
 .trk-note{margin:10px 0 0;font-size:14px;line-height:1.5}.trk-note .trk{margin:0 6px 0 0}
-.bwrap{position:relative}
+.bwrap{position:relative;display:flex;min-width:0}.bwrap .bcard{width:100%;min-width:0}.bwrap .bcard h3{overflow-wrap:anywhere}
 .bfav{position:absolute;top:10px;right:10px;width:34px;height:34px;border:0;background:none;cursor:pointer;font-size:22px;line-height:1;color:var(--muted);border-radius:6px}
 .bfav:hover{background:var(--hover)}.bfav.on{color:#C9971C}.bfav:focus-visible{outline:3px solid var(--cobalt);outline-offset:1px}
 .bwrap .badge{right:50px}.bwrap .bcard h3{padding-right:44px}.bwrap .bcard:has(.badge) h3{padding-right:120px}
