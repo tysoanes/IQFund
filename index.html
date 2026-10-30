@@ -1987,7 +1987,7 @@ document.addEventListener("click",ev=>{ const p=ev.target.closest(".aim-pill"); 
    balanced against the largest other slice. Risk level, Real assets or a target pill reset it. */
 const MIX_KEYS=["eq","cash","bonds","gold","comm"];
 function currentMix(){ const m=LAST_BUNDLE.b.mix; return {eq:m.eq,cash:m.cash||0,bonds:m.bonds,gold:m.gold,comm:m.comm}; }
-function commitMix(mix,focusSel){
+function commitMix(mix,focusSel){ unlock();
   const t=MIX_KEYS.reduce((a,k)=>a+mix[k],0); if(Math.abs(t-100)>0.01) return;
   CUSTOM_MIX=mix; AIM.active=null; $("aimTag").hidden=true;
   renderBundle(); CUSTOM_MIX=currentMix(); remember();   // keep what the overlay actually allowed
@@ -2067,7 +2067,8 @@ function renderBundle(){
   $("riskVal").textContent=CUSTOM_MIX?"Custom":risk+" / 10"; $("countVal").textContent=count;
   $("styleVal").textContent=STYLE_LABELS[style-1]; $("realVal").textContent=REAL_LABELS[real-1];
   $("riskWord").textContent=MIX_WORDS[risk-1]; $("riskArt").textContent=/^[aeiou]/.test(MIX_WORDS[risk-1])?"an":"a"; $("countWord").textContent=count+" funds";
-  const b=buildBundle(risk,count,$("overlapToggle").checked,style,real,{overlay:horizonOverlay(),custom:CUSTOM_MIX});
+  let b=buildBundle(risk,count,$("overlapToggle").checked,style,real,{overlay:horizonOverlay(),custom:CUSTOM_MIX});
+  if(LOCK) b=lockedBundle(b,risk);
   b.mixWithout=b.overlay?assetMix(risk,style,real,null,CUSTOM_MIX):null;
   b.risk=measureRisk(b.picks,b.w);          // outlook engine: measured, not used for picking funds
   b.stress=stressTests(b.picks,b.w);
@@ -2357,7 +2358,7 @@ async function saveBasket(){
   const risk=effRisk(), count=+$("countSlider").value, amt=amount();
   if(!amt){ $("saveMsg").textContent="Enter an amount first."; return; }
   const style=+$("styleSlider").value, real=+$("realSlider").value;
-  const b=buildBundle(risk,count,$("overlapToggle").checked,style,real,{overlay:horizonOverlay(),custom:CUSTOM_MIX}), usd=amt/RATE;   // amount in the base currency
+  let b=buildBundle(risk,count,$("overlapToggle").checked,style,real,{overlay:horizonOverlay(),custom:CUSTOM_MIX}); if(LOCK) b=lockedBundle(b,risk); const usd=amt/RATE;   // amount in the base currency
   const holdings=b.picks.map((e,i)=>({t:e.t,n:e.n,units:usd*b.w[i]/e.p,entry:e.p,since:ASOF}));
   const name=$("basketName").value.trim()||suggestName(b,risk);
   const mr=measureRisk(b.picks,b.w);
@@ -2606,7 +2607,36 @@ dlg.addEventListener("close",()=>{ $("dlgBody").onclick=null; });
 /* Start a new version of a saved basket: put its settings back into the builder. Holdings are rebuilt from
    today's data, so they can differ a little from what was saved. Older baskets didn't store every setting;
    the gaps keep their current values. */
-var FROM_BASKET=null;
+var FROM_BASKET=null, LOCK=null;
+/* Starting a new version keeps the saved basket's own funds and weights (including weights you changed),
+   measured with today's data. Changing any setting rebuilds the basket from that setting instead. */
+function sleeveGuess(e,risk){ const c=e.cat||"";
+  if(e.cls==="bond"||e.cls==="hy") return /cash|ultra-short/i.test(c)?"cash":"bonds";
+  if(e.cls==="gold") return /commodit/i.test(c)?"comm":"gold";
+  if(e.cls==="reit") return "core";
+  if((sleevePrefsBase("thematic",3,risk)||[]).concat(sleevePrefsBase("thematic",5,risk)||[]).includes(c)) return "thematic";
+  if((sleevePrefsBase("factor",3,risk)||[]).concat(sleevePrefsBase("factor",1,risk)||[],sleevePrefsBase("factor",5,risk)||[]).includes(c)) return "factor";
+  return "core"; }
+function lockedBundle(b0,risk){
+  const picks=[], w=[], sleeveOf=[];
+  LOCK.ts.forEach((t,i)=>{ const e=DATA.find(x=>x.t===t); if(!e||!(LOCK.w[i]>0)) return; picks.push(e); w.push(LOCK.w[i]);
+    const j=b0.picks.findIndex(p=>p.t===t), k=j>=0?b0.sleeveOf[j]:null; sleeveOf.push(k&&k!=="real"?k:sleeveGuess(e,risk)); });
+  if(!picks.length){ LOCK=null; return b0; }
+  const sw=w.reduce((a,c)=>a+c,0); for(let i=0;i<w.length;i++) w[i]/=sw;
+  const sl={core:0,factor:0,thematic:0,bonds:0,cash:0,gold:0,comm:0}; sleeveOf.forEach((k,i)=>sl[k in sl?k:"core"]+=w[i]*100);
+  const mix={eq:sl.core+sl.factor+sl.thematic,bonds:sl.bonds,cash:sl.cash,gold:sl.gold,comm:sl.comm,custom:true,sleeves:sl};
+  let mu=0,v=0; picks.forEach((a,i)=>{ mu+=w[i]*a.mu; picks.forEach((c,j)=>v+=w[i]*w[j]*a.vol*c.vol*corr(a,c)); });
+  const LIMITS=exposureLimits(risk,mix.eq), expOf=c=>picks.reduce((a,e,i)=>a+w[i]*100*c.share(e),0);
+  const limits=LIMITS.map(c=>({id:c.id,label:c.label,cap:c.cap,exp:expOf(c)})), unresolved=limits.filter(c=>c.exp>c.cap+0.05);
+  const LG=id=>LIMITS.find(c=>c.id===id).group, grpOk=g=>!unresolved.some(u=>LG(u.id)===g), ov=portfolioOverlap(picks,w);
+  return {...b0,overlay:null,picks,w,sleeveOf,mix,count:picks.length,locked:true,moves:[],overCap:[],swaps:[],kept:[],guards:[],unresolved,recommend:null,valid:true,limits,
+    buckets:Object.keys(sl).filter(k=>sl[k]>0.001).map(k=>({k,w:sl[k],n:sleeveOf.filter(x=>x===k).length})),
+    hard:[{id:"weights",label:"Weights total 100%",ok:true},{id:"count",label:`${picks.length} funds from the saved basket`,ok:true},{id:"alloc",label:"Weights as saved",ok:true},{id:"style",label:"Funds as saved",ok:true}],
+    soft:[{id:"geo",label:"Geographic",ok:grpOk("Emerging markets")&&grpOk("Regions")},{id:"sector",label:"Sectors",ok:grpOk("Sectors")},{id:"theme",label:"Themes",ok:grpOk("Themes")},
+      {id:"factor",label:"Factors",ok:grpOk("Factors")},{id:"fund",label:"Single-fund limits",ok:true},{id:"overlap",label:"Overlap",ok:ov.avg<0.35}],
+    look:lookThrough(picks,w,sleeveOf),mu,vol:Math.sqrt(v),dd:picks.reduce((a,e,i)=>a+w[i]*e.dd,0),yld:picks.reduce((a,e,i)=>a+w[i]*(e.y||0),0),er:picks.reduce((a,e,i)=>a+w[i]*(e.er||0),0),ov}; }
+function unlock(){ if(!LOCK) return; LOCK=null; const fb=$("fromBasket");
+  if(fb&&!fb.hidden&&FROM_BASKET) fb.innerHTML=`Started from “${esc(FROM_BASKET)}”, now rebuilt from your settings with today's data. Save to keep it as a new basket.<button type="button" id="fromClear">Clear</button>`; }
 function loadBasketSettings(b,ov){ ov=ov||{};
   if(b.cur&&b.cur!==CUR&&[...$("cur").options].some(o=>o.value===b.cur)){ $("cur").value=b.cur; setCurrency(b.cur,false); }
   const amt=b.cur===CUR?b.invested:niceRound(b.invested*rateOf(CUR,b.cur));
@@ -2621,12 +2651,21 @@ function loadBasketSettings(b,ov){ ov=ov||{};
   CUSTOM_MIX=b.custom&&typeof b.custom.eq==="number"?{eq:b.custom.eq,cash:b.custom.cash||0,bonds:b.custom.bonds||0,gold:b.custom.gold||0,comm:b.custom.comm||0}:null;
   AIM.active=null; AIM.target=""; $("aimSel").value=""; $("aimPills").innerHTML=""; $("aimTag").hidden=true;
   if(ov.real!=null&&CUSTOM_MIX) CUSTOM_MIX=null;   // more real assets: back to the risk level's mix so the setting applies
+  const hsL=holdingsOf(b); LOCK=Object.keys(ov).length?null:{ts:hsL.map(h=>h.t),w:holdWeights(b,hsL,true)};
+  if(LOCK){ $("countSlider").value=clamp(hsL.length,3,10);
+    // checks and labels use the risk level these weights actually behave like
+    const eqW=hsL.reduce((a,h,i)=>{ const e=DATA.find(x=>x.t===h.t); return a+(e&&(e.cls==="eq"||e.cls==="reit")?LOCK.w[i]:0); },0);
+    $("riskSlider").value=closestRisk(eqW*100); }
   FROM_BASKET=b.name; NAME_EDITED=true; $("basketName").value=uniqueName(b.name.replace(/ \(\d+\)$/,"")+" v2");
   remember(); renderBundle(); if($("amountPreset").options.length) renderPresets();
-  const fb=$("fromBasket"); fb.innerHTML=`Started from “${esc(b.name)}”${b.one?" (a one-fund basket, so the builder suggests a full basket at the same settings)":""}. Funds are picked from today's data, so they may differ a little from what was saved. Change anything, then save as a new basket.<button type="button" id="fromClear">Clear</button>`; fb.hidden=false;
+  const fb=$("fromBasket"); fb.innerHTML=LOCK?`Started from “${esc(b.name)}” with its own funds and weights${hsL.length>1?` (${hsL.map((h,i)=>`${h.t} ${(LOCK.w[i]*100).toFixed(1)}%`).join(", ")})`:""}, measured with today's data. Change any setting to rebuild it from that setting instead.<button type="button" id="fromRebuild">Rebuild from settings</button><button type="button" id="fromClear">Clear</button>`
+    :`Started from “${esc(b.name)}”${b.one?" (a one-fund basket, so the builder suggests a full basket at the same settings)":""}. Funds are picked from today's data, so they may differ a little from what was saved. Change anything, then save as a new basket.<button type="button" id="fromClear">Clear</button>`; fb.hidden=false;
   dlg.close(); document.querySelector(".settings-card").scrollIntoView({behavior:"smooth",block:"start"});
 }
-document.addEventListener("click",ev=>{ if(ev.target.id==="fromClear"){ $("fromBasket").hidden=true; FROM_BASKET=null; NAME_EDITED=false; if(LAST_BUNDLE) refreshName(LAST_BUNDLE.b,effRisk()); } });
+// any change to a setting rebuilds from that setting (the amount just scales, so it keeps the saved weights)
+["riskSlider","countSlider","styleSlider","realSlider","horizonSel","needSel","overlapToggle","aimSel"].forEach(id=>{ const el=$(id); if(el){ el.addEventListener("input",unlock,true); el.addEventListener("change",unlock,true); } });
+document.addEventListener("click",ev=>{ if(ev.target.closest(".mix-reset,[data-ov],.aim-pill")) unlock(); },true);
+document.addEventListener("click",ev=>{ if(ev.target.id==="fromRebuild"){ unlock(); renderBundle(); return; } if(ev.target.id==="fromClear"){ const was=!!LOCK; LOCK=null; if(was) renderBundle(); $("fromBasket").hidden=true; FROM_BASKET=null; NAME_EDITED=false; if(LAST_BUNDLE) refreshName(LAST_BUNDLE.b,effRisk()); } });
 
 /* ---------- Wire up ---------- */
 $("saveBasket").addEventListener("click",saveBasket);
