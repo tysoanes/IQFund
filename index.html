@@ -317,6 +317,10 @@ dialog::backdrop{background:rgba(20,33,61,.45)}
 .alertbox{border:1px solid #E8B4AE;background:#FFF7F6;border-radius:8px;padding:12px 14px;margin:10px 0}
 .alertbox p{margin:0 0 8px;font-size:14px}
 .alertbox .acts{display:flex;gap:8px;flex-wrap:wrap}
+.h4row{display:flex;align-items:center;justify-content:space-between;gap:10px}.h4row h4{margin-bottom:0}
+.wedit .w-in{width:5.2em;font:inherit;text-align:right;padding:5px 6px;border:1px solid var(--line);border-radius:6px;background:var(--panel);color:var(--ink)}
+.w-total{font-weight:600;margin:8px 0}.w-total.ok{color:var(--buy)}.w-total.bad{color:var(--sell)}
+.w-acts{display:flex;flex-wrap:wrap;gap:8px;margin:4px 0 6px}.w-acts button:disabled{opacity:.45;cursor:not-allowed}
 .htable{width:100%;border-collapse:collapse;font-size:14px;margin-top:8px}
 .htable th{text-align:left;font-size:12px;color:var(--muted);font-weight:600;padding:6px 4px;border-bottom:1px solid var(--line)}
 .htable td{padding:8px 4px;border-bottom:1px solid var(--line)}
@@ -2420,7 +2424,9 @@ function trackDetail(b,s){
    was back on plan a year later. "Well behind" gets a diagnosis and only the suggestions that fit:
    rebalance, replace a lagging fund, protect a near goal, or a small hedge while stress is high.
    Nothing changes unless the user chooses it, and selling shares just because markets fell is never suggested. */
-function holdWeights(b,hs,useEntry){ const v=hs.map(h=>h.units*(useEntry?h.entry:priceNow(h))), t=v.reduce((a,c)=>a+c,0)||1; return v.map(x=>x/t); }
+function holdWeights(b,hs,useEntry){ const ver=b.versions.find(v=>v.holdings===hs);
+  if(useEntry&&ver&&Array.isArray(ver.target)&&ver.target.length===hs.length) return ver.target.slice();
+  const v=hs.map(h=>h.units*(useEntry?h.entry:priceNow(h))), t=v.reduce((a,c)=>a+c,0)||1; return v.map(x=>x/t); }
 function recoveryOdds(b,tr){
   if(!RISKDATA||!tr||!tr.plan) return null; const hs=b.versions[0].holdings, F=RISKDATA.funds;
   if(hs.some(h=>!F[h.t])) return null;
@@ -2471,11 +2477,40 @@ function basketAdvice(b,s){
     ${sug.length?`<p><b>Options that fit this basket</b> (nothing changes unless you choose it):</p><ul class="adv-list">${sug.join("")}</ul>`:`<p>No change fits better than waiting: the weights are still close to plan and no fund is lagging others like it. Falls like this are part of the risk level chosen.</p>`}
     <p class="adv-note">Not suggested: selling shares because markets fell. Over a few months that has mostly done harm in this data. General information, not personal advice.</p></div>`;
 }
-function rebalance(b){ const hs=holdingsOf(b), wT=holdWeights(b,hs,true), tot=hs.reduce((a,h)=>a+h.units*priceNow(h),0);
-  const out=hs.map((h,i)=>{ const p=priceNow(h), units=tot*wT[i]/p; return {...h,units,entry:units>h.units?(h.units*h.entry+(units-h.units)*p)/units:h.entry}; });
-  b.log.push({d:ASOF,x:"Rebalanced back to the plan weights"});
-  if(b.versions[b.versions.length-1].from===ASOF) b.versions[b.versions.length-1].holdings=out; else b.versions.push({from:ASOF,holdings:out});
+function rebalance(b){ const hs=holdingsOf(b); setWeights(b,holdWeights(b,hs,true),"Rebalanced back to the plan weights"); }
+/* Move a saved basket to new weights at today's closing prices: its value is unchanged, money just moves
+   between funds. A fund set to 0% leaves the basket. Units bought average into the price paid; units sold
+   keep it. The new weights become the basket's plan weights for rebalancing. */
+function setWeights(b,weights,logText){ const hs=holdingsOf(b), tot=hs.reduce((a,h)=>a+h.units*priceNow(h),0), sw=weights.reduce((a,c)=>a+c,0)||1;
+  const out=[], target=[];
+  hs.forEach((h,i)=>{ const w=weights[i]/sw; if(w<=1e-6) return; const p=priceNow(h), units=tot*w/p;
+    out.push({...h,units,entry:units>h.units?(h.units*h.entry+(units-h.units)*p)/units:h.entry}); target.push(w); });
+  if(!out.length) return;
+  b.log.push({d:ASOF,x:logText});
+  const last=b.versions[b.versions.length-1];
+  if(last.from===ASOF){ last.holdings=out; last.target=target; } else b.versions.push({from:ASOF,holdings:out,target});
   Store.save(); renderBaskets(); openBasket(b.id); }
+function weightEditor(b,s){ const hs=s.hs, wN=holdWeights(b,hs,false), tot=s.localNow;
+  return `<div class="wedit" id="wEdit">
+    <table class="htable"><thead><tr><th>Fund</th><th class="r">Now</th><th class="r">New weight</th><th class="r">Amount</th></tr></thead><tbody>
+    ${hs.map((h,i)=>`<tr><td><b>${h.t}</b></td><td class="r">${(wN[i]*100).toFixed(1)}%</td>
+      <td class="r"><input type="number" inputmode="decimal" min="0" max="100" step="0.1" class="w-in" data-i="${i}" value="${(wN[i]*100).toFixed(1)}" aria-label="New weight for ${h.t}, percent"></td>
+      <td class="r w-amt" data-i="${i}">${moneyIn(tot*wN[i],b.cur)}</td></tr>`).join("")}
+    </tbody></table>
+    <p class="w-total" id="wTotal" role="status"></p>
+    <div class="w-acts"><button class="ghost" type="button" id="wFix">Scale to 100%</button><button class="primary" type="button" id="wSave">Save new weights</button><button class="ghost" type="button" id="wCancel">Cancel</button></div>
+    <p class="mkt-note">Applied at today's closing prices: the basket's value stays ${moneyIn(tot,b.cur)} and money moves between funds. Set a fund to 0% to drop it. This adds a new version, so the history and chart carry on; real trades would cost dealing fees and, outside an ISA or pension, may create a tax bill.</p></div>`; }
+function wireWeightEditor(b,s){ const ins=[...document.querySelectorAll("#wEdit .w-in")], tot=s.localNow;
+  const read=()=>ins.map(x=>Math.max(0,parseFloat(x.value)||0));
+  const upd=()=>{ const v=read(), sum=v.reduce((a,c)=>a+c,0), ok=Math.abs(sum-100)<0.05&&v.some(x=>x>0);
+    ins.forEach((x,i)=>{ document.querySelector(`#wEdit .w-amt[data-i="${i}"]`).textContent=moneyIn(tot*v[i]/100,b.cur); });
+    const t=$("wTotal"); t.textContent=`Total ${sum.toFixed(1)}%${ok?"":` · ${sum>100?"over":"under"} by ${Math.abs(sum-100).toFixed(1)} points`}`; t.className="w-total "+(ok?"ok":"bad");
+    $("wSave").disabled=!ok; };
+  ins.forEach(x=>x.addEventListener("input",upd)); upd();
+  $("wFix").onclick=()=>{ const v=read(), sum=v.reduce((a,c)=>a+c,0); if(!sum) return; let r=v.map(x=>Math.round(x/sum*1000)/10); const d=Math.round((100-r.reduce((a,c)=>a+c,0))*10)/10, k=r.indexOf(Math.max(...r)); r[k]=Math.round((r[k]+d)*10)/10; ins.forEach((x,i)=>x.value=r[i].toFixed(1)); upd(); };
+  $("wCancel").onclick=()=>openBasket(b.id);
+  $("wSave").onclick=()=>{ const v=read(), hs=s.hs, dropped=hs.filter((h,i)=>v[i]<=0).map(h=>h.t);
+    setWeights(b,v.map(x=>x/100),`Weights changed: ${hs.map((h,i)=>v[i]>0?`${h.t} ${v[i].toFixed(1)}%`:null).filter(Boolean).join(", ")}${dropped.length?`; dropped ${dropped.join(", ")}`:""}`); }; }
 /* Outlook & risk for a saved basket: same engine as the builder, from today's value, funds and weights */
 function basketOutlookHTML(b,s){
   const picks=[], w=[];
@@ -2550,8 +2585,8 @@ function openBasket(id){
     if(!ok) return ""; const vals=hs.map(h=>h.units*priceNow(h)), tot=vals.reduce((a,c)=>a+c,0);
     const html=backtestHTML(ps,vals.map(v=>v/tot),s.localNow,b.cur);
     return html?`<h4>If you'd bought these funds earlier</h4><p style="font-size:13px;color:var(--muted);margin:0 0 10px">Today's value, invested at today's weights 3, 6 or 12 months ago.</p>${html}`:""; })()}
-  <h4>Holdings</h4>
-  <table class="htable"><thead><tr><th>Fund</th><th class="r">Weight</th><th class="r">Paid → now</th><th class="r">Return</th></tr></thead><tbody>${rows}</tbody></table>
+  <div class="h4row"><h4>Holdings</h4>${s.hs.length>1&&((b.base||"USD")===BASE||!LIVE)?`<button class="ghost" type="button" id="editW">Change weights</button>`:""}</div>
+  <div id="holdBox"><table class="htable"><thead><tr><th>Fund</th><th class="r">Weight</th><th class="r">Paid → now</th><th class="r">Return</th></tr></thead><tbody>${rows}</tbody></table></div>
   <h4>History</h4><ul class="log">${b.log.slice().reverse().map(l=>`<li>${fmtDate(l.d)} — ${esc(l.x)}</li>`).join("")}</ul>
   <p style="font-size:12px;color:var(--muted);margin-top:14px">Returns use closing prices and exclude dividends. Replacements are simulated at that day's closing price with no fees or tax.</p>
   <button class="ghost danger" id="delBasket" style="margin-top:8px">Delete basket</button>`;
@@ -2559,6 +2594,7 @@ function openBasket(id){
     const f=ev.target.closest("[data-fund]"); if(f){ openDetail(f.dataset.fund,`In ${b.name}`,null,()=>openBasket(b.id)); return; }
     const sw=ev.target.closest("[data-swap]"); if(sw){ swap(b,sw.dataset.swap,sw.dataset.rep||null); return; }
     if(ev.target.closest("#useSettings")){ loadBasketSettings(b); return; }
+    if(ev.target.closest("#editW")){ $("holdBox").innerHTML=weightEditor(b,s); ev.target.closest("#editW").hidden=true; wireWeightEditor(b,s); const f=document.querySelector("#wEdit .w-in"); if(f) f.focus(); return; }
     const rb=ev.target.closest("[data-rebal]"); if(rb){ if(rb.dataset.confirm){ rebalance(b); } else { rb.dataset.confirm=1; rb.textContent="Tap again to rebalance"; } return; }
     const pv=ev.target.closest("[data-preview]"); if(pv){ let o={}; try{ o=JSON.parse(pv.dataset.preview); }catch(e){} loadBasketSettings(b,o); return; }
     if(ev.target.id==="delBasket"){ if(ev.target.dataset.confirm){ BASKETS=BASKETS.filter(x=>x.id!==b.id); Store.save(); renderBaskets(); dlg.close(); }
